@@ -68,34 +68,34 @@ export class AuthService {
     };
   }
 
-  async changePassword(changePasswordDto: {
-    email: string;
-    oldPassword: string;
-    newPassword: string;
-  }) {
-    const { email, oldPassword, newPassword } = changePasswordDto;
-    const user = await this.usersModel.findOne({ email });
-    if (!user) {
-      throw new HttpException(
-        { message: 'User not found' },
-        HttpStatus.NOT_FOUND,
-      );
-    }
-    const isMatch = await bcrypt.compare(oldPassword, user.password);
-    if (!isMatch) {
-      throw new HttpException(
-        { message: 'Invalid old password' },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-    user.password = hashedPassword;
-    await user.save();
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Password changed successfully',
-      data: user,
-    };
-  }
+  // async changePassword(changePasswordDto: {
+  //   email: string;
+  //   oldPassword: string;
+  //   newPassword: string;
+  // }) {
+  //   const { email, oldPassword, newPassword } = changePasswordDto;
+  //   const user = await this.usersModel.findOne({ email });
+  //   if (!user) {
+  //     throw new HttpException(
+  //       { message: 'User not found' },
+  //       HttpStatus.NOT_FOUND,
+  //     );
+  //   }
+  //   const isMatch = await bcrypt.compare(oldPassword, user.password);
+  //   if (!isMatch) {
+  //     throw new HttpException(
+  //       { message: 'Invalid old password' },
+  //       HttpStatus.UNAUTHORIZED,
+  //     );
+  //   }
+  //   const salt = await bcrypt.genSalt();
+  //   const hashedPassword = await bcrypt.hash(newPassword, salt);
+  //   user.password = hashedPassword;
+  //   await user.save();
+  //   return {
+  //     statusCode: HttpStatus.OK,
+  //     message: 'Password changed successfully',
+  //     data: user,
+  //   };
+  // }
 }

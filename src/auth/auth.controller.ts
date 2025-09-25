@@ -1,25 +1,3 @@
-  @ApiOperation({
-    summary: 'Forgot password',
-    description: 'Send password reset instructions to user email',
-  })
-  @Post('forgot-password')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        email: { type: 'string', example: 'john.doe@example.com' },
-      },
-      required: ['email'],
-    },
-  })
-  async forgotPassword(@Body() body: { email: string }) {
-    // TODO: Thực hiện gửi email reset password hoặc trả về thông báo
-    // Ví dụ trả về thành công
-    return {
-      statusCode: 200,
-      message: `If ${body.email} exists, password reset instructions have been sent.`,
-    };
-  }
 import { Controller, Post, Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
@@ -59,8 +37,26 @@ export class AuthController {
     return this.authService.login(body.email, body.password);
   }
 
-  @Post('change-password')
-  changePassword(@Body() changePasswordDto: ChangePasswordDto) {
-    return this.authService.changePassword(changePasswordDto);
-  }
+  // @ApiOperation({
+  //   summary: 'Forgot password',
+  //   description: 'Send password reset instructions to user email',
+  // })
+  // @Post('forgot-password')
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       email: { type: 'string', example: 'john.doe@example.com' },
+  //     },
+  //     required: ['email'],
+  //   },
+  // })
+  // async forgotPassword(@Body() body: { email: string }) {
+  //   return this.authService.forgotPassword(body.email);
+  // }
+
+  // @Post('change-password')
+  // changePassword(@Body() changePasswordDto: ChangePasswordDto) {
+  //   return this.authService.changePassword(changePasswordDto);
+  // }
 }
