@@ -1,0 +1,10 @@
+import { Address } from 'nodemailer/lib/mailer';
+
+export class MailerDto {
+  from?: Address;
+  to: Address[];
+  subject: string;
+  text?: string;
+  html?: string;
+  placeholder?: Record<string, string>;
+}
