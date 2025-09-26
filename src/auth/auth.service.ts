@@ -61,10 +61,17 @@ export class AuthService {
     }
     const payload = { email: user.email, sub: user._id };
     const accessToken = await this.jwtService.signAsync(payload);
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '7d',
+    });
     return {
       statusCode: HttpStatus.OK,
       message: 'Login successful',
-      data: { accessToken: accessToken, user: user },
+      data: {
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        user: user,
+      },
     };
   }
 
