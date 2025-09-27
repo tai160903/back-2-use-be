@@ -6,10 +6,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from './mailer/mailer.module';
+import jwtConfig from './auth/config/jwt.config';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, load: [jwtConfig] }),
     MongooseModule.forRoot(process.env.DATABASE_URL || ''),
     AuthModule,
     UsersModule,
