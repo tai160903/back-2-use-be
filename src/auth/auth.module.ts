@@ -5,6 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { Users, UsersSchema } from 'src/users/schemas/users.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MailerModule } from 'src/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         signOptions: { expiresIn: '1h' },
       }),
     }),
+    MailerModule,
   ],
   controllers: [AuthController],
   providers: [AuthService],

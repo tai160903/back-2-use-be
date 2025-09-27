@@ -26,7 +26,11 @@ export class Users {
   })
   role: string;
   @Prop({ required: true, default: false })
+  isActive: boolean;
+  @Prop({ required: true, default: false })
   isBlocked: boolean;
+  @Prop()
+  verificationToken: string;
 }
 
 export const UsersSchema = SchemaFactory.createForClass(Users);
