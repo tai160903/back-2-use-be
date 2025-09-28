@@ -5,15 +5,33 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Users } from 'src/users/schemas/users.schema';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
+import { MailerService } from 'src/mailer/mailer.service';
+import { forgotPasswordTemplate } from '../mailer/templates/forgot-password.template';
+import * as crypto from 'crypto';
+import { activeAccountTemplate } from 'src/mailer/templates/active-account.template';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(Users.name) private usersModel: Model<Users>,
     private jwtService: JwtService,
+    private mailerService: MailerService,
   ) {}
 
   async register(authDto: AuthDto) {
+    if (
+      !authDto.name ||
+      !authDto.email ||
+      !authDto.password ||
+      !authDto.confirmPassword ||
+      !authDto.phone
+    ) {
+      throw new HttpException(
+        { message: 'All fields are required' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const existingUser = await this.usersModel.findOne({
       email: authDto.email,
     });
@@ -35,16 +53,33 @@ export class AuthService {
     authDto.password = hashedPassword;
     delete authDto.confirmPassword;
 
+    const verificationToken = crypto.randomBytes(16).toString('hex');
+    const activelink = `http://localhost:8000/auth/active-account?token=${verificationToken}`;
+    const html = activeAccountTemplate(authDto.name, activelink);
+    await this.mailerService.sendMail({
+      to: [{ name: authDto.name, address: authDto.email }],
+      subject: 'Account Verification',
+      html,
+    });
+
     const createdUser = new this.usersModel(authDto);
+    createdUser.verificationToken = verificationToken;
     await createdUser.save();
     return {
       statusCode: HttpStatus.CREATED,
-      message: 'User registered successfully',
+      message:
+        'User registered successfully, check your email for verification',
       data: createdUser,
     };
   }
 
   async login(email: string, password: string) {
+    if (!email || !password) {
+      throw new HttpException(
+        { message: 'Email and password are required' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const user = await this.usersModel.findOne({ email });
     if (!user) {
       throw new HttpException(
@@ -59,7 +94,7 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
-    const payload = { email: user.email, sub: user._id };
+    const payload = { _id: user._id, role: user.role };
     const accessToken = await this.jwtService.signAsync(payload);
     const refreshToken = await this.jwtService.signAsync(payload, {
       expiresIn: '7d',
@@ -75,34 +110,84 @@ export class AuthService {
     };
   }
 
-  // async changePassword(changePasswordDto: {
-  //   email: string;
-  //   oldPassword: string;
-  //   newPassword: string;
-  // }) {
-  //   const { email, oldPassword, newPassword } = changePasswordDto;
-  //   const user = await this.usersModel.findOne({ email });
-  //   if (!user) {
-  //     throw new HttpException(
-  //       { message: 'User not found' },
-  //       HttpStatus.NOT_FOUND,
-  //     );
-  //   }
-  //   const isMatch = await bcrypt.compare(oldPassword, user.password);
-  //   if (!isMatch) {
-  //     throw new HttpException(
-  //       { message: 'Invalid old password' },
-  //       HttpStatus.UNAUTHORIZED,
-  //     );
-  //   }
-  //   const salt = await bcrypt.genSalt();
-  //   const hashedPassword = await bcrypt.hash(newPassword, salt);
-  //   user.password = hashedPassword;
-  //   await user.save();
-  //   return {
-  //     statusCode: HttpStatus.OK,
-  //     message: 'Password changed successfully',
-  //     data: user,
-  //   };
-  // }
+  async sendMailForgotPassword(email: string) {
+    const user = await this.usersModel.findOne({ email });
+    if (!user) {
+      throw new HttpException(
+        { message: 'User not found' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const token = crypto.randomBytes(16).toString('hex');
+    const resetLink = `http://localhost:8000/auth/reset-password?token=${token}`;
+
+    const html = forgotPasswordTemplate(user.name, resetLink);
+    await this.mailerService.sendMail({
+      to: [{ name: user.name, address: user.email }],
+      subject: 'Password Reset',
+      html,
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Password reset instructions sent to email',
+    };
+  }
+
+  async activeAccount(token: string) {
+    const user = await this.usersModel.findOne({ verificationToken: token });
+    if (!user) {
+      throw new HttpException(
+        { message: 'Invalid token' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    user.isActive = true;
+    user.verificationToken = '';
+    await user.save();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Account activated successfully',
+    };
+  }
+
+  async changePassword(changePasswordDto: ChangePasswordDto, userPayload: any) {
+    const user = await this.usersModel.findOne({ _id: userPayload._id });
+    if (!user) {
+      throw new HttpException(
+        { message: 'User not found' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+    if (
+      changePasswordDto.newPassword !== changePasswordDto.confirmNewPassword
+    ) {
+      throw new HttpException(
+        { message: 'New passwords do not match' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const isMatch = await bcrypt.compare(
+      changePasswordDto.oldPassword,
+      user.password,
+    );
+    if (!isMatch) {
+      throw new HttpException(
+        { message: 'Invalid old password' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(
+      changePasswordDto.newPassword,
+      salt,
+    );
+    user.password = hashedPassword;
+    await user.save();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Password changed successfully',
+      data: user,
+    };
+  }
 }
