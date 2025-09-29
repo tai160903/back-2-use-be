@@ -23,7 +23,6 @@ import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
-
   //Register
   @ApiOperation({
     summary: 'Register a new user',
@@ -70,7 +69,23 @@ export class AuthController {
     return this.authService.activeAccount(token);
   }
 
-  // Forgot password
+  //Forgot password
+  @ApiOperation({
+    summary: 'Forgot password',
+    description: 'Send password reset instructions to user email',
+  })
+  @Post('forgot-password')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', example: 'john.doe@example.com' },
+      },
+      required: ['email'],
+    },
+  })
+
+  // sendMailForgotPassword
   @ApiOperation({
     summary: 'Send forgot password email',
     description: 'Send an email to the user with password reset instructions',
