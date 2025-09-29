@@ -84,21 +84,6 @@ export class AuthController {
       required: ['email'],
     },
   })
-
-  // sendMailForgotPassword
-  @ApiOperation({
-    summary: 'Send forgot password email',
-    description: 'Send an email to the user with password reset instructions',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        email: { type: 'string', example: 'john.doe@example.com' },
-      },
-      required: ['email'],
-    },
-  })
   @Post('forgot-password')
   async sendMailForgotPassword(@Body() body: { email: string }) {
     return this.authService.sendMailForgotPassword(body.email);
