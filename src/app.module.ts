@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailerModule } from './mailer/mailer.module';
 import jwtConfig from './auth/config/jwt.config';
+import { MaterialModule } from './materials/material.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import jwtConfig from './auth/config/jwt.config';
     AuthModule,
     UsersModule,
     MailerModule,
+    MaterialModule,
   ],
   controllers: [AppController],
   providers: [AppService],
