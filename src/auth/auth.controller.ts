@@ -117,29 +117,28 @@ export class AuthController {
     summary: 'Reset password after forgot password',
     description: 'Reset user password using the provided token',
   })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    description: 'Password reset token sent to user email',
-    example: 'your-reset-token',
-  })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
+        token: { type: 'string', example: 'your-reset-token' },
         newPassword: { type: 'string', example: 'newPassword123' },
         confirmNewPassword: { type: 'string', example: 'newPassword123' },
       },
-      required: ['newPassword', 'confirmNewPassword'],
+      required: ['token', 'newPassword', 'confirmNewPassword'],
     },
   })
   @Post('reset-password')
   async resetPassword(
-    @Query('token') token: string,
-    @Body() body: { newPassword: string; confirmNewPassword: string },
+    @Body()
+    body: {
+      token: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    },
   ) {
     return this.authService.resetPassword(
-      token,
+      body.token,
       body.newPassword,
       body.confirmNewPassword,
     );

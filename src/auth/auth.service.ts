@@ -57,7 +57,7 @@ export class AuthService {
     delete authDto.confirmPassword;
 
     const verificationToken = crypto.randomBytes(16).toString('hex');
-    const activelink = `http://localhost:8000/auth/active-account?token=${verificationToken}`;
+    const activelink = `http://localhost:5173/active-account?token=${verificationToken}`;
     const html = activeAccountTemplate(authDto.name, activelink);
     await this.mailerService.sendMail({
       to: [{ name: authDto.name, address: authDto.email }],
@@ -149,12 +149,10 @@ export class AuthService {
         HttpStatus.NOT_FOUND,
       );
     }
-
     const token = crypto.randomBytes(16).toString('hex');
     user.resetToken = token;
     await user.save();
-    const resetLink = `http://localhost:8000/auth/reset-password?token=${token}`;
-
+    const resetLink = `http://localhost:5173/auth/reset-password?token=${token}`;
     const html = forgotPasswordTemplate(user.name, resetLink);
     await this.mailerService.sendMail({
       to: [{ name: user.name, address: user.email }],
