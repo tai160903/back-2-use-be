@@ -10,6 +10,7 @@ import { forgotPasswordTemplate } from '../mailer/templates/forgot-password.temp
 import * as crypto from 'crypto';
 import { activeAccountTemplate } from 'src/mailer/templates/active-account.template';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -17,8 +18,10 @@ export class AuthService {
     @InjectModel(Users.name) private usersModel: Model<Users>,
     private jwtService: JwtService,
     private mailerService: MailerService,
+    private configService: ConfigService,
   ) {}
 
+  // Register
   async register(authDto: AuthDto) {
     if (
       !authDto.name ||
@@ -73,6 +76,7 @@ export class AuthService {
     };
   }
 
+  // Login
   async login(email: string, password: string) {
     if (!email || !password) {
       throw new HttpException(
@@ -95,9 +99,17 @@ export class AuthService {
       );
     }
     const payload = { _id: user._id, role: user.role };
-    const accessToken = await this.jwtService.signAsync(payload);
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('jwt.accessToken.secret'),
+      expiresIn: this.configService.get(
+        'jwt.accessToken.signOptions.expiresIn',
+      ),
+    });
     const refreshToken = await this.jwtService.signAsync(payload, {
-      expiresIn: '7d',
+      secret: this.configService.get('jwt.refreshToken.secret'),
+      expiresIn: this.configService.get(
+        'jwt.refreshToken.signOptions.expiresIn',
+      ),
     });
     return {
       statusCode: HttpStatus.OK,
@@ -110,30 +122,7 @@ export class AuthService {
     };
   }
 
-  async sendMailForgotPassword(email: string) {
-    const user = await this.usersModel.findOne({ email });
-    if (!user) {
-      throw new HttpException(
-        { message: 'User not found' },
-        HttpStatus.NOT_FOUND,
-      );
-    }
-
-    const token = crypto.randomBytes(16).toString('hex');
-    const resetLink = `http://localhost:8000/auth/reset-password?token=${token}`;
-
-    const html = forgotPasswordTemplate(user.name, resetLink);
-    await this.mailerService.sendMail({
-      to: [{ name: user.name, address: user.email }],
-      subject: 'Password Reset',
-      html,
-    });
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Password reset instructions sent to email',
-    };
-  }
-
+  // Active account
   async activeAccount(token: string) {
     const user = await this.usersModel.findOne({ verificationToken: token });
     if (!user) {
@@ -151,6 +140,34 @@ export class AuthService {
     };
   }
 
+  // Forgot password
+  async sendMailForgotPassword(email: string) {
+    const user = await this.usersModel.findOne({ email });
+    if (!user) {
+      throw new HttpException(
+        { message: 'User not found' },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const token = crypto.randomBytes(16).toString('hex');
+    user.resetToken = token;
+    await user.save();
+    const resetLink = `http://localhost:8000/auth/reset-password?token=${token}`;
+
+    const html = forgotPasswordTemplate(user.name, resetLink);
+    await this.mailerService.sendMail({
+      to: [{ name: user.name, address: user.email }],
+      subject: 'Password Reset',
+      html,
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Password reset instructions sent to email',
+    };
+  }
+
+  // Change password
   async changePassword(changePasswordDto: ChangePasswordDto, userPayload: any) {
     const user = await this.usersModel.findOne({ _id: userPayload._id });
     if (!user) {
@@ -189,5 +206,79 @@ export class AuthService {
       message: 'Password changed successfully',
       data: user,
     };
+  }
+
+  // Reset password
+  async resetPassword(
+    token: string,
+    newPassword: string,
+    confirmNewPassword: string,
+  ) {
+    const user = await this.usersModel.findOne({ resetToken: token });
+    if (!user) {
+      throw new HttpException(
+        { message: 'Invalid token' },
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
+    if (newPassword !== confirmNewPassword) {
+      throw new HttpException(
+        { message: 'Passwords do not match' },
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    user.resetToken = '';
+    await user.save();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Password reset successfully',
+      data: user,
+    };
+  }
+
+  // Google OAuth2 login
+  async googleLogin(req: any) {
+    try {
+      if (!req.user) {
+        return 'No user from google';
+      }
+
+      const user = await this.usersModel.findOne({ email: req.user.email });
+      if (!user) {
+        const newUser = new this.usersModel({
+          name: `${req.user.firstName} ${req.user.lastName}`,
+          email: req.user.email,
+          avatar: req.user.picture,
+          phone: '',
+          isActive: true,
+          password: crypto.randomBytes(16).toString('hex'),
+        });
+        await newUser.save();
+        req.user = newUser;
+      } else {
+        req.user = user;
+      }
+
+      const payload = { _id: req.user._id, role: req.user.role };
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Login successful',
+        data: {
+          accessToken: req.user.accessToken,
+          refreshToken: req.user.refreshToken,
+          user: req.user,
+        },
+      };
+    } catch (error) {
+      console.error(error.message);
+      throw new HttpException(
+        { message: 'Something went wrong' },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

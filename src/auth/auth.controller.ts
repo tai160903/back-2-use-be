@@ -17,7 +17,8 @@ import {
 } from '@nestjs/swagger';
 import { AuthDto } from './dto/auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { AuthGuard } from './auth.guard';
+import { AuthGuard } from './guards/auth.guard';
+import { GoogleOAuthGuard } from './guards/google-oauth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -83,40 +84,9 @@ export class AuthController {
       required: ['email'],
     },
   })
-
-  // sendMailForgotPassword
-  @ApiOperation({
-    summary: 'Send forgot password email',
-    description: 'Send an email to the user with password reset instructions',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        email: { type: 'string', example: 'john.doe@example.com' },
-      },
-      required: ['email'],
-    },
-  })
-  @Post('send-forgot-password-email')
+  @Post('forgot-password')
   async sendMailForgotPassword(@Body() body: { email: string }) {
     return this.authService.sendMailForgotPassword(body.email);
-  }
-
-  //Reset password
-  @ApiOperation({
-    summary: 'Reset password',
-    description: 'Reset user password using the provided token',
-  })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    description: 'Password reset token sent to user email',
-    example: 'your-reset-token',
-  })
-  @Get('reset-password')
-  resetPassword(@Query('token') token: string) {
-    return { message: 'Reset password page', token };
   }
 
   //Change password
@@ -141,4 +111,75 @@ export class AuthController {
   changePassword(@Body() changePasswordDto: ChangePasswordDto, @Request() req) {
     return this.authService.changePassword(changePasswordDto, req.user);
   }
+
+  //Reset password
+  @ApiOperation({
+    summary: 'Reset password after forgot password',
+    description: 'Reset user password using the provided token',
+  })
+  @ApiQuery({
+    name: 'token',
+    required: true,
+    description: 'Password reset token sent to user email',
+    example: 'your-reset-token',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        newPassword: { type: 'string', example: 'newPassword123' },
+        confirmNewPassword: { type: 'string', example: 'newPassword123' },
+      },
+      required: ['newPassword', 'confirmNewPassword'],
+    },
+  })
+  @Post('reset-password')
+  async resetPassword(
+    @Query('token') token: string,
+    @Body() body: { newPassword: string; confirmNewPassword: string },
+  ) {
+    return this.authService.resetPassword(
+      token,
+      body.newPassword,
+      body.confirmNewPassword,
+    );
+  }
+
+  @ApiOperation({
+    summary: 'Google OAuth login (web)',
+    description: 'Redirects to Google for OAuth login (web client)',
+  })
+  @Get('google')
+  @UseGuards(GoogleOAuthGuard)
+  googleAuth(@Request() req) {
+    return;
+  }
+
+  @ApiOperation({
+    summary: 'Google OAuth redirect (web)',
+    description: 'Google redirects here after login (web client)',
+  })
+  @Get('google-redirect')
+  @UseGuards(GoogleOAuthGuard)
+  googleAuthRedirect(@Request() req) {
+    return this.authService.googleLogin(req);
+  }
+
+  // @ApiOperation({
+  //   summary: 'Google OAuth login (mobile)',
+  //   description: 'Login with Google id_token from mobile app',
+  // })
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       id_token: { type: 'string', example: 'ya29.a0AfH6SM...' },
+  //     },
+  //     required: ['id_token'],
+  //   },
+  // })
+  // @Post('google-mobile')
+  // async googleMobileLogin(@Body('id_token') idToken: string) {
+  //   return this.authService.googleMobileLogin(idToken);
+  // }
 }

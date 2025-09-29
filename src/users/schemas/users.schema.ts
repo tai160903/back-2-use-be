@@ -31,6 +31,8 @@ export class Users {
   isBlocked: boolean;
   @Prop()
   verificationToken: string;
+  @Prop()
+  resetToken: string;
 }
 
 export const UsersSchema = SchemaFactory.createForClass(Users);
