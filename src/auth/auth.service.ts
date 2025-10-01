@@ -261,13 +261,25 @@ export class AuthService {
       }
 
       const payload = { _id: req.user._id, role: req.user.role };
+      const accessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get('jwt.accessToken.secret'),
+        expiresIn: this.configService.get(
+          'jwt.accessToken.signOptions.expiresIn',
+        ),
+      });
+      const refreshToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get('jwt.refreshToken.secret'),
+        expiresIn: this.configService.get(
+          'jwt.refreshToken.signOptions.expiresIn',
+        ),
+      });
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Login successful',
         data: {
-          accessToken: req.user.accessToken,
-          refreshToken: req.user.refreshToken,
+          accessToken,
+          refreshToken,
           user: req.user,
         },
       };

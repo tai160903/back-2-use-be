@@ -6,6 +6,7 @@ import {
   Query,
   UseGuards,
   Request,
+  Response,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
@@ -160,25 +161,22 @@ export class AuthController {
   })
   @Get('google-redirect')
   @UseGuards(GoogleOAuthGuard)
-  googleAuthRedirect(@Request() req) {
-    return this.authService.googleLogin(req);
+  googleAuthRedirect(@Request() req, @Response() res) {
+    this.authService
+      .googleLogin(req)
+      .then((result) => {
+        let redirectUrl = 'http://localhost:5173/';
+        if (
+          typeof result === 'object' &&
+          result.data &&
+          result.data.accessToken
+        ) {
+          redirectUrl = `http://localhost:5173/?token=${result.data.accessToken}`;
+        }
+        res.redirect(redirectUrl);
+      })
+      .catch(() => {
+        res.redirect('http://localhost:5173/');
+      });
   }
-
-  // @ApiOperation({
-  //   summary: 'Google OAuth login (mobile)',
-  //   description: 'Login with Google id_token from mobile app',
-  // })
-  // @ApiBody({
-  //   schema: {
-  //     type: 'object',
-  //     properties: {
-  //       id_token: { type: 'string', example: 'ya29.a0AfH6SM...' },
-  //     },
-  //     required: ['id_token'],
-  //   },
-  // })
-  // @Post('google-mobile')
-  // async googleMobileLogin(@Body('id_token') idToken: string) {
-  //   return this.authService.googleMobileLogin(idToken);
-  // }
 }
