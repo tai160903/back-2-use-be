@@ -1,7 +1,18 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+
+import { AdminService } from './admin.service';
+import { AdminController } from './admin.controller';
+
+import { BusinessesModule } from 'src/businesses/businesses.module';
+import { MailerModule } from 'src/mailer/mailer.module';
+import {
+  BusinessForm,
+  BusinessFormSchema,
+} from 'src/businesses/schemas/business-form.schema';
+
 import { AdminMaterialController } from './controllers/admin-material.controller';
 import { AdminMaterialService } from './services/admin-material.service';
-import { MongooseModule } from '@nestjs/mongoose';
 import {
   Material,
   MaterialSchema,
@@ -10,10 +21,13 @@ import {
 @Module({
   imports: [
     MongooseModule.forFeature([
+      { name: BusinessForm.name, schema: BusinessFormSchema },
       { name: Material.name, schema: MaterialSchema },
     ]),
+    BusinessesModule,
+    MailerModule,
   ],
-  controllers: [AdminMaterialController],
-  providers: [AdminMaterialService],
+  controllers: [AdminController, AdminMaterialController],
+  providers: [AdminService, AdminMaterialService],
 })
 export class AdminModule {}

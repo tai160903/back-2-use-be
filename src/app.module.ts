@@ -8,6 +8,9 @@ import { AuthModule } from './auth/auth.module';
 import { MailerModule } from './mailer/mailer.module';
 import jwtConfig from './auth/config/jwt.config';
 import { MaterialModule } from './materials/material.module';
+import { BusinessesModule } from './businesses/businesses.module';
+import { WalletsModule } from './wallets/wallets.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { AdminModule } from './admin/admin.module';
 
 @Module({
@@ -17,7 +20,10 @@ import { AdminModule } from './admin/admin.module';
     AuthModule,
     UsersModule,
     MailerModule,
-    // MaterialModule,
+    MaterialModule,
+    BusinessesModule,
+    WalletsModule,
+    CloudinaryModule,
     AdminModule,
   ],
   controllers: [AppController],

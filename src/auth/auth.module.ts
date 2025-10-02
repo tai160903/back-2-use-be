@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from 'src/mailer/mailer.module';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { WalletsModule } from 'src/wallets/wallets.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
       }),
     }),
     MailerModule,
+    WalletsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, GoogleStrategy],

@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { activeAccountTemplate } from 'src/mailer/templates/active-account.template';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfigService } from '@nestjs/config';
+import { WalletsService } from 'src/wallets/wallets.service';
 
 @Injectable()
 export class AuthService {
@@ -19,6 +20,7 @@ export class AuthService {
     private jwtService: JwtService,
     private mailerService: MailerService,
     private configService: ConfigService,
+    private walletsService: WalletsService,
   ) {}
 
   // Register
@@ -134,6 +136,10 @@ export class AuthService {
     user.isActive = true;
     user.verificationToken = '';
     await user.save();
+    await this.walletsService.create({
+      userId: user._id.toString(),
+      balance: 0,
+    });
     return {
       statusCode: HttpStatus.OK,
       message: 'Account activated successfully',
@@ -255,6 +261,10 @@ export class AuthService {
           password: crypto.randomBytes(16).toString('hex'),
         });
         await newUser.save();
+        await this.walletsService.create({
+          userId: newUser._id.toString(),
+          balance: 0,
+        });
         req.user = newUser;
       } else {
         req.user = user;

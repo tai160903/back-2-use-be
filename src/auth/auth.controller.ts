@@ -6,7 +6,8 @@ import {
   Query,
   UseGuards,
   Request,
-  Response,
+  Redirect,
+  UseFilters,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
@@ -20,8 +21,10 @@ import { AuthDto } from './dto/auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthGuard } from './guards/auth.guard';
 import { GoogleOAuthGuard } from './guards/google-oauth.guard';
+import { HttpExceptionFilter } from 'src/common/http-exception.filter';
 
 @Controller('auth')
+@UseFilters(HttpExceptionFilter)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
   //Register
@@ -151,7 +154,7 @@ export class AuthController {
   })
   @Get('google')
   @UseGuards(GoogleOAuthGuard)
-  googleAuth(@Request() req) {
+  googleAuth() {
     return;
   }
 
@@ -161,22 +164,24 @@ export class AuthController {
   })
   @Get('google-redirect')
   @UseGuards(GoogleOAuthGuard)
-  googleAuthRedirect(@Request() req, @Response() res) {
-    this.authService
-      .googleLogin(req)
-      .then((result) => {
-        let redirectUrl = 'http://localhost:5173/';
-        if (
-          typeof result === 'object' &&
-          result.data &&
-          result.data.accessToken
-        ) {
-          redirectUrl = `http://localhost:5173/?token=${result.data.accessToken}`;
-        }
-        res.redirect(redirectUrl);
-      })
-      .catch(() => {
-        res.redirect('http://localhost:5173/');
-      });
+  @Redirect('http://localhost:5173/auth/googleCallback', 302)
+  async googleAuthRedirect(@Request() req) {
+    try {
+      const result = await this.authService.googleLogin(req);
+      if (
+        typeof result === 'object' &&
+        result.data &&
+        result.data.accessToken
+      ) {
+        return {
+          url: `http://localhost:5173/auth/googleCallback?token=${result.data.accessToken}`,
+        };
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error);
+    }
+    return {
+      url: 'http://localhost:5173/',
+    };
   }
 }
