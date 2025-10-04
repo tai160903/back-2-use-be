@@ -25,12 +25,4 @@ export class CreateBusinessFormDto {
   @IsString()
   @IsNotEmpty()
   taxCode: string;
-
-  @IsUrl()
-  @IsNotEmpty()
-  foodLicenseUrl: string;
-
-  @IsUrl()
-  @IsNotEmpty()
-  businessLicenseUrl: string;
 }

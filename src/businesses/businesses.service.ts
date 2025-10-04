@@ -18,7 +18,6 @@ export class BusinessesService {
   ) {}
   async createForm(dto: CreateBusinessFormDto): Promise<APIResponseDto> {
     try {
-      console.log('dto', dto);
       const business = new this.businessFormModel({
         ...dto,
         status: 'pending',
@@ -41,12 +40,15 @@ export class BusinessesService {
   async getAllForms(
     page = 1,
     limit = 10,
+    status?: string,
   ): Promise<APIPaginatedResponseDto<BusinessForm[]>> {
     try {
       const skip = (page - 1) * limit;
+      const query: any = {};
+      if (status) query.status = status;
       const [forms, total] = await Promise.all([
-        this.businessFormModel.find().skip(skip).limit(limit),
-        this.businessFormModel.countDocuments(),
+        this.businessFormModel.find(query).skip(skip).limit(limit),
+        this.businessFormModel.countDocuments(query),
       ]);
       return {
         statusCode: 200,

@@ -262,7 +262,6 @@ export class AuthService {
     changePasswordDto: ChangePasswordDto,
     userPayload: { _id: string; role: string },
   ): Promise<APIResponseDto> {
-    console.log(userPayload);
     const user = await this.usersModel.findOne({ _id: userPayload._id });
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);

@@ -1,24 +1,28 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { v2 as Cloudinary } from 'cloudinary';
-import { UploadApiErrorResponse, UploadApiResponse } from 'cloudinary';
+// cloudinary.service.ts
+
+import { Injectable } from '@nestjs/common';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryResponse } from './cloudinary-response';
+const streamifier = require('streamifier');
 
 @Injectable()
 export class CloudinaryService {
-  constructor(@Inject('CLOUDINARY') private cloudinary: typeof Cloudinary) {}
-
-  async uploadFile(file: Express.Multer.File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const uploadStream = this.cloudinary.uploader.upload_stream(
-        { resource_type: 'image' },
-        (error: UploadApiErrorResponse, result: UploadApiResponse) => {
+  uploadFile(
+    file: Express.Multer.File,
+    folder: string,
+  ): Promise<CloudinaryResponse> {
+    return new Promise<CloudinaryResponse>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder },
+        (error, result) => {
           if (error) return reject(error);
           if (!result)
-            return reject(new Error('Upload failed, no result returned'));
-          resolve(result.secure_url);
+            return reject(new Error('No result returned from Cloudinary'));
+          resolve(result);
         },
       );
 
-      uploadStream.end(file.buffer);
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
 }
