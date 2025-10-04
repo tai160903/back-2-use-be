@@ -23,12 +23,11 @@ export class AdminMaterialService {
   // Admin create material
   async adminCreate(
     createMaterialDto: CreateMaterialDto,
+    userPayload: { _id: string; role: string },
   ): Promise<APIResponseDto<Material>> {
-    const existingMaterial = await this.materialModel
-      .findOne({
-        materialName: createMaterialDto.materialName,
-      })
-      .exec();
+    const existingMaterial = await this.materialModel.findOne({
+      materialName: createMaterialDto.materialName,
+    });
 
     if (existingMaterial) {
       throw new BadRequestException(
@@ -39,7 +38,9 @@ export class AdminMaterialService {
     const newMaterial = new this.materialModel({
       ...createMaterialDto,
       status: MaterialStatus.APPROVED,
+      createdBy: userPayload._id,
     });
+
     const savedMaterial = await newMaterial.save();
 
     return {

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 
 export type MaterialDocument = HydratedDocument<Material>;
 
@@ -19,6 +19,9 @@ export class Material {
 
   @Prop({ type: String, enum: MaterialStatus, default: MaterialStatus.PENDING })
   status: MaterialStatus;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true })
+  createdBy: Types.ObjectId;
 }
 
 export const MaterialSchema = SchemaFactory.createForClass(Material);
