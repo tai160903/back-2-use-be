@@ -11,7 +11,7 @@ export class Users {
   password: string;
   @Prop({ required: true })
   name: string;
-  @Prop({ required: true })
+  @Prop()
   phone: string;
   @Prop()
   avatar: string;
@@ -30,9 +30,9 @@ export class Users {
   @Prop({ required: true, default: false })
   isBlocked: boolean;
   @Prop()
-  verificationToken: string;
+  otpCode: string;
   @Prop()
-  resetToken: string;
+  otpExpires: Date;
 }
 
 export const UsersSchema = SchemaFactory.createForClass(Users);

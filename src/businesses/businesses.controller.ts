@@ -3,7 +3,10 @@ import { BusinessesService } from './businesses.service';
 import { HttpExceptionFilter } from '../common/http-exception.filter';
 
 import { UseInterceptors, UploadedFiles } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { CreateBusinessFormDto } from './dto/create-business-form.dto';
 import { ApiOperation, ApiBody, ApiTags, ApiConsumes } from '@nestjs/swagger';
 // import { CreateBusinessDto } from './dto/create-business.dto';
@@ -18,6 +21,36 @@ export class BusinessesController {
     private readonly businessesService: BusinessesService,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
+  @ApiOperation({ summary: 'Get all business forms (paginated)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        page: { type: 'number', example: 1 },
+        limit: { type: 'number', example: 10 },
+      },
+      required: [],
+    },
+  })
+  @Post('form/all')
+  async getAllForms(@Body() body: { page?: number; limit?: number }) {
+    return this.businessesService.getAllForms(body.page ?? 1, body.limit ?? 10);
+  }
+
+  @ApiOperation({ summary: 'Get business form detail by id' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', example: '652f1a...' },
+      },
+      required: ['id'],
+    },
+  })
+  @Post('form/detail')
+  async getFormDetail(@Body() body: { id: string }) {
+    return this.businessesService.getFormDetail(body.id);
+  }
 
   @Post('form')
   @ApiOperation({ summary: 'Register Business' })
@@ -45,19 +78,45 @@ export class BusinessesController {
       ],
     },
   })
-  @UseInterceptors(FilesInterceptor('files', 2))
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'foodLicenseFile', maxCount: 1 },
+      { name: 'businessLicenseFile', maxCount: 1 },
+    ]),
+  )
   async createBusinessForm(
     @Body() dto: CreateBusinessFormDto,
-    @UploadedFiles() files: Express.Multer.File[],
+    @UploadedFiles()
+    files: {
+      foodLicenseFile?: Express.Multer.File[];
+      businessLicenseFile?: Express.Multer.File[];
+    },
   ) {
-    const foodLicenseUrl = files[0]
-      ? await this.cloudinaryService.uploadFile(files[0])
-      : null;
-    const businessLicenseUrl = files[1]
-      ? await this.cloudinaryService.uploadFile(files[1])
-      : null;
-    dto.foodLicenseUrl = foodLicenseUrl ?? '';
-    dto.businessLicenseUrl = businessLicenseUrl ?? '';
+    console.log(dto);
+    console.log(files);
+    let foodLicenseUrl = '';
+    let businessLicenseUrl = '';
+    if (files && files.foodLicenseFile && files.foodLicenseFile.length > 0) {
+      if (files.foodLicenseFile[0]) {
+        foodLicenseUrl = await this.cloudinaryService.uploadFile(
+          files.foodLicenseFile[0],
+        );
+      }
+    }
+    if (
+      files &&
+      files.businessLicenseFile &&
+      files.businessLicenseFile.length > 0
+    ) {
+      if (files.businessLicenseFile[0]) {
+        businessLicenseUrl = await this.cloudinaryService.uploadFile(
+          files.businessLicenseFile[0],
+        );
+      }
+    }
+    dto.foodLicenseUrl = foodLicenseUrl;
+    dto.businessLicenseUrl = businessLicenseUrl;
+    console.log(dto);
     return this.businessesService.createForm(dto);
   }
 

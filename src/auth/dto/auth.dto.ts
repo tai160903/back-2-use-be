@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEmail,
   IsString,
-  IsOptional,
+  // IsOptional,
   MinLength,
   MaxLength,
 } from 'class-validator';
@@ -25,18 +25,4 @@ export class AuthDto {
   @ApiProperty({ required: true, example: 'password123' })
   @IsString()
   confirmPassword?: string;
-
-  @ApiProperty({ required: true, example: '1234567890' })
-  @IsString()
-  phone: string;
-
-  @ApiProperty({ required: false, example: '123 Main St, City, Country' })
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @ApiProperty({ required: false, example: '1990-01-01' })
-  @IsOptional()
-  @IsString()
-  yob?: Date;
 }
