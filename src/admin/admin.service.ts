@@ -31,7 +31,7 @@ export class AdminService {
     await businessForm.save();
 
     await this.mailerService.sendMail({
-      to: [{ address: businessForm.email, name: businessForm.storeName }],
+      to: [{ address: businessForm.storeMail, name: businessForm.storeName }],
       subject: 'Business Approved',
       html: businessApprovedTemplate(businessForm.storeName),
     });
@@ -55,7 +55,7 @@ export class AdminService {
     await businessForm.save();
 
     await this.mailerService.sendMail({
-      to: [{ address: businessForm.email, name: businessForm.storeName }],
+      to: [{ address: businessForm.storeMail, name: businessForm.storeName }],
       subject: 'Business Rejected',
       html: businessRejectedTemplate(businessForm.storeName, note),
     });

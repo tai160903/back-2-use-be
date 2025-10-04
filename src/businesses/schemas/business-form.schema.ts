@@ -26,9 +26,6 @@ export class BusinessForm {
   @Prop({ required: true })
   businessLicenseUrl: string;
 
-  @Prop({ required: true })
-  email: string;
-
   @Prop({ enum: ['pending', 'approved', 'rejected'], default: 'pending' })
   status: string;
 
