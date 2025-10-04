@@ -7,17 +7,23 @@ import {
   Post,
   Put,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { AdminMaterialService } from '../services/admin-material.service';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateMaterialDto } from 'src/modules/materials/dto/create-material.dto';
 import { Material } from 'src/modules/materials/schemas/material.schema';
 import { GetMaterialsQueryDto } from 'src/modules/materials/dto/get-materials-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { UpdateMaterialDto } from 'src/modules/materials/dto/update-material.dto';
+import { AuthGuard } from 'src/common/guards/auth.guard';
+import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 
 @ApiTags('Material (Admin)')
+@UseGuards(AuthGuard)
+@ApiBearerAuth('access-token')
 @Controller('admin/materials')
 export class AdminMaterialController {
   constructor(private readonly materialService: AdminMaterialService) {}
@@ -26,8 +32,9 @@ export class AdminMaterialController {
   @Post()
   async create(
     @Body() createMaterialDto: CreateMaterialDto,
-  ): Promise<APIResponseDto<Material>> {
-    return this.materialService.adminCreate(createMaterialDto);
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.materialService.adminCreate(createMaterialDto, req.user);
   }
 
   // GET /admin/materials
