@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { APIResponseDto } from 'src/common/api-response.dto';
 import * as bcrypt from 'bcrypt';
 import { AuthDto } from './dto/auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -6,12 +7,13 @@ import { Users } from 'src/users/schemas/users.schema';
 import { Model } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from 'src/mailer/mailer.service';
-import { forgotPasswordTemplate } from '../mailer/templates/forgot-password.template';
 import * as crypto from 'crypto';
-import { activeAccountTemplate } from 'src/mailer/templates/active-account.template';
+import { otpEmailTemplate } from 'src/mailer/templates/otp-email.template';
+import { MailerDto } from 'src/mailer/dto/mailer.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfigService } from '@nestjs/config';
 import { WalletsService } from 'src/wallets/wallets.service';
+import { otpForgotPasswordTemplate } from 'src/mailer/templates/otp-forgot-password.template';
 
 @Injectable()
 export class AuthService {
@@ -24,16 +26,15 @@ export class AuthService {
   ) {}
 
   // Register
-  async register(authDto: AuthDto) {
+  async register(authDto: AuthDto): Promise<APIResponseDto> {
     if (
       !authDto.name ||
       !authDto.email ||
       !authDto.password ||
-      !authDto.confirmPassword ||
-      !authDto.phone
+      !authDto.confirmPassword
     ) {
       throw new HttpException(
-        { message: 'All fields are required' },
+        'All fields are required',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -41,16 +42,10 @@ export class AuthService {
       email: authDto.email,
     });
     if (existingUser) {
-      throw new HttpException(
-        { message: 'Email already exists' },
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
     }
     if (authDto.password !== authDto.confirmPassword) {
-      throw new HttpException(
-        { message: 'Passwords do not match' },
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Passwords do not match', HttpStatus.BAD_REQUEST);
     }
 
     const salt = await bcrypt.genSalt();
@@ -58,45 +53,58 @@ export class AuthService {
     authDto.password = hashedPassword;
     delete authDto.confirmPassword;
 
-    const verificationToken = crypto.randomBytes(16).toString('hex');
-    const activelink = `http://localhost:5173/active-account?token=${verificationToken}`;
-    const html = activeAccountTemplate(authDto.name, activelink);
-    await this.mailerService.sendMail({
+    const otpCode = (
+      (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
+      100000
+    ).toString();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+    const html = otpEmailTemplate(authDto.name, otpCode);
+    const mailer: MailerDto = {
       to: [{ name: authDto.name, address: authDto.email }],
-      subject: 'Account Verification',
+      subject: 'Account Verification OTP',
       html,
-    });
+    };
+    await this.mailerService.sendMail(mailer);
 
     const createdUser = new this.usersModel(authDto);
-    createdUser.verificationToken = verificationToken;
+    createdUser.otpCode = otpCode;
+    createdUser.otpExpires = otpExpires;
     await createdUser.save();
     return {
       statusCode: HttpStatus.CREATED,
-      message:
-        'User registered successfully, check your email for verification',
+      message: 'User registered successfully, check your email for OTP code',
       data: createdUser,
     };
   }
-
   // Login
-  async login(email: string, password: string) {
+  async login(email: string, password: string): Promise<APIResponseDto> {
     if (!email || !password) {
       throw new HttpException(
-        { message: 'Email and password are required' },
+        'Email and password are required',
         HttpStatus.BAD_REQUEST,
       );
     }
     const user = await this.usersModel.findOne({ email });
     if (!user) {
       throw new HttpException(
-        { message: 'Invalid email or password' },
+        'Invalid email or password',
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    if (!user.isActive) {
+      throw new HttpException('Account is not active', HttpStatus.UNAUTHORIZED);
+    }
+
+    if (user.isBlocked) {
+      throw new HttpException('Account is blocked', HttpStatus.UNAUTHORIZED);
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       throw new HttpException(
-        { message: 'Invalid email or password' },
+        'Invalid email or password',
         HttpStatus.UNAUTHORIZED,
       );
     }
@@ -117,24 +125,28 @@ export class AuthService {
       statusCode: HttpStatus.OK,
       message: 'Login successful',
       data: {
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-        user: user,
+        accessToken,
+        refreshToken,
+        user,
       },
     };
   }
 
   // Active account
-  async activeAccount(token: string) {
-    const user = await this.usersModel.findOne({ verificationToken: token });
+  async activeAccount(email: string, otpCode: string): Promise<APIResponseDto> {
+    const user = await this.usersModel.findOne({ email, otpCode });
     if (!user) {
       throw new HttpException(
-        { message: 'Invalid token' },
+        'Invalid OTP code or email',
         HttpStatus.UNAUTHORIZED,
       );
     }
+    if (!user.otpExpires || user.otpExpires < new Date()) {
+      throw new HttpException('OTP code expired', HttpStatus.UNAUTHORIZED);
+    }
     user.isActive = true;
-    user.verificationToken = '';
+    user.otpCode = '';
+    user.otpExpires = new Date(0);
     await user.save();
     await this.walletsService.create({
       userId: user._id.toString(),
@@ -146,45 +158,120 @@ export class AuthService {
     };
   }
 
-  // Forgot password
-  async sendMailForgotPassword(email: string) {
+  // Resend OTP
+  async resendOtp(email: string): Promise<APIResponseDto> {
     const user = await this.usersModel.findOne({ email });
     if (!user) {
-      throw new HttpException(
-        { message: 'User not found' },
-        HttpStatus.NOT_FOUND,
-      );
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
-    const token = crypto.randomBytes(16).toString('hex');
-    user.resetToken = token;
+
+    if (user.isActive) {
+      throw new HttpException(
+        'Account is already active',
+        HttpStatus.BAD_REQUEST,
+      );
+      ``;
+    }
+
+    const otpCode = (
+      (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
+      100000
+    ).toString();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+    user.otpCode = otpCode;
+    user.otpExpires = otpExpires;
     await user.save();
-    const resetLink = `http://localhost:5173/auth/reset-password?token=${token}`;
-    const html = forgotPasswordTemplate(user.name, resetLink);
-    await this.mailerService.sendMail({
+    const html = otpEmailTemplate(user.name, otpCode);
+    const mailer: MailerDto = {
       to: [{ name: user.name, address: user.email }],
-      subject: 'Password Reset',
+      subject: 'Account Verification OTP',
       html,
-    });
+    };
+    await this.mailerService.sendMail(mailer);
     return {
-      statusCode: HttpStatus.OK,
-      message: 'Password reset instructions sent to email',
+      statusCode: 200,
+      message: 'OTP resent successfully',
+    };
+  }
+
+  // Forgot password - send OTP
+  async sendMailForgotPassword(email: string): Promise<APIResponseDto> {
+    const user = await this.usersModel.findOne({ email });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    // Generate secure 6-digit OTP using crypto
+    const otpCode = (
+      (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
+      100000
+    ).toString();
+    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+    user.otpCode = otpCode;
+    user.otpExpires = otpExpires;
+    await user.save();
+    const html = otpForgotPasswordTemplate(user.name, otpCode);
+    const mailer: MailerDto = {
+      to: [{ name: user.name, address: user.email }],
+      subject: 'Password Reset OTP',
+      html,
+    };
+    await this.mailerService.sendMail(mailer);
+    return {
+      statusCode: 200,
+      message: 'OTP for password reset sent to email',
+    };
+  }
+
+  // Verify OTP and reset password
+  async verifyOtpAndResetPassword(
+    email: string,
+    otp: string,
+    newPassword: string,
+    confirmNewPassword: string,
+  ): Promise<APIResponseDto> {
+    const user = await this.usersModel.findOne({ email });
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    if (user.otpCode !== otp) {
+      throw new HttpException('Invalid OTP code', HttpStatus.UNAUTHORIZED);
+    }
+    if (!user.otpExpires || user.otpExpires < new Date()) {
+      throw new HttpException('OTP code expired', HttpStatus.UNAUTHORIZED);
+    }
+    if (newPassword !== confirmNewPassword) {
+      throw new HttpException('Passwords do not match', HttpStatus.BAD_REQUEST);
+    }
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+    user.password = hashedPassword;
+    user.otpCode = '';
+    user.otpExpires = new Date(0);
+    if (!user.isActive) {
+      user.isActive = true;
+    }
+    await user.save();
+    return {
+      statusCode: 200,
+      message: 'Password reset successfully',
     };
   }
 
   // Change password
-  async changePassword(changePasswordDto: ChangePasswordDto, userPayload: any) {
+  async changePassword(
+    changePasswordDto: ChangePasswordDto,
+    userPayload: { _id: string; role: string },
+  ): Promise<APIResponseDto> {
+    console.log(userPayload);
     const user = await this.usersModel.findOne({ _id: userPayload._id });
     if (!user) {
-      throw new HttpException(
-        { message: 'User not found' },
-        HttpStatus.NOT_FOUND,
-      );
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
     if (
       changePasswordDto.newPassword !== changePasswordDto.confirmNewPassword
     ) {
       throw new HttpException(
-        { message: 'New passwords do not match' },
+        'New passwords do not match',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -193,10 +280,7 @@ export class AuthService {
       user.password,
     );
     if (!isMatch) {
-      throw new HttpException(
-        { message: 'Invalid old password' },
-        HttpStatus.UNAUTHORIZED,
-      );
+      throw new HttpException('Invalid old password', HttpStatus.UNAUTHORIZED);
     }
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(
@@ -212,42 +296,11 @@ export class AuthService {
     };
   }
 
-  // Reset password
-  async resetPassword(
-    token: string,
-    newPassword: string,
-    confirmNewPassword: string,
-  ) {
-    const user = await this.usersModel.findOne({ resetToken: token });
-    if (!user) {
-      throw new HttpException(
-        { message: 'Invalid token' },
-        HttpStatus.UNAUTHORIZED,
-      );
-    }
-    if (newPassword !== confirmNewPassword) {
-      throw new HttpException(
-        { message: 'Passwords do not match' },
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(newPassword, salt);
-    user.password = hashedPassword;
-    user.resetToken = '';
-    await user.save();
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Password reset successfully',
-      data: user,
-    };
-  }
-
   // Google OAuth2 login
-  async googleLogin(req: any) {
+  async googleLogin(req: { user: any }): Promise<APIResponseDto> {
     try {
       if (!req.user) {
-        return 'No user from google';
+        throw new HttpException('No user from google', HttpStatus.UNAUTHORIZED);
       }
 
       const user = await this.usersModel.findOne({ email: req.user.email });
@@ -296,7 +349,7 @@ export class AuthService {
     } catch (error) {
       console.error(error.message);
       throw new HttpException(
-        { message: 'Something went wrong' },
+        'Something went wrong',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

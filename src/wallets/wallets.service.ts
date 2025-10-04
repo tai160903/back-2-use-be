@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { APIResponseDto } from 'src/common/api-response.dto';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -11,17 +12,17 @@ export class WalletsService {
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
   ) {}
 
-  async create(createWalletDto: CreateWalletDto) {
+  async create(createWalletDto: CreateWalletDto): Promise<APIResponseDto> {
     try {
       const { userId } = createWalletDto;
       const existingWallet = await this.walletsModel.findOne({
         user_id: userId,
       });
       if (existingWallet) {
-        throw new HttpException(
-          { message: 'Wallet already exists for this user' },
-          HttpStatus.BAD_REQUEST,
-        );
+        return {
+          statusCode: 400,
+          message: 'Wallet already exists for this user',
+        };
       }
       const wallet = new this.walletsModel({
         user_id: createWalletDto.userId,
@@ -29,15 +30,16 @@ export class WalletsService {
       });
       await wallet.save();
       return {
-        statusCode: HttpStatus.CREATED,
+        statusCode: 201,
         message: 'Wallet created successfully',
         data: wallet,
       };
     } catch (error) {
-      throw new HttpException(
-        { message: 'Error creating wallet', error: error.message },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      return {
+        statusCode: 500,
+        message: 'Error creating wallet',
+        data: error.message,
+      };
     }
   }
 
@@ -45,45 +47,56 @@ export class WalletsService {
   //   return await this.walletsModel.find();
   // }
 
-  async findOne(id: string) {
+  async findOne(id: string): Promise<APIResponseDto> {
     try {
       const wallet = await this.walletsModel.findById(id);
+      if (!wallet) {
+        return {
+          statusCode: 404,
+          message: 'Wallet not found',
+        };
+      }
       return {
-        statusCode: HttpStatus.OK,
+        statusCode: 200,
         message: 'Wallet retrieved successfully',
         data: wallet,
       };
     } catch (error) {
-      throw new HttpException(
-        { message: 'Wallet not found', error: error.message },
-        HttpStatus.NOT_FOUND,
-      );
+      return {
+        statusCode: 500,
+        message: 'Error retrieving wallet',
+        data: error.message,
+      };
     }
   }
 
-  async update(id: string, updateWalletDto: UpdateWalletDto) {
+  async update(
+    id: string,
+    updateWalletDto: UpdateWalletDto,
+  ): Promise<APIResponseDto> {
     try {
       const wallet = await this.walletsModel.findById(id);
       if (!wallet) {
-        throw new HttpException(
-          { message: 'Wallet not found' },
-          HttpStatus.NOT_FOUND,
-        );
+        return {
+          statusCode: 404,
+          message: 'Wallet not found',
+        };
       }
       if (updateWalletDto.balance !== undefined) {
         wallet.balance = updateWalletDto.balance;
       }
       await wallet.save();
       return {
-        statusCode: HttpStatus.OK,
+        statusCode: 200,
         message: 'Wallet updated successfully',
         data: wallet,
       };
     } catch (error) {
-      throw new HttpException(
-        { message: 'Error updating wallet', error: error.message },
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      return {
+        statusCode: 500,
+        message: 'Error updating wallet',
+        data: error.message,
+      };
     }
   }
 

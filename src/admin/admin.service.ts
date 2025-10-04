@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { APIResponseDto } from 'src/common/api-response.dto';
 // import { CreateAdminDto } from './dto/create-admin.dto';
 // import { UpdateAdminDto } from './dto/update-admin.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -18,9 +19,14 @@ export class AdminService {
     private mailerService: MailerService,
   ) {}
 
-  async approveBusiness(id: string) {
+  async approveBusiness(id: string): Promise<APIResponseDto> {
     const businessForm = await this.businessFormModel.findById(id);
-    if (!businessForm) throw new Error('Business form not found');
+    if (!businessForm) {
+      return {
+        statusCode: 404,
+        message: 'Business form not found',
+      };
+    }
     businessForm.status = 'approved';
     await businessForm.save();
 
@@ -29,12 +35,21 @@ export class AdminService {
       subject: 'Business Approved',
       html: businessApprovedTemplate(businessForm.storeName),
     });
-    return { message: 'Business approved and email sent.' };
+    return {
+      statusCode: 200,
+      message: 'Business approved and email sent.',
+      data: businessForm,
+    };
   }
 
-  async rejectBusiness(id: string, note: string) {
+  async rejectBusiness(id: string, note: string): Promise<APIResponseDto> {
     const businessForm = await this.businessFormModel.findById(id);
-    if (!businessForm) throw new Error('Business form not found');
+    if (!businessForm) {
+      return {
+        statusCode: 404,
+        message: 'Business form not found',
+      };
+    }
     businessForm.status = 'rejected';
     businessForm.rejectNote = note;
     await businessForm.save();
@@ -44,7 +59,11 @@ export class AdminService {
       subject: 'Business Rejected',
       html: businessRejectedTemplate(businessForm.storeName, note),
     });
-    return { message: 'Business rejected and email sent.' };
+    return {
+      statusCode: 200,
+      message: 'Business rejected and email sent.',
+      data: businessForm,
+    };
   }
   // create(createAdminDto: CreateAdminDto) {
   //   return 'This action adds a new admin';

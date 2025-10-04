@@ -3,7 +3,6 @@ import {
   Post,
   Body,
   Get,
-  Query,
   UseGuards,
   Request,
   Redirect,
@@ -11,12 +10,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
-import {
-  ApiBody,
-  ApiOperation,
-  ApiQuery,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthDto } from './dto/auth.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthGuard } from './guards/auth.guard';
@@ -32,6 +26,7 @@ export class AuthController {
     summary: 'Register a new user',
     description: 'Register a new user in the system',
   })
+  @ApiBody({ type: AuthDto, required: true })
   @Post('register')
   register(@Body() authDto: AuthDto) {
     return this.authService.register(authDto);
@@ -57,20 +52,43 @@ export class AuthController {
     return this.authService.login(body.email, body.password);
   }
 
-  //Active account
+  //Active account (OTP + email)
   @ApiOperation({
     summary: 'Activate user account',
-    description: 'Activate a user account using the provided token',
+    description: 'Activate a user account using OTP code and email',
   })
-  @ApiQuery({
-    name: 'token',
-    required: true,
-    description: 'Verification token sent to user email',
-    example: 'your-verification-token',
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', example: 'john.doe@example.com' },
+        otp: { type: 'string', example: '123456' },
+      },
+      required: ['email', 'otp'],
+    },
   })
-  @Get('active-account')
-  activeAccount(@Query('token') token: string) {
-    return this.authService.activeAccount(token);
+  @Post('active-account')
+  activeAccount(@Body() body: { email: string; otp: string }) {
+    return this.authService.activeAccount(body.email, body.otp);
+  }
+
+  //Resend OTP
+  @ApiOperation({
+    summary: 'Resend OTP code',
+    description: 'Resend OTP code to user email for account verification',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', example: 'john.doe@example.com' },
+      },
+      required: ['email'],
+    },
+  })
+  @Post('resend-otp')
+  async resendOtp(@Body() body: { email: string }) {
+    return this.authService.resendOtp(body.email);
   }
 
   //Forgot password
@@ -112,37 +130,43 @@ export class AuthController {
   @ApiBearerAuth('access-token')
   @UseGuards(AuthGuard)
   @Post('change-password')
-  changePassword(@Body() changePasswordDto: ChangePasswordDto, @Request() req) {
+  changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @Request() req: any,
+  ) {
     return this.authService.changePassword(changePasswordDto, req.user);
   }
 
-  //Reset password
+  //Reset password (OTP)
   @ApiOperation({
-    summary: 'Reset password after forgot password',
-    description: 'Reset user password using the provided token',
+    summary: 'Reset password with OTP',
+    description: 'Reset user password using OTP code sent to email',
   })
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
-        token: { type: 'string', example: 'your-reset-token' },
+        email: { type: 'string', example: 'john.doe@example.com' },
+        otp: { type: 'string', example: '123456' },
         newPassword: { type: 'string', example: 'newPassword123' },
         confirmNewPassword: { type: 'string', example: 'newPassword123' },
       },
-      required: ['token', 'newPassword', 'confirmNewPassword'],
+      required: ['email', 'otp', 'newPassword', 'confirmNewPassword'],
     },
   })
   @Post('reset-password')
   async resetPassword(
     @Body()
     body: {
-      token: string;
+      email: string;
+      otp: string;
       newPassword: string;
       confirmNewPassword: string;
     },
   ) {
-    return this.authService.resetPassword(
-      body.token,
+    return this.authService.verifyOtpAndResetPassword(
+      body.email,
+      body.otp,
       body.newPassword,
       body.confirmNewPassword,
     );

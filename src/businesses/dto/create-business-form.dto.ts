@@ -1,10 +1,4 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsPhoneNumber,
-  IsUrl,
-  IsEmail,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsUrl, IsEmail, Matches } from 'class-validator';
 export class CreateBusinessFormDto {
   @IsString()
   @IsNotEmpty()
@@ -18,7 +12,13 @@ export class CreateBusinessFormDto {
   @IsNotEmpty()
   storeAddress: string;
 
-  @IsPhoneNumber('VN')
+  @Matches(
+    /^(?:\+84|0)(?:3[2-9]|5[6|8|9]|7[0|6-9]|8[1-5]|9[0-4|6-9])[0-9]{7}$/,
+    {
+      message: 'storePhone must be a valid Vietnamese phone number',
+    },
+  )
+  @IsString()
   @IsNotEmpty()
   storePhone: string;
 
