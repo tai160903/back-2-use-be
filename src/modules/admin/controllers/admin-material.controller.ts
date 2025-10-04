@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -20,6 +21,7 @@ import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.
 import { UpdateMaterialDto } from 'src/modules/materials/dto/update-material.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
+import { UpdateMaterialStatusDto } from 'src/modules/materials/dto/update-material-status.dto';
 
 @ApiTags('Material (Admin)')
 @UseGuards(AuthGuard)
@@ -43,6 +45,16 @@ export class AdminMaterialController {
     @Query() query: GetMaterialsQueryDto,
   ): Promise<APIPaginatedResponseDto<Material[]>> {
     return this.materialService.get(query);
+  }
+
+  // Patch /admin/materials/:id/review
+  @Patch(':id/review')
+  @UseGuards(AuthGuard)
+  async reviewMaterial(
+    @Param('id') id: string,
+    @Body() dto: UpdateMaterialStatusDto,
+  ) {
+    return this.materialService.reviewMaterial(id, dto);
   }
 
   // GET /admin/materials/:id

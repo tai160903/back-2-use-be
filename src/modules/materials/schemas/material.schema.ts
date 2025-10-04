@@ -22,6 +22,9 @@ export class Material {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true })
   createdBy: Types.ObjectId;
+
+  @Prop({ required: false })
+  rejectReason?: string;
 }
 
 export const MaterialSchema = SchemaFactory.createForClass(Material);
