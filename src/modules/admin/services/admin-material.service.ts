@@ -1,5 +1,11 @@
 import { Model } from 'mongoose';
-import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
@@ -12,6 +18,7 @@ import { CreateMaterialDto } from 'src/modules/materials/dto/create-material.dto
 import { GetMaterialsQueryDto } from 'src/modules/materials/dto/get-materials-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { UpdateMaterialDto } from 'src/modules/materials/dto/update-material.dto';
+import { UpdateMaterialStatusDto } from 'src/modules/materials/dto/update-material-status.dto';
 
 @Injectable()
 export class AdminMaterialService {
@@ -30,7 +37,7 @@ export class AdminMaterialService {
     });
 
     if (existingMaterial) {
-      throw new BadRequestException(
+      throw new ConflictException(
         `Material name '${createMaterialDto.materialName}' already exists`,
       );
     }
@@ -80,11 +87,37 @@ export class AdminMaterialService {
   async getById(id: string): Promise<APIResponseDto<Material>> {
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
-      throw new BadRequestException(`Material with ID '${id}' not found`);
+      throw new NotFoundException(`Material with ID '${id}' not found`);
     }
     return {
       statusCode: HttpStatus.OK,
       message: `Material with ID '${id}' retrieved successfully`,
+      data: material,
+    };
+  }
+
+  // Admin approve or reject material by ID
+  async reviewMaterial(
+    id: string,
+    dto: UpdateMaterialStatusDto,
+  ): Promise<APIResponseDto<Material>> {
+    const material = await this.materialModel.findById(id);
+    if (!material) {
+      throw new NotFoundException('Material not found');
+    }
+
+    if (material.status !== MaterialStatus.PENDING) {
+      throw new BadRequestException('Only pending materials can be reviewed');
+    }
+
+    material.status = dto.status;
+    material.rejectReason =
+      dto.status === MaterialStatus.REJECTED ? dto.rejectReason : undefined;
+
+    await material.save();
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Material with ID '${id}' review successfully`,
       data: material,
     };
   }
@@ -102,7 +135,7 @@ export class AdminMaterialService {
 
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
-      throw new BadRequestException(`Material with ID '${id}' not found`);
+      throw new NotFoundException(`Material with ID '${id}' not found`);
     }
 
     if (
@@ -116,7 +149,7 @@ export class AdminMaterialService {
         .exec();
 
       if (existingMaterial) {
-        throw new BadRequestException(
+        throw new ConflictException(
           `Material name '${updateDto.materialName}' already exists`,
         );
       }
@@ -136,7 +169,7 @@ export class AdminMaterialService {
   async delete(id: string): Promise<APIResponseDto<null>> {
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
-      throw new BadRequestException(`Material with ID '${id}' not found`);
+      throw new NotFoundException(`Material with ID '${id}' not found`);
     }
 
     await this.materialModel.deleteOne({ _id: id }).exec();
