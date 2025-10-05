@@ -61,11 +61,24 @@ export class AuthService {
 
     const html = otpEmailTemplate(authDto.name, otpCode);
     const mailer: MailerDto = {
-      to: `${authDto.name} <${authDto.email}>`,
+      to: [{ name: authDto.name, address: authDto.email }],
       subject: 'Account Verification OTP',
       html,
     };
-    await this.mailerService.sendMail(mailer);
+    try {
+      const mailResult = await this.mailerService.sendMail(mailer);
+      if (!mailResult || mailResult.error) {
+        throw new HttpException(
+          mailResult?.error || 'Failed to send verification email',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } catch (error) {
+      throw new HttpException(
+        'Failed to send verification email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
 
     const createdUser = new this.usersModel(authDto);
     createdUser.otpCode = otpCode;
@@ -178,11 +191,24 @@ export class AuthService {
     await user.save();
     const html = otpEmailTemplate(user.name, otpCode);
     const mailer: MailerDto = {
-      to: `${user.name} <${user.email}>`,
+      to: [{ name: user.name, address: user.email }],
       subject: 'Account Verification OTP',
       html,
     };
-    await this.mailerService.sendMail(mailer);
+    try {
+      const mailResult = await this.mailerService.sendMail(mailer);
+      if (!mailResult || mailResult.error) {
+        throw new HttpException(
+          mailResult?.error || 'Failed to send OTP email',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } catch (error) {
+      throw new HttpException(
+        'Failed to send OTP email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
     return {
       statusCode: 200,
       message: 'OTP resent successfully',
@@ -206,11 +232,24 @@ export class AuthService {
     await user.save();
     const html = otpForgotPasswordTemplate(user.name, otpCode);
     const mailer: MailerDto = {
-      to: `${user.name} <${user.email}>`,
+      to: [{ name: user.name, address: user.email }],
       subject: 'Password Reset OTP',
       html,
     };
-    await this.mailerService.sendMail(mailer);
+    try {
+      const mailResult = await this.mailerService.sendMail(mailer);
+      if (!mailResult || mailResult.error) {
+        throw new HttpException(
+          mailResult?.error || 'Failed to send password reset email',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    } catch (error) {
+      throw new HttpException(
+        'Failed to send password reset email',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
     return {
       statusCode: 200,
       message: 'OTP for password reset sent to email',
@@ -255,10 +294,10 @@ export class AuthService {
   // Change password
   async changePassword(
     changePasswordDto: ChangePasswordDto,
-    userPayload: { _id: string; role: string },
+    userPayload: { userId: string; role: string },
   ): Promise<APIResponseDto> {
     console.log(userPayload);
-    const user = await this.usersModel.findOne({ _id: userPayload._id });
+    const user = await this.usersModel.findOne({ _id: userPayload.userId });
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
