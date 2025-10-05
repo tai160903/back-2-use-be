@@ -7,6 +7,7 @@ import {
   Get,
   Query,
   Param,
+  UseGuards,
 } from '@nestjs/common';
 import { BusinessesService } from './businesses.service';
 import { UseInterceptors, UploadedFiles } from '@nestjs/common';
@@ -19,11 +20,13 @@ import {
   ApiConsumes,
   ApiParam,
   ApiQuery,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 // import { CreateBusinessDto } from './dto/create-business.dto';
 // import { UpdateBusinessDto } from './dto/update-business.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
+import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 
 @Controller('businesses')
 @ApiTags('Businesses')
@@ -43,6 +46,8 @@ export class BusinessesController {
     enum: ['pending', 'approve', 'reject'],
     description: 'Filter by status: pending, approve, reject',
   })
+  @ApiBearerAuth('access-token')
+  @UseGuards(RoleCheckGuard.withRoles(['admin']))
   @Get('form/all')
   async getAllForms(
     @Query('page') page?: number,
@@ -58,6 +63,8 @@ export class BusinessesController {
 
   @ApiOperation({ summary: 'Get business form detail by id' })
   @ApiParam({ name: 'id', required: true, type: String, example: '652f1a...' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(RoleCheckGuard.withRoles(['admin', 'business']))
   @Get('form/detail/:id')
   async getFormDetail(@Param('id') id: string) {
     return this.businessesService.getFormDetail(id);
