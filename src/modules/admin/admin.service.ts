@@ -39,10 +39,10 @@ export class AdminService {
       if (!mailResult) {
         throw new Error('Failed to send approval email');
       }
-    } catch {
+    } catch (error) {
       return {
         statusCode: 500,
-        message: 'Business approved but failed to send email',
+        message: `Business approved but failed to send email: ${error.message}`,
         data: businessForm,
       };
     }
@@ -74,10 +74,10 @@ export class AdminService {
       if (!mailResult) {
         throw new Error('Failed to send rejection email');
       }
-    } catch {
+    } catch (error) {
       return {
         statusCode: 500,
-        message: 'Business rejected but failed to send email',
+        message: `Business rejected but failed to send email: ${error.message}`,
         data: businessForm,
       };
     }
