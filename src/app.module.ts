@@ -17,7 +17,9 @@ import { AdminModule } from './modules/admin/admin.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [jwtConfig] }),
-    MongooseModule.forRoot(process.env.DATABASE_URL_2 || ''),
+    MongooseModule.forRoot(
+      process.env.DATABASE_URL_LOCAL || process.env.DATABASE_URL || '',
+    ),
     AuthModule,
     UsersModule,
     MailerModule,
