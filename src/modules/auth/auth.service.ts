@@ -67,9 +67,9 @@ export class AuthService {
     };
     try {
       const mailResult = await this.mailerService.sendMail(mailer);
-      if (!mailResult || mailResult.error) {
+      if (!mailResult) {
         throw new HttpException(
-          mailResult?.error || 'Failed to send verification email',
+          'Failed to send verification email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -197,9 +197,9 @@ export class AuthService {
     };
     try {
       const mailResult = await this.mailerService.sendMail(mailer);
-      if (!mailResult || mailResult.error) {
+      if (!mailResult) {
         throw new HttpException(
-          mailResult?.error || 'Failed to send OTP email',
+          'Failed to send OTP email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -238,9 +238,9 @@ export class AuthService {
     };
     try {
       const mailResult = await this.mailerService.sendMail(mailer);
-      if (!mailResult || mailResult.error) {
+      if (!mailResult) {
         throw new HttpException(
-          mailResult?.error || 'Failed to send password reset email',
+          'Failed to send password reset email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }

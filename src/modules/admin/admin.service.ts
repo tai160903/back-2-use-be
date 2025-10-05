@@ -32,14 +32,14 @@ export class AdminService {
 
     try {
       const mailResult = await this.mailerService.sendMail({
-        to: `${businessForm.storeName} <${businessForm.storeMail}>`,
+        to: [{ name: businessForm.storeName, address: businessForm.storeMail }],
         subject: 'Business Approved',
         html: businessApprovedTemplate(businessForm.storeName),
       });
-      if (!mailResult || mailResult.error) {
-        throw new Error(mailResult?.error || 'Failed to send approval email');
+      if (!mailResult) {
+        throw new Error('Failed to send approval email');
       }
-    } catch (error) {
+    } catch {
       return {
         statusCode: 500,
         message: 'Business approved but failed to send email',
@@ -67,14 +67,14 @@ export class AdminService {
 
     try {
       const mailResult = await this.mailerService.sendMail({
-        to: `${businessForm.storeName} <${businessForm.storeMail}>`,
+        to: [{ name: businessForm.storeName, address: businessForm.storeMail }],
         subject: 'Business Rejected',
         html: businessRejectedTemplate(businessForm.storeName, note),
       });
-      if (!mailResult || mailResult.error) {
-        throw new Error(mailResult?.error || 'Failed to send rejection email');
+      if (!mailResult) {
+        throw new Error('Failed to send rejection email');
       }
-    } catch (error) {
+    } catch {
       return {
         statusCode: 500,
         message: 'Business rejected but failed to send email',
