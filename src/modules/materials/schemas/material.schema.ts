@@ -1,13 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
+import { MaterialStatus } from 'src/common/constants/material-status.enum';
 
 export type MaterialDocument = HydratedDocument<Material>;
-
-export enum MaterialStatus {
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-}
 
 @Schema({ timestamps: true })
 export class Material {
@@ -16,6 +11,9 @@ export class Material {
 
   @Prop({ required: true })
   maximumReuse: number;
+
+  @Prop({ required: true })
+  description: string;
 
   @Prop({ type: String, enum: MaterialStatus, default: MaterialStatus.PENDING })
   status: MaterialStatus;

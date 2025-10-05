@@ -1,4 +1,3 @@
-import { Model } from 'mongoose';
 import {
   BadRequestException,
   ConflictException,
@@ -7,18 +6,20 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import {
   Material,
   MaterialDocument,
-  MaterialStatus,
 } from 'src/modules/materials/schemas/material.schema';
 import { CreateMaterialDto } from 'src/modules/materials/dto/create-material.dto';
 import { GetMaterialsQueryDto } from 'src/modules/materials/dto/get-materials-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { UpdateMaterialDto } from 'src/modules/materials/dto/update-material.dto';
 import { UpdateMaterialStatusDto } from 'src/modules/materials/dto/update-material-status.dto';
+import { paginate } from 'src/common/utils/pagination.util';
+import { MaterialStatus } from 'src/common/constants/material-status.enum';
 
 @Injectable()
 export class AdminMaterialService {
@@ -57,29 +58,23 @@ export class AdminMaterialService {
     };
   }
 
-  // Admin get material
+  // Admin get all materials (with pagination + optional status filter)
   async get(
     query: GetMaterialsQueryDto,
   ): Promise<APIPaginatedResponseDto<Material[]>> {
     const { status, page = 1, limit = 10 } = query;
     const filter = status ? { status } : {};
 
-    const [materials, total] = await Promise.all([
-      this.materialModel
-        .find(filter)
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
-      this.materialModel.countDocuments(filter),
-    ]);
+    const { data, total, currentPage, totalPages } =
+      await paginate<MaterialDocument>(this.materialModel, filter, page, limit);
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Materials retrieved successfully',
-      data: materials,
+      data,
       total,
-      currentPage: page,
-      totalPages: Math.ceil(total / limit),
+      currentPage,
+      totalPages,
     };
   }
 
@@ -115,9 +110,10 @@ export class AdminMaterialService {
       dto.status === MaterialStatus.REJECTED ? dto.rejectReason : undefined;
 
     await material.save();
+
     return {
       statusCode: HttpStatus.OK,
-      message: `Material with ID '${id}' review successfully`,
+      message: `Material with ID '${id}' reviewed successfully`,
       data: material,
     };
   }
@@ -143,9 +139,7 @@ export class AdminMaterialService {
       updateDto.materialName !== material.materialName
     ) {
       const existingMaterial = await this.materialModel
-        .findOne({
-          materialName: updateDto.materialName,
-        })
+        .findOne({ materialName: updateDto.materialName })
         .exec();
 
       if (existingMaterial) {

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { MaterialStatus } from '../schemas/material.schema';
+import { MaterialStatus } from 'src/common/constants/material-status.enum';
 
 export class GetMyMaterialsQueryDto {
   @ApiPropertyOptional({

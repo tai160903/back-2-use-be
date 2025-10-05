@@ -1,19 +1,22 @@
 import { IsEnum, IsOptional, IsString, ValidateIf } from 'class-validator';
-import { MaterialStatus } from '../schemas/material.schema';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { MaterialStatus } from 'src/common/constants/material-status.enum';
 
 export class UpdateMaterialStatusDto {
   @ApiProperty({
-    description: 'Material status, can only choose Approved or Rejected',
+    description:
+      'Status of the material. Must be either "approved" or "rejected".',
     enum: [MaterialStatus.APPROVED, MaterialStatus.REJECTED],
-    example: MaterialStatus.APPROVED,
+    example: MaterialStatus.REJECTED,
   })
   @IsEnum([MaterialStatus.APPROVED, MaterialStatus.REJECTED])
   status: MaterialStatus;
 
   @ApiPropertyOptional({
-    description: 'Note when rejected material',
-    example: 'Quality not required, if approved dont need reject reason',
+    description:
+      'Reason for rejection. This field is required only when the status is "rejected". Leave it empty if the material is approved.',
+    example:
+      'The quality does not meet the required standards. (Leave empty if approved)',
   })
   @ValidateIf((o) => o.status === MaterialStatus.REJECTED)
   @IsString()

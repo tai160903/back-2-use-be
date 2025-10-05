@@ -13,4 +13,12 @@ export class CreateMaterialDto {
   @IsNumber()
   @Min(1)
   maximumReuse: number;
+
+  @ApiProperty({
+    required: true,
+    example: 'Durable and lightweight plastic material',
+  })
+  @IsNotEmpty()
+  @IsString()
+  description: string;
 }

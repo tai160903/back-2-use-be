@@ -18,6 +18,8 @@ import {
   Businesses,
   BusinessesSchema,
 } from '../businesses/schemas/businesses.schema';
+import { AdminCustomerController } from './controllers/admin-customer.controller';
+import { AdminCustomerService } from './services/admin-customer.service';
 
 @Module({
   imports: [
@@ -30,7 +32,11 @@ import {
     BusinessesModule,
     MailerModule,
   ],
-  controllers: [AdminController, AdminMaterialController],
-  providers: [AdminService, AdminMaterialService],
+  controllers: [
+    AdminController,
+    AdminMaterialController,
+    AdminCustomerController,
+  ],
+  providers: [AdminService, AdminMaterialService, AdminCustomerService],
 })
 export class AdminModule {}
