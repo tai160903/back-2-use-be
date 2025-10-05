@@ -9,8 +9,8 @@ export class MailerController {
   @Post('send-test')
   async sendMail(@Body() body: { name: string; email: string }) {
     const mailer: MailerDto = {
-      from: { name: 'Back2Use', address: 'l4P2o@example.com' },
-      to: [{ name: body.name, address: body.email }],
+      from: `'Back2Use' <l4P2o@example.com>`,
+      to: `${body.name} <${body.email}>`,
       subject: 'Test Email from Back2Use',
       html: `<h1>Hello ${body.name}, this is a test email sent from Back2Use application.</h1>`,
     };

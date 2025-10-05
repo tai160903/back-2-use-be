@@ -35,7 +35,7 @@ export class MailerService {
     };
     if (text) emailOptions.text = text;
     if (html) emailOptions.html = html;
-    const response = await resend.emails.send(emailOptions);
+    const response = await resend.emails.send(emailOptions as any);
     return response;
   }
 }
