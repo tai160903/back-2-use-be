@@ -30,11 +30,22 @@ export class AdminService {
     businessForm.status = 'approved';
     await businessForm.save();
 
-    await this.mailerService.sendMail({
-      to: `${businessForm.storeName} <${businessForm.storeMail}>`,
-      subject: 'Business Approved',
-      html: businessApprovedTemplate(businessForm.storeName),
-    });
+    try {
+      const mailResult = await this.mailerService.sendMail({
+        to: `${businessForm.storeName} <${businessForm.storeMail}>`,
+        subject: 'Business Approved',
+        html: businessApprovedTemplate(businessForm.storeName),
+      });
+      if (!mailResult || mailResult.error) {
+        throw new Error(mailResult?.error || 'Failed to send approval email');
+      }
+    } catch (error) {
+      return {
+        statusCode: 500,
+        message: 'Business approved but failed to send email',
+        data: businessForm,
+      };
+    }
     return {
       statusCode: 200,
       message: 'Business approved and email sent.',
@@ -54,11 +65,22 @@ export class AdminService {
     businessForm.rejectNote = note;
     await businessForm.save();
 
-    await this.mailerService.sendMail({
-      to: `${businessForm.storeName} <${businessForm.storeMail}>`,
-      subject: 'Business Rejected',
-      html: businessRejectedTemplate(businessForm.storeName, note),
-    });
+    try {
+      const mailResult = await this.mailerService.sendMail({
+        to: `${businessForm.storeName} <${businessForm.storeMail}>`,
+        subject: 'Business Rejected',
+        html: businessRejectedTemplate(businessForm.storeName, note),
+      });
+      if (!mailResult || mailResult.error) {
+        throw new Error(mailResult?.error || 'Failed to send rejection email');
+      }
+    } catch (error) {
+      return {
+        statusCode: 500,
+        message: 'Business rejected but failed to send email',
+        data: businessForm,
+      };
+    }
     return {
       statusCode: 200,
       message: 'Business rejected and email sent.',

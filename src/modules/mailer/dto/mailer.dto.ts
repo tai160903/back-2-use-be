@@ -1,6 +1,8 @@
+import { Address } from 'nodemailer/lib/mailer';
+
 export class MailerDto {
-  from?: string;
-  to: string | string[];
+  from?: Address;
+  to: Address[];
   subject: string;
   text?: string;
   html?: string;
