@@ -1,28 +1,24 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { BaseBusinessFields } from './base-business.schema';
+import { BusinessStatusEnum } from '../../../common/constants/business-status.enum';
 
 export type BusinessDocument = HydratedDocument<Businesses>;
 
 @Schema({ timestamps: true })
-export class Businesses {
+export class Businesses extends BaseBusinessFields {
   @Prop({ unique: true, ref: 'Users' })
   userId: Types.ObjectId;
-  @Prop({ required: true })
-  storeName: string;
-  @Prop({ required: true })
-  storeAddress: string;
-  @Prop({ required: true })
-  storePhone: string;
-  @Prop({ required: true })
-  taxCode: string;
-  @Prop({ required: true })
-  foodLicenseUrl: string;
-  @Prop({ required: true })
-  businessLicenseUrl: string;
-  @Prop({ enum: ['pending', 'active', 'suspended'], default: 'pending' })
-  status: string;
+
+  @Prop({
+    enum: Object.values(BusinessStatusEnum),
+    default: BusinessStatusEnum.PENDING,
+  })
+  status: BusinessStatusEnum;
+
   @Prop()
   trailStartDate: Date;
+
   @Prop()
   trailEndDate: Date;
 }

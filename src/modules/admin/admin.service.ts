@@ -10,6 +10,13 @@ import {
   businessApprovedTemplate,
   businessRejectedTemplate,
 } from '../mailer/templates/business-form.template';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { Businesses } from '../businesses/schemas/businesses.schema';
+import { Users } from '../users/schemas/users.schema';
+import { RolesEnum } from 'src/common/constants/roles.enum';
+import { BusinessFormStatusEnum } from 'src/common/constants/business-form-status.enum';
+import { BusinessStatusEnum } from 'src/common/constants/business-status.enum';
 
 @Injectable()
 export class AdminService {
@@ -17,6 +24,8 @@ export class AdminService {
     @InjectModel(BusinessForm.name)
     private businessFormModel: Model<BusinessForm>,
     private mailerService: MailerService,
+    @InjectModel(Users.name) private userModel: Model<Users>,
+    @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
   ) {}
 
   async approveBusiness(id: string): Promise<APIResponseDto> {
@@ -27,14 +36,59 @@ export class AdminService {
         message: 'Business form not found',
       };
     }
-    businessForm.status = 'approved';
+    businessForm.status = BusinessFormStatusEnum.APPROVED;
     await businessForm.save();
+
+    const userEmail = businessForm.storeMail;
+    const userName = businessForm.storeName;
+    const randomPassword = crypto.randomBytes(8).toString('hex');
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+    let user = await this.userModel.findOne({ email: userEmail });
+
+    if (!user) {
+      user = new this.userModel({
+        name: userName,
+        email: userEmail,
+        password: hashedPassword,
+        isActive: true,
+        role: RolesEnum.BUSINESS,
+      });
+      await user.save();
+    }
+
+    const now = new Date();
+    const trailStartDate = now;
+    const trailEndDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    let business = await this.businessModel.findOne({ userId: user._id });
+    if (!business) {
+      business = new this.businessModel({
+        userId: user._id,
+        status: BusinessStatusEnum.ACTIVE,
+        trailStartDate,
+        trailEndDate,
+        storeName: businessForm.storeName,
+        storeAddress: businessForm.storeAddress,
+        storePhone: businessForm.storePhone,
+        taxCode: businessForm.taxCode,
+        foodLicenseUrl: businessForm.foodLicenseUrl,
+        businessLicenseUrl: businessForm.businessLicenseUrl,
+      });
+      await business.save();
+    }
 
     try {
       const mailResult = await this.mailerService.sendMail({
         to: [{ name: businessForm.storeName, address: businessForm.storeMail }],
         subject: 'Business Approved',
-        html: businessApprovedTemplate(businessForm.storeName),
+        html: businessApprovedTemplate(
+          businessForm.storeName,
+          userEmail,
+          randomPassword,
+          trailStartDate,
+          trailEndDate,
+        ),
       });
       if (!mailResult) {
         throw new Error('Failed to send approval email');
@@ -49,7 +103,12 @@ export class AdminService {
     return {
       statusCode: 200,
       message: 'Business approved and email sent.',
-      data: businessForm,
+      data: {
+        businessForm,
+        user,
+        business,
+        password: randomPassword,
+      },
     };
   }
 
@@ -61,7 +120,7 @@ export class AdminService {
         message: 'Business form not found',
       };
     }
-    businessForm.status = 'rejected';
+    businessForm.status = BusinessFormStatusEnum.REJECTED;
     businessForm.rejectNote = note;
     await businessForm.save();
 

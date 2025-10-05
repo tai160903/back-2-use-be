@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 export type UsersDocument = HydratedDocument<Users>;
 
@@ -21,10 +22,10 @@ export class Users {
   yob: Date;
   @Prop({
     required: true,
-    enum: ['customer', 'business', 'admin'],
-    default: 'customer',
+    enum: Object.values(RolesEnum),
+    default: RolesEnum.CUSTOMER,
   })
-  role: string;
+  role: RolesEnum;
   @Prop({ required: true, default: false })
   isActive: boolean;
   @Prop({ required: true, default: false })

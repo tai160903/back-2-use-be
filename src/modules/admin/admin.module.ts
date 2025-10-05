@@ -13,12 +13,19 @@ import {
 import { Material, MaterialSchema } from '../materials/schemas/material.schema';
 import { BusinessesModule } from '../businesses/businesses.module';
 import { MailerModule } from '../mailer/mailer.module';
+import { Users, UsersSchema } from '../users/schemas/users.schema';
+import {
+  Businesses,
+  BusinessesSchema,
+} from '../businesses/schemas/businesses.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: BusinessForm.name, schema: BusinessFormSchema },
       { name: Material.name, schema: MaterialSchema },
+      { name: Users.name, schema: UsersSchema },
+      { name: Businesses.name, schema: BusinessesSchema },
     ]),
     BusinessesModule,
     MailerModule,
