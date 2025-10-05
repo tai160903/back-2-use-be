@@ -61,7 +61,7 @@ export class AuthService {
 
     const html = otpEmailTemplate(authDto.name, otpCode);
     const mailer: MailerDto = {
-      to: [{ name: authDto.name, address: authDto.email }],
+      to: `${authDto.name} <${authDto.email}>`,
       subject: 'Account Verification OTP',
       html,
     };
@@ -178,7 +178,7 @@ export class AuthService {
     await user.save();
     const html = otpEmailTemplate(user.name, otpCode);
     const mailer: MailerDto = {
-      to: [{ name: user.name, address: user.email }],
+      to: `${user.name} <${user.email}>`,
       subject: 'Account Verification OTP',
       html,
     };
@@ -206,7 +206,7 @@ export class AuthService {
     await user.save();
     const html = otpForgotPasswordTemplate(user.name, otpCode);
     const mailer: MailerDto = {
-      to: [{ name: user.name, address: user.email }],
+      to: `${user.name} <${user.email}>`,
       subject: 'Password Reset OTP',
       html,
     };
