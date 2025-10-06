@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import {
@@ -80,7 +80,12 @@ export class AdminMaterialService {
 
   // Admin get material by ID
   async getById(id: string): Promise<APIResponseDto<Material>> {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(`Invalid Material ID '${id}'`);
+    }
+
     const material = await this.materialModel.findById(id).exec();
+
     if (!material) {
       throw new NotFoundException(`Material with ID '${id}' not found`);
     }
@@ -96,6 +101,10 @@ export class AdminMaterialService {
     id: string,
     dto: UpdateMaterialStatusDto,
   ): Promise<APIResponseDto<Material>> {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(`Invalid Material ID '${id}'`);
+    }
+
     const material = await this.materialModel.findById(id);
     if (!material) {
       throw new NotFoundException('Material not found');
@@ -123,6 +132,10 @@ export class AdminMaterialService {
     id: string,
     updateDto: UpdateMaterialDto,
   ): Promise<APIResponseDto<Material>> {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(`Invalid Material ID '${id}'`);
+    }
+
     if (!updateDto || Object.keys(updateDto).length === 0) {
       throw new BadRequestException(
         'At least one field must be provided for update',
@@ -161,6 +174,10 @@ export class AdminMaterialService {
 
   // Admin delete material by ID
   async delete(id: string): Promise<APIResponseDto<null>> {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(`Invalid Material ID '${id}'`);
+    }
+
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
       throw new NotFoundException(`Material with ID '${id}' not found`);

@@ -23,9 +23,10 @@ import { AuthGuard } from 'src/common/guards/auth.guard';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { UpdateMaterialStatusDto } from 'src/modules/materials/dto/update-material-status.dto';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @ApiTags('Material (Admin)')
-@UseGuards(AuthGuard, RoleCheckGuard.withRoles(['admin']))
+@UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.ADMIN]))
 @ApiBearerAuth('access-token')
 @Controller('admin/materials')
 export class AdminMaterialController {

@@ -1,17 +1,33 @@
 // import { Model } from 'mongoose';
-// import { Injectable, Inject } from '@nestjs/common';
+// import { Injectable, Inject, HttpStatus } from '@nestjs/common';
 // import { InjectModel } from '@nestjs/mongoose';
-
-// import { CreateUserDto } from './dto/create-user.dto';
-// import { User } from './interfaces/users.interface';
-// import { UserSchema } from './schemas/users.schema';
+// import {
+//   BusinessDocument,
+//   Businesses,
+// } from 'src/modules/businesses/schemas/businesses.schema';
+// import { GetBusinessQueryDto } from '../dto/admin-business/get-businesses-query.dto';
+// import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+// import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 
 // @Injectable()
 // export class AdminBusinessService {
 //   constructor(
-//     @InjectModel(UserSchema) private readonly userModel: Model<User>,
+//     @InjectModel(Businesses.name)
+//     private readonly businessModel: Model<BusinessDocument>,
 //   ) {}
-//   async findAll() {
-//     return await this.userModel.find().exec();
+
+//   // Admin get all businesses
+//   async getAllBusinesses(
+//     query: GetBusinessQueryDto,
+//   ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+//     const { isBlocked, page = 1, limit = 10 } = query;
+
+//     const business = this.businessModel.find().exec;
+
+//     return {
+//       statusCode: HttpStatus.OK,
+//       message: 'ok',
+//       data: business,
+//     };
 //   }
 // }
