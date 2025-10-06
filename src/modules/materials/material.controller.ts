@@ -23,10 +23,11 @@ import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.
 import { GetApprovedMaterialsQueryDto } from './dto/get-approved-materials.dto';
 import { GetMyMaterialsQueryDto } from './dto/get-my-materials.dto';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @ApiTags('Material (Business)')
 @Controller('materials')
-@UseGuards(AuthGuard, )
+@UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
 @ApiBearerAuth('access-token')
 export class MaterialController {
   constructor(private readonly materialService: MaterialService) {}
