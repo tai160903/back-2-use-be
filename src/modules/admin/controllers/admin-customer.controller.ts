@@ -12,12 +12,12 @@ import { AdminCustomerService } from '../services/admin-customer.service';
 import { GetCustomerQueryDto } from '../dto/admin-customer/get-customers-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Users } from 'src/modules/users/schemas/users.schema';
-import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-customer-block-status.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { UserResponseDto } from '../dto/admin-customer/user-response.dto';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-customer-block-status.dto';
 
 @ApiTags('Customer (Admin)')
 @ApiBearerAuth('access-token')

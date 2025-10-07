@@ -20,6 +20,8 @@ import {
 } from '../businesses/schemas/businesses.schema';
 import { AdminCustomerController } from './controllers/admin-customer.controller';
 import { AdminCustomerService } from './services/admin-customer.service';
+import { AdminBusinessController } from './controllers/admin-business.controller';
+import { AdminBusinessService } from './services/admin-business.service';
 
 @Module({
   imports: [
@@ -36,7 +38,13 @@ import { AdminCustomerService } from './services/admin-customer.service';
     AdminController,
     AdminMaterialController,
     AdminCustomerController,
+    AdminBusinessController,
   ],
-  providers: [AdminService, AdminMaterialService, AdminCustomerService],
+  providers: [
+    AdminService,
+    AdminMaterialService,
+    AdminCustomerService,
+    AdminBusinessService,
+  ],
 })
 export class AdminModule {}
