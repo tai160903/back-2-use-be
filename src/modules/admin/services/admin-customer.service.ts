@@ -15,6 +15,7 @@ import { paginate } from 'src/common/utils/pagination.util';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { UserResponseDto } from '../dto/admin-customer/user-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @Injectable()
 export class AdminCustomerService {
@@ -28,7 +29,7 @@ export class AdminCustomerService {
   ): Promise<APIPaginatedResponseDto<UserResponseDto[]>> {
     const { isBlocked, page = 1, limit = 10 } = query;
 
-    const filter: any = { role: 'customer' };
+    const filter: any = { role: RolesEnum.CUSTOMER };
     if (isBlocked !== undefined) {
       filter.isBlocked = isBlocked;
     }
@@ -92,7 +93,7 @@ export class AdminCustomerService {
     }
 
     const customer = await this.userModel
-      .findOne({ _id: id, role: 'customer' })
+      .findOne({ _id: id, role: RolesEnum.CUSTOMER })
       .select(
         '_id name email phone address yob role isActive isBlocked createdAt updatedAt',
       );
