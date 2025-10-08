@@ -38,9 +38,11 @@ export class AuthService {
         HttpStatus.BAD_REQUEST,
       );
     }
-    const existingUser = await this.usersModel.findOne({
-      email: authDto.email,
-    });
+    const existingUser = await this.usersModel
+      .findOne({
+        email: authDto.email,
+      })
+      .select('+password');
     if (existingUser) {
       throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
     }
@@ -98,7 +100,7 @@ export class AuthService {
         HttpStatus.BAD_REQUEST,
       );
     }
-    const user = await this.usersModel.findOne({ email });
+    const user = await this.usersModel.findOne({ email }).select('+password');
     if (!user) {
       throw new HttpException(
         'Invalid email or password',
@@ -263,7 +265,7 @@ export class AuthService {
     newPassword: string,
     confirmNewPassword: string,
   ): Promise<APIResponseDto> {
-    const user = await this.usersModel.findOne({ email });
+    const user = await this.usersModel.findOne({ email }).select('+password');
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
@@ -296,8 +298,9 @@ export class AuthService {
     changePasswordDto: ChangePasswordDto,
     userPayload: { _id: string; role: string },
   ): Promise<APIResponseDto> {
-    console.log(userPayload);
-    const user = await this.usersModel.findOne({ _id: userPayload._id });
+    const user = await this.usersModel
+      .findOne({ _id: userPayload._id })
+      .select('+password');
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
