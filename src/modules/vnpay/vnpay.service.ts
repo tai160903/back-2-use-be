@@ -55,6 +55,7 @@ export class VnpayService {
     };
 
     const sortedParams = this.sortObject(vnp_Params);
+    console.log('VNPay Sorted Params:', sortedParams);
     const signData = qs.stringify(sortedParams, { encode: false });
     const hmac = crypto.createHmac('sha512', this.vnp_HashSecret.trim());
     const secureHash = hmac
@@ -62,11 +63,6 @@ export class VnpayService {
       .digest('hex');
 
     const querystring = qs.stringify(sortedParams, { encode: true });
-    console.log('==================== VNPay Debug ====================');
-    console.log('SignData:', signData);
-    console.log('HashSecret (trimmed):', this.vnp_HashSecret.trim());
-    console.log('Generated Hash:', secureHash);
-    console.log('=====================================================');
 
     return `${this.vnp_Url}?${querystring}&vnp_SecureHash=${secureHash}`;
   }

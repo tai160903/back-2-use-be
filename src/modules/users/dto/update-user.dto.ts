@@ -1,10 +1,10 @@
-import { IsOptional, IsString, IsDate } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ example: 'Nguyen Van A' })
+  @ApiPropertyOptional({ example: 'John Doe' })
   name?: string;
 
   @IsOptional()
@@ -12,18 +12,18 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: '0987654321' })
   phone?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
-  avatar?: string;
+  // @IsOptional()
+  // @IsString()
+  // @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
+  // avatar?: string;
 
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({ example: '123 Main St, Hanoi' })
+  @ApiPropertyOptional({ example: '123 Street' })
   address?: string;
 
   @IsOptional()
-  @IsDate()
+  @IsString()
   @ApiPropertyOptional({ type: String, format: 'date', example: '1990-01-01' })
   yob?: Date;
 }
