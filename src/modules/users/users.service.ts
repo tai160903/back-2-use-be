@@ -1,6 +1,6 @@
 import { Wallets, WalletsDocument } from './../wallets/schemas/wallets.schema';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-// import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Users, UsersDocument } from './schemas/users.schema';
@@ -41,13 +41,20 @@ export class UsersService {
     }
   }
 
-  async updateMe(userId: string, updateUserDto: any): Promise<APIResponseDto> {
+  async updateMe(
+    userId: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<APIResponseDto> {
     try {
+      if (updateUserDto?.yob) {
+        updateUserDto.yob = new Date(updateUserDto.yob);
+      }
       const updatedUser = await this.usersModel.findByIdAndUpdate(
         userId,
         updateUserDto,
         { new: true },
       );
+      console.log(updatedUser);
       if (!updatedUser) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
