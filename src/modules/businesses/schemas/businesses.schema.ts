@@ -7,7 +7,7 @@ export type BusinessDocument = HydratedDocument<Businesses>;
 
 @Schema({ timestamps: true })
 export class Businesses extends BaseBusinessFields {
-  @Prop({ unique: true, ref: 'Users' })
+  @Prop({ unique: true, ref: 'Users', required: true })
   userId: Types.ObjectId;
 
   @Prop({

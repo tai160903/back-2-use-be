@@ -31,7 +31,7 @@ export class UsersService {
       return {
         statusCode: HttpStatus.OK,
         message: 'User found successfully',
-        data: { ...user.toObject(), wallet },
+        data: { user, wallet },
       };
     } catch (error) {
       throw new HttpException(
