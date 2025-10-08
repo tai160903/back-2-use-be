@@ -16,7 +16,7 @@ export class WalletsService {
     try {
       const { userId } = createWalletDto;
       const existingWallet = await this.walletsModel.findOne({
-        user_id: userId,
+        userId: userId,
       });
       if (existingWallet) {
         return {
@@ -25,7 +25,7 @@ export class WalletsService {
         };
       }
       const wallet = new this.walletsModel({
-        user_id: createWalletDto.userId,
+        userId: createWalletDto.userId,
         balance: 0,
       });
       await wallet.save();

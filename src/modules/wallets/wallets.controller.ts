@@ -27,12 +27,6 @@ export class WalletsController {
     return this.walletsService.create(createWalletDto);
   }
 
-  // @ApiOperation({ summary: 'Get all wallets' })
-  // @Get()
-  // findAll() {
-  //   return this.walletsService.findAll();
-  // }
-
   @ApiOperation({ summary: 'Get wallet by id' })
   @ApiParam({ name: 'id', type: String })
   @Get(':id')
@@ -47,6 +41,12 @@ export class WalletsController {
   update(@Param('id') id: string, @Body() updateWalletDto: UpdateWalletDto) {
     return this.walletsService.update(id, updateWalletDto);
   }
+
+  // @ApiOperation({ summary: 'Get all wallets' })
+  // @Get()
+  // findAll() {
+  //   return this.walletsService.findAll();
+  // }
 
   // @ApiOperation({ summary: 'Delete wallet' })
   // @ApiParam({ name: 'id', type: String })
