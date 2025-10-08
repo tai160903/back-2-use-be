@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as qs from 'qs';
-import { dateFormat, ProductCode } from 'vnpay';
+import { ProductCode, VnpLocale, dateFormat } from 'vnpay';
 @Injectable()
 export class VnpayService {
   private vnp_TmnCode: string;
@@ -20,13 +20,6 @@ export class VnpayService {
     this.vnp_Url =
       vnpayConfig.url || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
     this.vnp_ReturnUrl = vnpayConfig.returnUrl;
-
-    console.log('✅ VNPay Config Loaded:', {
-      tmnCode: this.vnp_TmnCode,
-      hashSecret: this.vnp_HashSecret.trim(),
-      url: this.vnp_Url,
-      returnUrl: this.vnp_ReturnUrl,
-    });
   }
 
   createPaymentUrl(
@@ -56,12 +49,9 @@ export class VnpayService {
       vnp_OrderInfo: orderInfo,
       vnp_OrderType: ProductCode.Other,
       vnp_ReturnUrl: this.vnp_ReturnUrl,
-      vnp_Locale: 'vn',
-      vnp_CreateDate: dateFormat(vnTime, 'yyyyMMddHHmmss'),
-      vnp_ExpireDate: dateFormat(
-        new Date(vnTime.getTime() + 15 * 60 * 1000),
-        'yyyyMMddHHmmss',
-      ), // 15 minutes expiration
+      vnp_Locale: VnpLocale.VN,
+      vnp_CreateDate: dateFormat(new Date()),
+      vnp_ExpireDate: dateFormat(new Date(vnTime.getTime() + 15 * 60 * 1000)), // 15 minutes expiration
     };
 
     const sortedParams = this.sortObject(vnp_Params);
