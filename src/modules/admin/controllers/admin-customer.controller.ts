@@ -19,6 +19,7 @@ import { AuthGuard } from 'src/common/guards/auth.guard';
 import { UserResponseDto } from '../dto/admin-customer/user-response.dto';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-customer-block-status.dto';
+import { MailerService } from 'src/infrastructure/mailer/mailer.service';
 
 @ApiTags('Customer (Admin)')
 @ApiBearerAuth('access-token')

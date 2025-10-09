@@ -1,15 +1,18 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsInt, Min } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class GetCustomerQueryDto {
   @ApiPropertyOptional({
-    description: 'Filter customers by blocked status (true or false)',
+    description:
+      'Filter customers by blocked status (true = blocked, false = unblocked)',
     example: false,
   })
   @IsOptional()
-  @Type(() => Boolean)
   @IsBoolean()
+  @Transform(({ value }) =>
+    value === 'true' ? true : value === 'false' ? false : undefined,
+  )
   isBlocked?: boolean;
 
   @ApiPropertyOptional({

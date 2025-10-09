@@ -4,7 +4,8 @@ import { Transform, Type } from 'class-transformer';
 
 export class GetBusinessQueryDto {
   @ApiPropertyOptional({
-    description: 'Filter businesses by blocked status (true or false)',
+    description:
+      'Filter business by blocked status (true = blocked, false = unblocked)',
     example: false,
   })
   @IsOptional()
