@@ -4,7 +4,9 @@ import {
   Get,
   Post,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,6 +19,7 @@ import {
 import { UsersService } from './users.service';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -40,4 +43,25 @@ export class UsersController {
   updateMe(@Request() req: any, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateMe(req.user._id, updateUserDto);
   }
+
+  // @Post('edit-avatar')
+  // @UseGuards(AuthGuard('jwt'))
+  // @ApiOperation({ summary: 'Update current user avatar' })
+  // @ApiConsumes('multipart/form-data')
+  // @ApiBody({
+  //   schema: {
+  //     type: 'object',
+  //     properties: {
+  //       avatar: {
+  //         type: 'string',
+  //         format: 'binary',
+  //       },
+  //     },
+  //   },
+  // })
+  // @ApiResponse({ status: 200, description: 'Avatar updated' })
+  // @UseInterceptors(FileInterceptor('avatar'))
+  // editAvatar(@Request() req: any, @UploadedFile() file: Express.Multer.File) {
+  //   return this.usersService.updateAvatar(req.user._id, file);
+  // }
 }

@@ -4,19 +4,20 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 // import { UpdateAdminDto } from './dto/update-admin.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { BusinessForm } from './../businesses/schemas/business-form.schema';
-import { MailerService } from '../mailer/mailer.service';
-import {
-  businessApprovedTemplate,
-  businessRejectedTemplate,
-} from '../mailer/templates/business-form.template';
+import { BusinessForm } from '../../businesses/schemas/business-form.schema';
+
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { Businesses } from '../businesses/schemas/businesses.schema';
-import { Users } from '../users/schemas/users.schema';
+import { Businesses } from '../../businesses/schemas/businesses.schema';
+import { Users } from '../../users/schemas/users.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { BusinessFormStatusEnum } from 'src/common/constants/business-form-status.enum';
 import { BusinessStatusEnum } from 'src/common/constants/business-status.enum';
+import { MailerService } from 'src/infrastructure/mailer/mailer.service';
+import {
+  businessApprovedTemplate,
+  businessRejectedTemplate,
+} from 'src/infrastructure/mailer/templates/business-form.template';
 
 @Injectable()
 export class AdminService {
@@ -100,14 +101,14 @@ export class AdminService {
         data: businessForm,
       };
     }
+    const { password: _, ...userData } = user.toObject();
     return {
       statusCode: 200,
       message: 'Business approved and email sent.',
       data: {
         businessForm,
-        user,
+        user: userData,
         business,
-        password: randomPassword,
       },
     };
   }
