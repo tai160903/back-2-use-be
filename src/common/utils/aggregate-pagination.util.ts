@@ -8,8 +8,17 @@ export async function aggregatePaginate<T>(
 ) {
   const skip = (page - 1) * limit;
 
+  const hasSortStage = pipeline.some((stage) => stage.$sort);
+
+  const sortStage = hasSortStage ? [] : [{ $sort: { createdAt: -1 } }];
+
   const [data, totalResult] = await Promise.all([
-    model.aggregate([...pipeline, { $skip: skip }, { $limit: limit }]),
+    model.aggregate([
+      ...pipeline,
+      ...sortStage,
+      { $skip: skip },
+      { $limit: limit },
+    ]),
     model.aggregate([...pipeline, { $count: 'total' }]),
   ]);
 

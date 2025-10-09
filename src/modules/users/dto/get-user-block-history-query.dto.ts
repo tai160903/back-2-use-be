@@ -1,8 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, Min, IsOptional } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsInt, Min, IsOptional, IsBoolean } from 'class-validator';
 
 export class GetUserBlockHistoryQueryDto {
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Filter block history by status (true = blocked, false = unblocked)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) =>
+    value === 'true' ? true : value === 'false' ? false : undefined,
+  )
+  isBlocked?: boolean;
+
   @ApiPropertyOptional({
     example: 1,
     description: 'Page number for pagination',

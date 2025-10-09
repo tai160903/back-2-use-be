@@ -21,6 +21,9 @@ import {
   UserBlockHistoryDocument,
 } from 'src/modules/users/schemas/users-block-history';
 import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-customer-block-status.dto';
+import { blockNotificationTemplate } from 'src/infrastructure/mailer/templates/block-notification';
+import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
+import { MailerService } from 'src/infrastructure/mailer/mailer.service';
 
 @Injectable()
 export class AdminCustomerService {
@@ -28,7 +31,11 @@ export class AdminCustomerService {
     @InjectModel(Users.name) private readonly userModel: Model<UsersDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly userBlockHistoryModel: Model<UserBlockHistoryDocument>,
+    private mailerService: MailerService,
   ) {}
+
+  projection =
+    '_id name email phone address yob role isActive isBlocked createdAt updatedAt';
 
   // Admin get all users with role customer
   async getAllCustomers(
@@ -47,7 +54,7 @@ export class AdminCustomerService {
         filter,
         page,
         limit,
-        '_id name email phone address yob role isActive isBlocked createdAt updatedAt',
+        this.projection,
       );
 
     const userDtos = data.map((user) =>
@@ -72,9 +79,7 @@ export class AdminCustomerService {
 
     const user = await this.userModel
       .findById(id)
-      .select(
-        '_id name email phone address yob role isActive isBlocked createdAt updatedAt',
-      )
+      .select(this.projection)
       .exec();
 
     if (!user) {
@@ -90,7 +95,7 @@ export class AdminCustomerService {
     };
   }
 
-  // Admin update block status
+  // Admin update customer block status
   async updateBlockStatus(
     id: string,
     dto: UpdateCustomerBlockStatusDto,
@@ -104,9 +109,7 @@ export class AdminCustomerService {
 
     const customer = await this.userModel
       .findOne({ _id: id, role: RolesEnum.CUSTOMER })
-      .select(
-        '_id name email phone address yob role isActive isBlocked createdAt updatedAt',
-      );
+      .select(this.projection);
 
     if (!customer) {
       throw new NotFoundException('Customer not found');
@@ -129,13 +132,29 @@ export class AdminCustomerService {
       blockBy: adminId || null,
     });
 
+    const html = blockNotificationTemplate(customer.name, isBlocked, reason);
+
+    const mailer: MailerDto = {
+      to: [{ name: customer.name, address: customer.email }],
+      subject: isBlocked
+        ? 'Your Account Has Been Blocked'
+        : 'Your Account Has Been Unblocked',
+      html,
+    };
+
+    try {
+      await this.mailerService.sendMail(mailer);
+    } catch (error) {
+      console.error('❌ Failed to send block/unblock email:', error.message);
+    }
+
     const customerDto = plainToInstance(UserResponseDto, customer.toObject());
 
     return {
       statusCode: HttpStatus.OK,
       message: `Customer has been ${
         isBlocked ? 'blocked' : 'unblocked'
-      } successfully`,
+      } successfully and notification email has been sent.`,
       data: customerDto,
     };
   }

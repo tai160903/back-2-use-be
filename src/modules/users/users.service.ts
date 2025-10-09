@@ -91,18 +91,22 @@ export class UsersService {
     userId: string,
     query: GetUserBlockHistoryQueryDto,
   ): Promise<APIPaginatedResponseDto<UserBlockHistory[]>> {
-    const { page = 1, limit = 10 } = query;
-    const user = await this.usersModel.findById(userId);
+    const { page = 1, limit = 10, isBlocked } = query;
 
     if (!isValidObjectId(userId)) {
       throw new BadRequestException(`Invalid User ID '${userId}'`);
     }
 
+    const user = await this.usersModel.findById(userId);
     if (!user) {
       throw new NotFoundException(`User with ID '${userId}' not found`);
     }
 
-    const filter = { userId: new Types.ObjectId(userId) };
+    const filter: any = { userId: new Types.ObjectId(userId) };
+
+    if (typeof isBlocked === 'boolean') {
+      filter.isBlocked = isBlocked;
+    }
 
     const { data, total, currentPage, totalPages } =
       await paginate<UserBlockHistoryDocument>(

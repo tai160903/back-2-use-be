@@ -6,6 +6,7 @@ export async function paginate<T>(
   page: number,
   limit: number,
   select?: string,
+  sort: Record<string, 1 | -1> = { createdAt: -1 },
 ) {
   const query = model.find(filter as any);
 
@@ -15,6 +16,7 @@ export async function paginate<T>(
 
   const [data, total] = await Promise.all([
     query
+      .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit)
       .exec(),

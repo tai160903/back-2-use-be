@@ -1,4 +1,4 @@
-import { isValidObjectId, Model } from 'mongoose';
+import { HydratedDocument, isValidObjectId, Model } from 'mongoose';
 import {
   Injectable,
   HttpStatus,
@@ -17,12 +17,19 @@ import { SimpleBusinessDto } from '../dto/admin-business/simple-businesses.dto';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { Users } from 'src/modules/users/schemas/users.schema';
+import { UpdateBusinessBlockStatusDto } from '../dto/admin-business/update-business-block-status.dto';
+import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
+import { blockNotificationTemplate } from 'src/infrastructure/mailer/templates/block-notification';
+import { MailerService } from 'src/infrastructure/mailer/mailer.service';
+import { UserBlockHistoryDocument } from 'src/modules/users/schemas/users-block-history';
 
 @Injectable()
 export class AdminBusinessService {
   constructor(
     @InjectModel(Businesses.name)
     private readonly businessModel: Model<Businesses>,
+    // private readonly userBlockHistoryModel: Model<UserBlockHistoryDocument>,
+    private mailerService: MailerService,
   ) {}
 
   // Admin get all businesses (flatten user info)
@@ -96,5 +103,86 @@ export class AdminBusinessService {
     };
   }
 
-  // Admin update block status
+  // Admin update business block status
+  // async updateBlockStatus(
+  //   id: string,
+  //   dto: UpdateBusinessBlockStatusDto,
+  //   adminId?: string,
+  // ): Promise<APIResponseDto<SimpleBusinessDto>> {
+  //   const { isBlocked, reason } = dto;
+
+  //   // 1️⃣ Kiểm tra ObjectId
+  //   if (!isValidObjectId(id)) {
+  //     throw new BadRequestException(`Invalid Business ID '${id}'`);
+  //   }
+
+  //   // 2️⃣ Lấy business và user info
+  //   const business = await this.businessModel
+  //     .findById(id)
+  //     .populate<{ userId: HydratedDocument<Users> }>('userId')
+  //     .exec();
+
+  //   if (!business) {
+  //     throw new NotFoundException(`Business with ID '${id}' not found`);
+  //   }
+
+  //   const user = business.userId as Users;
+
+  //   // 3️⃣ Kiểm tra trạng thái hiện tại
+  //   if (user.isBlocked === isBlocked) {
+  //     return {
+  //       statusCode: HttpStatus.OK,
+  //       message: `Business is already ${isBlocked ? 'blocked' : 'unblocked'}`,
+  //     };
+  //   }
+
+  //   // 4️⃣ Cập nhật trạng thái block
+  //   user.isBlocked = isBlocked;
+  //   await user.save();
+
+  //   // 5️⃣ Lưu lịch sử block
+  //   await this.userBlockHistoryModel.create({
+  //     userId: user._id,
+  //     reason,
+  //     isBlocked,
+  //     blockBy: adminId || null,
+  //   });
+
+  //   // 6️⃣ Gửi email thông báo
+  //   const html = blockNotificationTemplate(user.name, isBlocked, reason);
+
+  //   const mailer: MailerDto = {
+  //     to: [{ name: user.name, address: user.email }],
+  //     subject: isBlocked
+  //       ? 'Your Business Account Has Been Blocked'
+  //       : 'Your Business Account Has Been Unblocked',
+  //     html,
+  //   };
+
+  //   try {
+  //     await this.mailerService.sendMail(mailer);
+  //   } catch (error) {
+  //     console.error('❌ Failed to send block/unblock email:', error.message);
+  //   }
+
+  //   // 7️⃣ Flatten dữ liệu giống getAllBusinesses
+  //   const result: SimpleBusinessDto = {
+  //     _id: business._id.toString(),
+  //     userId: user._id.toString(),
+  //     storeName: business.storeName,
+  //     storePhone: business.storePhone,
+  //     storeAddress: business.storeAddress,
+  //     role: user.role,
+  //     isActive: user.isActive,
+  //     isBlocked: user.isBlocked,
+  //     createdAt: business.createdAt!,
+  //     updatedAt: business.updatedAt!,
+  //   };
+
+  //   return {
+  //     statusCode: HttpStatus.OK,
+  //     message: `Business has been ${isBlocked ? 'blocked' : 'unblocked'} successfully`,
+  //     data: result,
+  //   };
+  // }
 }
