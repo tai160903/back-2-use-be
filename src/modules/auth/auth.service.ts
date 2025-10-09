@@ -9,11 +9,11 @@ import * as crypto from 'crypto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ConfigService } from '@nestjs/config';
 import { Users } from '../users/schemas/users.schema';
-import { MailerService } from '../mailer/mailer.service';
+import { MailerService } from 'src/infrastructure/mailer/mailer.service';
 import { WalletsService } from '../wallets/wallets.service';
-import { otpEmailTemplate } from '../mailer/templates/otp-email.template';
-import { MailerDto } from '../mailer/dto/mailer.dto';
-import { otpForgotPasswordTemplate } from '../mailer/templates/otp-forgot-password.template';
+import { otpEmailTemplate } from 'src/infrastructure/mailer/templates/otp-email.template';
+import { otpForgotPasswordTemplate } from 'src/infrastructure/mailer/templates/otp-forgot-password.template';
+import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
 
 @Injectable()
 export class AuthService {
@@ -389,6 +389,53 @@ export class AuthService {
         'Something went wrong',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  // Refresh access token
+  async refreshToken(refreshToken: string): Promise<APIResponseDto> {
+    try {
+      if (!refreshToken) {
+        throw new HttpException(
+          'Refresh token is required',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+      const decoded = await this.jwtService.verifyAsync(refreshToken, {
+        secret: this.configService.get('jwt.refreshToken.secret'),
+      });
+      if (!decoded || !decoded._id) {
+        throw new HttpException(
+          'Invalid refresh token',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      const user = await this.usersModel.findById(decoded._id);
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+      const payload = { _id: user._id, role: user.role };
+      const newAccessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get('jwt.accessToken.secret'),
+        expiresIn: this.configService.get(
+          'jwt.accessToken.signOptions.expiresIn',
+        ),
+      });
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Access token refreshed successfully',
+        data: {
+          accessToken: newAccessToken,
+        },
+      };
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new HttpException(
+          'Refresh token expired',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
     }
   }
 }

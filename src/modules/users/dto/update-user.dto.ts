@@ -12,11 +12,6 @@ export class UpdateUserDto {
   @ApiPropertyOptional({ example: '0987654321' })
   phone?: string;
 
-  // @IsOptional()
-  // @IsString()
-  // @ApiPropertyOptional({ example: 'https://example.com/avatar.jpg' })
-  // avatar?: string;
-
   @IsOptional()
   @IsString()
   @ApiPropertyOptional({ example: '123 Street' })

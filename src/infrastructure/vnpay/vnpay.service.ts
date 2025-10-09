@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as qs from 'qs';
-import { ProductCode, VnpLocale, dateFormat } from 'vnpay';
+import { ProductCode, dateFormat } from 'vnpay';
 @Injectable()
 export class VnpayService {
   private vnp_TmnCode: string;
@@ -20,6 +20,8 @@ export class VnpayService {
     this.vnp_Url =
       vnpayConfig.url || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
     this.vnp_ReturnUrl = vnpayConfig.returnUrl;
+
+    console.log(vnpayConfig);
   }
 
   createPaymentUrl(
@@ -45,18 +47,21 @@ export class VnpayService {
       vnp_Amount: Math.round(amount * 100),
       vnp_CurrCode: 'VND',
       vnp_IpAddr: ipAddr,
-      vnp_TxnRef: orderId, // Sử dụng orderId làm mã giao dịch
+      vnp_TxnRef: orderId,
       vnp_OrderInfo: orderInfo,
-      vnp_OrderType: ProductCode.Other,
+      vnp_OrderType: 'other',
       vnp_ReturnUrl: this.vnp_ReturnUrl,
-      vnp_Locale: VnpLocale.VN,
-      vnp_CreateDate: dateFormat(new Date()),
-      vnp_ExpireDate: dateFormat(new Date(vnTime.getTime() + 15 * 60 * 1000)), // 15 minutes expiration
+      vnp_Locale: 'vn',
+      vnp_CreateDate: dateFormat(vnTime, 'yyyyMMddHHmmss'),
+      vnp_ExpireDate: dateFormat(
+        new Date(vnTime.getTime() + 15 * 60 * 1000),
+        'yyyyMMddHHmmss',
+      ), // 15 minutes expiration
     };
 
     const sortedParams = this.sortObject(vnp_Params);
     console.log('VNPay Sorted Params:', sortedParams);
-    const signData = qs.stringify(sortedParams, { encode: false });
+    const signData = qs.stringify(sortedParams, { encode: true });
     const hmac = crypto.createHmac('sha512', this.vnp_HashSecret.trim());
     const secureHash = hmac
       .update(Buffer.from(signData, 'utf-8'))

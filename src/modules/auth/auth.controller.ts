@@ -208,4 +208,16 @@ export class AuthController {
       url: 'http://localhost:5173/',
     };
   }
+
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiBody({
+    schema: {
+      properties: { refreshToken: { type: 'string', example: '...' } },
+      required: ['refreshToken'],
+    },
+  })
+  @Post('refresh-token')
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    return this.authService.refreshToken(body.refreshToken);
+  }
 }

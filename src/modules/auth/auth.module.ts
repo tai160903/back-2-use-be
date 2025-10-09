@@ -9,8 +9,9 @@ import { GoogleStrategy } from './strategies/google.strategy';
 
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { Users, UsersSchema } from '../users/schemas/users.schema';
-import { MailerModule } from '../mailer/mailer.module';
+
 import { WalletsModule } from '../wallets/wallets.module';
+import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
 
 @Module({
   imports: [

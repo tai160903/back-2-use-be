@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsUrl, IsEmail, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsEmail, Matches } from 'class-validator';
 export class CreateBusinessFormDto {
   @IsString()
   @IsNotEmpty()

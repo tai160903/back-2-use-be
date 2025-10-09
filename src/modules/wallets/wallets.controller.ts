@@ -7,14 +7,22 @@ import {
   Param,
   UseFilters,
   Req,
+  UseGuards,
   // Delete,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBody, ApiParam } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiParam,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
-import { VnpayService } from '../vnpay/vnpay.service';
+import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
+import { AuthGuard } from '@nestjs/passport';
 
 @ApiTags('Wallets')
 @Controller('wallets')
@@ -35,6 +43,7 @@ export class WalletsController {
   @ApiOperation({ summary: 'Get wallet by id' })
   @ApiParam({ name: 'walletId', type: String })
   @Get(':walletId')
+  @UseGuards(AuthGuard('jwt'))
   findOne(@Param('walletId') walletId: string) {
     return this.walletsService.findOne(walletId);
   }
@@ -54,6 +63,8 @@ export class WalletsController {
   @ApiParam({ name: 'walletId', type: String })
   @ApiBody({ schema: { properties: { amount: { type: 'number' } } } })
   @Post(':walletId/deposit')
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'))
   async deposit(
     @Param('walletId') walletId: string,
     @Body('amount') amount: number,
@@ -65,7 +76,9 @@ export class WalletsController {
   @ApiOperation({ summary: 'Withdraw money from wallet (decrease balance)' })
   @ApiParam({ name: 'walletId', type: String })
   @ApiBody({ schema: { properties: { amount: { type: 'number' } } } })
+  @ApiBearerAuth('access-token')
   @Post(':walletId/withdraw')
+  @UseGuards(AuthGuard('jwt'))
   async withdraw(
     @Param('walletId') walletId: string,
     @Body('amount') amount: number,

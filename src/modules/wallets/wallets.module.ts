@@ -3,7 +3,7 @@ import { WalletsService } from './wallets.service';
 import { WalletsController } from './wallets.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Wallets, WalletsSchema } from './schemas/wallets.schema';
-import { VnpayModule } from '../vnpay/vnpay.module';
+import { VnpayModule } from '../../infrastructure/vnpay/vnpay.module';
 
 @Module({
   imports: [
