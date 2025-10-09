@@ -8,11 +8,14 @@ import { Wallets, WalletsDocument } from './schemas/wallets.schema';
 import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { Request } from 'express';
 import { randomBytes } from 'crypto';
+import { Transactions } from './schemas/transations.shema';
 
 @Injectable()
 export class WalletsService {
   constructor(
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
+    @InjectModel(Transactions.name)
+    private transactionsModel: Model<Transactions>,
     private readonly vnpayService: VnpayService,
   ) {}
 
@@ -123,7 +126,6 @@ export class WalletsService {
         message: 'You do not have permission to operate on this wallet',
       };
     }
-    const transactionId = `${walletId}-${Date.now()}-${randomBytes(3).toString('hex')}`;
     const orderInfo = `Payment_${walletId}`;
 
     let ipAddr =
@@ -139,9 +141,18 @@ export class WalletsService {
     if (ipAddr.includes(',')) {
       ipAddr = ipAddr.split(',')[0].trim();
     }
+    if (ipAddr.startsWith('::ffff:') || ipAddr.startsWith('::1')) {
+      ipAddr = '127.0.0.1';
+    }
+
+    const transaction = await this.transactionsModel.create({
+      walletId: walletId,
+      amount: amount,
+      type: 'deposit',
+    });
 
     const paymentUrl = this.vnpayService.createPaymentUrl(
-      transactionId,
+      transaction._id.toString(),
       amount,
       ipAddr,
       orderInfo,

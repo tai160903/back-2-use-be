@@ -61,7 +61,7 @@ export class VnpayService {
 
     const sortedParams = this.sortObject(vnp_Params);
     console.log('VNPay Sorted Params:', sortedParams);
-    const signData = qs.stringify(sortedParams, { encode: true });
+    const signData = qs.stringify(sortedParams, { encode: false });
     const hmac = crypto.createHmac('sha512', this.vnp_HashSecret.trim());
     const secureHash = hmac
       .update(Buffer.from(signData, 'utf-8'))
