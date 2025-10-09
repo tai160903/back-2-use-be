@@ -20,7 +20,7 @@ import {
 } from 'src/infrastructure/mailer/templates/business-form.template';
 
 @Injectable()
-export class AdminService {
+export class AdminBusinessFormService {
   constructor(
     @InjectModel(BusinessForm.name)
     private businessFormModel: Model<BusinessForm>,

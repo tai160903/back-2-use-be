@@ -2,7 +2,9 @@ import {
   Body,
   Controller,
   Get,
+  Param,
   Post,
+  Query,
   Request,
   UploadedFile,
   UseGuards,
@@ -15,11 +17,15 @@ import {
   ApiBody,
   ApiResponse,
   ApiConsumes,
+  ApiParam,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { AuthGuard } from '@nestjs/passport';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { UserBlockHistory } from './schemas/users-block-history';
+import { GetUserBlockHistoryQueryDto } from './dto/get-user-block-history-query.dto';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -44,24 +50,34 @@ export class UsersController {
     return this.usersService.updateMe(req.user._id, updateUserDto);
   }
 
-  // @Post('edit-avatar')
-  // @UseGuards(AuthGuard('jwt'))
-  // @ApiOperation({ summary: 'Update current user avatar' })
-  // @ApiConsumes('multipart/form-data')
-  // @ApiBody({
-  //   schema: {
-  //     type: 'object',
-  //     properties: {
-  //       avatar: {
-  //         type: 'string',
-  //         format: 'binary',
-  //       },
-  //     },
-  //   },
-  // })
-  // @ApiResponse({ status: 200, description: 'Avatar updated' })
-  // @UseInterceptors(FileInterceptor('avatar'))
-  // editAvatar(@Request() req: any, @UploadedFile() file: Express.Multer.File) {
-  //   return this.usersService.updateAvatar(req.user._id, file);
-  // }
+  // GET users/:id/block-history
+  @Get(':id/block-history')
+  @ApiParam({ name: 'id', description: 'User ID' })
+  async getUserBlockHistory(
+    @Param('id') id: string,
+    @Query() query: GetUserBlockHistoryQueryDto,
+  ): Promise<APIPaginatedResponseDto<UserBlockHistory[]>> {
+    return this.usersService.getUserBlockHistory(id, query);
+  }
 }
+
+// @Post('edit-avatar')
+// @UseGuards(AuthGuard('jwt'))
+// @ApiOperation({ summary: 'Update current user avatar' })
+// @ApiConsumes('multipart/form-data')
+// @ApiBody({
+//   schema: {
+//     type: 'object',
+//     properties: {
+//       avatar: {
+//         type: 'string',
+//         format: 'binary',
+//       },
+//     },
+//   },
+// })
+// @ApiResponse({ status: 200, description: 'Avatar updated' })
+// @UseInterceptors(FileInterceptor('avatar'))
+// editAvatar(@Request() req: any, @UploadedFile() file: Express.Multer.File) {
+//   return this.usersService.updateAvatar(req.user._id, file);
+// }

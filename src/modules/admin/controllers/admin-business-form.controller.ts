@@ -8,11 +8,11 @@ import {
   // Param,
   // Delete,
 } from '@nestjs/common';
-import { AdminService } from '../services/admin-business-form.service';
 import { UseGuards, Body, Param, Patch } from '@nestjs/common';
 import { RoleCheckGuard } from '../../../common/guards/role-check.guard';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
+import { AdminBusinessFormService } from '../services/admin-business-form.service';
 // import { CreateAdminDto } from './dto/create-admin.dto';
 // import { UpdateAdminDto } from './dto/update-admin.dto';
 
@@ -21,8 +21,8 @@ import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 @UseFilters(HttpExceptionFilter)
 @ApiBearerAuth('access-token')
 @UseGuards(RoleCheckGuard.withRoles(['admin']))
-export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+export class AdminBusinessFormController {
+  constructor(private readonly adminService: AdminBusinessFormService) {}
 
   @Patch('businesses/:id/approve')
   @ApiOperation({ summary: 'Approve business form' })

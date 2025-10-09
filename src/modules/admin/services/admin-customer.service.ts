@@ -16,11 +16,18 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { UserResponseDto } from '../dto/admin-customer/user-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import {
+  UserBlockHistory,
+  UserBlockHistoryDocument,
+} from 'src/modules/users/schemas/users-block-history';
+import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-customer-block-status.dto';
 
 @Injectable()
 export class AdminCustomerService {
   constructor(
     @InjectModel(Users.name) private readonly userModel: Model<UsersDocument>,
+    @InjectModel(UserBlockHistory.name)
+    private readonly userBlockHistoryModel: Model<UserBlockHistoryDocument>,
   ) {}
 
   // Admin get all users with role customer
@@ -86,8 +93,11 @@ export class AdminCustomerService {
   // Admin update block status
   async updateBlockStatus(
     id: string,
-    isBlocked: boolean,
+    dto: UpdateCustomerBlockStatusDto,
+    adminId?: string,
   ): Promise<APIResponseDto<UserResponseDto>> {
+    const { isBlocked, reason } = dto;
+
     if (!isValidObjectId(id)) {
       throw new BadRequestException(`Invalid User ID '${id}'`);
     }
@@ -112,11 +122,20 @@ export class AdminCustomerService {
     customer.isBlocked = isBlocked;
     await customer.save();
 
+    await this.userBlockHistoryModel.create({
+      userId: customer._id,
+      reason,
+      isBlocked,
+      blockBy: adminId || null,
+    });
+
     const customerDto = plainToInstance(UserResponseDto, customer.toObject());
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Customer has been ${isBlocked ? 'blocked' : 'unblocked'} successfully`,
+      message: `Customer has been ${
+        isBlocked ? 'blocked' : 'unblocked'
+      } successfully`,
       data: customerDto,
     };
   }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
 
 export class UpdateCustomerBlockStatusDto {
   @ApiProperty({
@@ -8,4 +8,12 @@ export class UpdateCustomerBlockStatusDto {
   })
   @IsBoolean()
   isBlocked: boolean;
+
+  @ApiProperty({
+    example: 'Vi phạm điều khoản sử dụng',
+    description: 'Reason for blocking or unblocking the customer',
+  })
+  @IsString()
+  @IsNotEmpty({ message: 'Reason is required' })
+  reason: string;
 }
