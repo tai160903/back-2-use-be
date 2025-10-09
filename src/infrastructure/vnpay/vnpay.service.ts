@@ -20,8 +20,6 @@ export class VnpayService {
     this.vnp_Url =
       vnpayConfig.url || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
     this.vnp_ReturnUrl = vnpayConfig.returnUrl;
-
-    console.log(vnpayConfig);
   }
 
   createPaymentUrl(
@@ -60,16 +58,14 @@ export class VnpayService {
     };
 
     const sortedParams = this.sortObject(vnp_Params);
-    console.log('VNPay Sorted Params:', sortedParams);
-    const signData = qs.stringify(sortedParams, { encode: false });
-    const hmac = crypto.createHmac('sha512', this.vnp_HashSecret.trim());
-    const secureHash = hmac
-      .update(Buffer.from(signData, 'utf-8'))
-      .digest('hex');
-
+    const signData = qs.stringify(sortedParams, { encode: true });
+    const hmac = crypto.createHmac('sha512', this.vnp_HashSecret);
+    const secureHash = hmac.update(signData, 'utf-8').digest('hex');
     const querystring = qs.stringify(sortedParams, { encode: true });
 
-    return `${this.vnp_Url}?${querystring}&vnp_SecureHash=${secureHash}`;
+    const finalUrl = `${this.vnp_Url}?${querystring}&vnp_SecureHash=${secureHash}`;
+
+    return finalUrl;
   }
 
   verifyVnpayReturn(query: Record<string, any>): boolean {

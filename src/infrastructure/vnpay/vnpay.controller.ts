@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Res, Inject } from '@nestjs/common';
+import { Controller, Get, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
 import { VnpayService } from './vnpay.service';
 import { InjectModel } from '@nestjs/mongoose';
@@ -7,7 +7,7 @@ import { Transactions } from '../../modules/wallets/schemas/transations.shema';
 import { Wallets } from '../../modules/wallets/schemas/wallets.schema';
 
 @Controller('vnpay')
-export class WalletsVnpayController {
+export class VnpayController {
   constructor(
     private readonly vnpayService: VnpayService,
     @InjectModel(Transactions.name)
