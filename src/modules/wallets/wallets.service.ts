@@ -7,12 +7,14 @@ import { Model } from 'mongoose';
 import { Wallets, WalletsDocument } from './schemas/wallets.schema';
 import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { Request } from 'express';
-import { randomBytes } from 'crypto';
+import { Transactions } from './schemas/transations.shema';
 
 @Injectable()
 export class WalletsService {
   constructor(
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
+    @InjectModel(Transactions.name)
+    private transactionsModel: Model<Transactions>,
     private readonly vnpayService: VnpayService,
   ) {}
 
@@ -100,6 +102,65 @@ export class WalletsService {
     }
   }
 
+  // async deposit(
+  //   walletId: string,
+  //   amount: number,
+  //   req: Request,
+  //   userId?: string,
+  // ) {
+  //   if (!amount || typeof amount !== 'number' || amount <= 0) {
+  //     return {
+  //       statusCode: 400,
+  //       message: 'Deposit amount must be greater than 0',
+  //     };
+  //   }
+  //   const walletRes = await this.findOne(walletId);
+  //   if (walletRes.statusCode !== 200 || !walletRes.data) {
+  //     return walletRes;
+  //   }
+  //   const wallet = walletRes.data as WalletsDocument;
+  //   if (userId && wallet.userId?.toString() !== userId?.toString()) {
+  //     return {
+  //       statusCode: 403,
+  //       message: 'You do not have permission to operate on this wallet',
+  //     };
+  //   }
+  //   const orderInfo = `Payment_${walletId}`;
+
+  //   let ipAddr =
+  //     (req.headers['x-forwarded-for'] as string) ||
+  //     req.socket?.remoteAddress ||
+  //     (req.connection && req.connection.remoteAddress) ||
+  //     '';
+
+  //   if (Array.isArray(ipAddr)) {
+  //     ipAddr = ipAddr[0];
+  //   }
+
+  //   if (ipAddr.includes(',')) {
+  //     ipAddr = ipAddr.split(',')[0].trim();
+  //   }
+  //   if (ipAddr.startsWith('::ffff:') || ipAddr.startsWith('::1')) {
+  //     ipAddr = '127.0.0.1';
+  //   }
+
+  //   const transaction = await this.transactionsModel.create({
+  //     walletId: walletId,
+  //     amount: amount,
+  //     type: 'deposit',
+  //   });
+
+  //   const paymentUrl = this.vnpayService.createPaymentUrl(
+  //     transaction._id.toString(),
+  //     amount,
+  //     ipAddr,
+  //     orderInfo,
+  //   );
+  //   return {
+  //     url: paymentUrl,
+  //   };
+  // }
+
   async deposit(
     walletId: string,
     amount: number,
@@ -123,7 +184,7 @@ export class WalletsService {
         message: 'You do not have permission to operate on this wallet',
       };
     }
-    const transactionId = `${walletId}-${Date.now()}-${randomBytes(3).toString('hex')}`;
+    // const transactionId = `${walletId}-${Date.now()}-${randomBytes(3).toString('hex')}`;
     const orderInfo = `Payment_${walletId}`;
 
     let ipAddr =
@@ -139,9 +200,31 @@ export class WalletsService {
     if (ipAddr.includes(',')) {
       ipAddr = ipAddr.split(',')[0].trim();
     }
+    if (
+      ipAddr === '::1' ||
+      ipAddr === '::ffff:127.0.0.1' ||
+      ipAddr.startsWith('::ffff:')
+    ) {
+      ipAddr = '127.0.0.1';
+    }
+
+    if (ipAddr.startsWith('::ffff:')) {
+      ipAddr = ipAddr.substring(7);
+    }
+
+    if (!ipAddr || ipAddr === '::1') {
+      ipAddr = '127.0.0.1';
+    }
+    const transation = await this.transactionsModel.create({
+      walletId: wallet._id,
+      amount,
+      type: 'deposit',
+    });
+
+    console.log('Created Transaction:', transation);
 
     const paymentUrl = this.vnpayService.createPaymentUrl(
-      transactionId,
+      transation._id.toString(),
       amount,
       ipAddr,
       orderInfo,

@@ -1,48 +1,55 @@
-import { Controller, Get, Query, Req, Res, Post, Body } from '@nestjs/common';
+import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Response } from 'express';
 import { VnpayService } from './vnpay.service';
-import { Request, Response } from 'express';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Transactions } from '../../modules/wallets/schemas/transations.shema';
+import { Wallets } from '../../modules/wallets/schemas/wallets.schema';
 
 @Controller('vnpay')
 export class VnpayController {
-  constructor(private readonly vnpayService: VnpayService) {}
-
-  @Post('create-payment')
-  async createPayment(@Body() body: any, @Req() req: Request) {
-    const { orderId, amount, orderInfo } = body;
-
-    const ipAddr =
-      (req.headers['x-forwarded-for'] as string) ||
-      req.socket.remoteAddress ||
-      '';
-
-    const paymentUrl = this.vnpayService.createPaymentUrl(
-      orderId,
-      amount,
-      ipAddr,
-      orderInfo,
-    );
-
-    return { url: paymentUrl };
-  }
+  constructor(
+    private readonly vnpayService: VnpayService,
+    @InjectModel(Transactions.name)
+    private transactionsModel: Model<Transactions>,
+    @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
+  ) {}
 
   @Get('return')
-  async vnpayReturn(
-    @Query() query: Record<string, string>,
-    @Res() res: Response,
-  ) {
-    try {
-      const isValid = await this.vnpayService.verifyVnpayReturn(query);
-
-      if (isValid) {
-        return res.redirect(
-          `${process.env.CLIENT_RETURN_URL}?status=success&orderId=${query['vnp_TxnRef']}`,
-        );
-      } else {
-        return res.redirect(`${process.env.CLIENT_RETURN_URL}?status=fail`);
+  async vnpayReturn(@Query() query: any, @Res() res: Response) {
+    const isValid = this.vnpayService.verifyVnpayReturn(query);
+    if (!isValid) {
+      return res.redirect(
+        `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=invalid-signature`,
+      );
+    }
+    const transactionId = query['vnp_TxnRef'];
+    const responseCode = query['vnp_ResponseCode'];
+    const transaction = await this.transactionsModel.findById(transactionId);
+    console.log('VNPay Transaction:', transaction);
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+    if (transaction.status === 'completed') {
+      return res.redirect(
+        `${process.env.CLIENT_RETURN_URL}/payment-success?status=already-done`,
+      );
+    }
+    if (responseCode === '00') {
+      transaction.status = 'completed';
+      await transaction.save();
+      const wallet = await this.walletsModel.findById(transaction.walletId);
+      if (wallet) {
+        wallet.balance += transaction.amount;
+        await wallet.save();
       }
-    } catch (error) {
-      console.error('VNPay Return Error:', error);
-      return res.redirect(`${process.env.CLIENT_RETURN_URL}?status=error`);
+      return res.redirect(`${process.env.CLIENT_RETURN_URL}/payment-success`);
+    } else {
+      transaction.status = 'failed';
+      await transaction.save();
+      return res.redirect(
+        `${process.env.CLIENT_RETURN_URL}/payment-failed?code=${responseCode}`,
+      );
     }
   }
 }
