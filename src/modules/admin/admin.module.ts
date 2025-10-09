@@ -1,9 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { AdminService } from './services/admin-business-form.service';
-import { AdminController } from './controllers/admin-business-form.controller';
-
 import { AdminMaterialController } from './controllers/admin-material.controller';
 import { AdminMaterialService } from './services/admin-material.service';
 import {
@@ -23,6 +20,12 @@ import { AdminCustomerService } from './services/admin-customer.service';
 import { AdminBusinessController } from './controllers/admin-business.controller';
 import { AdminBusinessService } from './services/admin-business.service';
 import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
+import { AdminBusinessFormController } from './controllers/admin-business-form.controller';
+import { AdminBusinessFormService } from './services/admin-business-form.service';
+import {
+  UserBlockHistory,
+  UserBlockHistorySchema,
+} from '../users/schemas/users-block-history';
 
 @Module({
   imports: [
@@ -31,18 +34,19 @@ import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
       { name: Material.name, schema: MaterialSchema },
       { name: Users.name, schema: UsersSchema },
       { name: Businesses.name, schema: BusinessesSchema },
+      { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
     ]),
     BusinessesModule,
     MailerModule,
   ],
   controllers: [
-    AdminController,
+    AdminBusinessFormController,
     AdminMaterialController,
     AdminCustomerController,
     AdminBusinessController,
   ],
   providers: [
-    AdminService,
+    AdminBusinessFormService,
     AdminMaterialService,
     AdminCustomerService,
     AdminBusinessService,

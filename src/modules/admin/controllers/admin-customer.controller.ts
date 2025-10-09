@@ -5,6 +5,7 @@ import {
   Param,
   Patch,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
@@ -47,9 +48,11 @@ export class AdminCustomerController {
   @Patch(':id/block-status')
   @ApiParam({ name: 'id', description: 'Customer ID' })
   async updateBlockStatus(
+    @Req() req,
     @Param('id') id: string,
     @Body() dto: UpdateCustomerBlockStatusDto,
   ): Promise<APIResponseDto<UserResponseDto>> {
-    return this.customerService.updateBlockStatus(id, dto.isBlocked);
+    const adminId = req.user?._id;
+    return this.customerService.updateBlockStatus(id, dto, adminId);
   }
 }
