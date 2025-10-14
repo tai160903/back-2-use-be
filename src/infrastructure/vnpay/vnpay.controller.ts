@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Res } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { Response } from 'express';
 import { VnpayService } from './vnpay.service';
 import { InjectModel } from '@nestjs/mongoose';
@@ -6,6 +7,7 @@ import { Model } from 'mongoose';
 import { Transactions } from '../../modules/wallets/schemas/transations.shema';
 import { Wallets } from '../../modules/wallets/schemas/wallets.schema';
 
+@ApiExcludeController()
 @Controller('vnpay')
 export class VnpayController {
   constructor(

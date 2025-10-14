@@ -26,17 +26,20 @@ import {
   UserBlockHistory,
   UserBlockHistorySchema,
 } from '../users/schemas/users-block-history';
+import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: BusinessForm.name, schema: BusinessFormSchema },
+      { name: Customers.name, schema: CustomersSchema },
       { name: Material.name, schema: MaterialSchema },
       { name: Users.name, schema: UsersSchema },
       { name: Businesses.name, schema: BusinessesSchema },
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
     ]),
     BusinessesModule,
+
     MailerModule,
   ],
   controllers: [

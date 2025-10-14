@@ -73,7 +73,7 @@ export class AdminBusinessFormService {
         storeAddress: businessForm.storeAddress,
         storePhone: businessForm.storePhone,
         taxCode: businessForm.taxCode,
-        foodLicenseUrl: businessForm.foodLicenseUrl,
+        foodSafetyCertUrl: businessForm.foodSafetyCertUrl,
         businessLicenseUrl: businessForm.businessLicenseUrl,
       });
       await business.save();

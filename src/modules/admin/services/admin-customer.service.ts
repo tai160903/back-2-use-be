@@ -24,6 +24,10 @@ import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-custo
 import { blockNotificationTemplate } from 'src/infrastructure/mailer/templates/block-notification';
 import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
 import { MailerService } from 'src/infrastructure/mailer/mailer.service';
+import {
+  Customers,
+  CustomersDocument,
+} from 'src/modules/users/schemas/customer.schema';
 
 @Injectable()
 export class AdminCustomerService {
@@ -31,6 +35,8 @@ export class AdminCustomerService {
     @InjectModel(Users.name) private readonly userModel: Model<UsersDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly userBlockHistoryModel: Model<UserBlockHistoryDocument>,
+    @InjectModel(Customers.name)
+    private readonly customerModel: Model<CustomersDocument>,
     private mailerService: MailerService,
   ) {}
 
@@ -107,35 +113,46 @@ export class AdminCustomerService {
       throw new BadRequestException(`Invalid User ID '${id}'`);
     }
 
-    const customer = await this.userModel
+    const user = await this.userModel
       .findOne({ _id: id, role: RolesEnum.CUSTOMER })
       .select(this.projection);
+
+    const customer = await this.customerModel.findOne({ userId: id });
 
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
 
-    if (customer.isBlocked === isBlocked) {
+    if (!user) {
+      throw new NotFoundException('Associated user not found');
+    }
+
+    if (user.isBlocked === true) {
       return {
         statusCode: HttpStatus.OK,
         message: `Customer is already ${isBlocked ? 'blocked' : 'unblocked'}`,
       };
     }
 
-    customer.isBlocked = isBlocked;
-    await customer.save();
+    user.isBlocked = true;
+
+    await user.save();
 
     await this.userBlockHistoryModel.create({
-      userId: customer._id,
+      userId: user._id,
       reason,
       isBlocked,
       blockBy: adminId || null,
     });
 
-    const html = blockNotificationTemplate(customer.name, isBlocked, reason);
+    const html = blockNotificationTemplate(
+      customer.fullName,
+      isBlocked,
+      reason,
+    );
 
     const mailer: MailerDto = {
-      to: [{ name: customer.name, address: customer.email }],
+      to: [{ name: customer.fullName, address: user.email }],
       subject: isBlocked
         ? 'Your Account Has Been Blocked'
         : 'Your Account Has Been Unblocked',

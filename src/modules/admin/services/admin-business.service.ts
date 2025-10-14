@@ -1,4 +1,4 @@
-import { HydratedDocument, isValidObjectId, Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import {
   Injectable,
   HttpStatus,
@@ -6,10 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-  BusinessDocument,
-  Businesses,
-} from 'src/modules/businesses/schemas/businesses.schema';
+import { Businesses } from 'src/modules/businesses/schemas/businesses.schema';
 import { GetBusinessQueryDto } from '../dto/admin-business/get-businesses-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { aggregatePaginate } from 'src/common/utils/aggregate-pagination.util';
@@ -125,23 +122,28 @@ export class AdminBusinessService {
       throw new BadRequestException(`Invalid Business ID '${id}'`);
     }
 
-    const business = await this.userModel
-      .findOne({ _id: id, role: RolesEnum.BUSINESS })
-      .select(this.projection);
+    const business = await this.businessModel.findOne({ userId: id });
+    const user = await this.userModel.findById(id, RolesEnum.BUSINESS);
 
     if (!business) {
       throw new NotFoundException('Business not found');
     }
 
-    if (business.isBlocked === isBlocked) {
+    if (!user) {
+      throw new NotFoundException('Associated user not found');
+    }
+
+    if (user?.isBlocked === true) {
       return {
         statusCode: HttpStatus.OK,
         message: `Business is already ${isBlocked ? 'blocked' : 'unblocked'}`,
       };
     }
 
-    business.isBlocked = isBlocked;
-    await business.save();
+    if (user) {
+      user.isBlocked = true;
+      await user.save();
+    }
 
     await this.userBlockHistoryModel.create({
       userId: business._id,
@@ -150,10 +152,14 @@ export class AdminBusinessService {
       blockBy: adminId || null,
     });
 
-    const html = blockNotificationTemplate(business.name, isBlocked, reason);
+    const html = blockNotificationTemplate(
+      business.businessName,
+      isBlocked,
+      reason,
+    );
 
     const mailer: MailerDto = {
-      to: [{ name: business.name, address: business.email }],
+      to: [{ name: business.businessName, address: user.email }],
       subject: isBlocked
         ? 'Your Account Has Been Blocked'
         : 'Your Account Has Been Unblocked',

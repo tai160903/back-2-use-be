@@ -1,3 +1,4 @@
+import { Customers } from './../users/schemas/customer.schema';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import * as bcrypt from 'bcrypt';
@@ -19,6 +20,7 @@ import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
 export class AuthService {
   constructor(
     @InjectModel(Users.name) private usersModel: Model<Users>,
+    @InjectModel(Customers.name) private customersModel: Model<Customers>,
     private jwtService: JwtService,
     private mailerService: MailerService,
     private configService: ConfigService,
@@ -27,83 +29,120 @@ export class AuthService {
 
   // Register
   async register(authDto: AuthDto): Promise<APIResponseDto> {
-    if (
-      !authDto.name ||
-      !authDto.email ||
-      !authDto.password ||
-      !authDto.confirmPassword
-    ) {
-      throw new HttpException(
-        'All fields are required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-    const existingUser = await this.usersModel
-      .findOne({
-        email: authDto.email,
-      })
-      .select('+password');
-    if (existingUser) {
-      throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
-    }
-    if (authDto.password !== authDto.confirmPassword) {
-      throw new HttpException('Passwords do not match', HttpStatus.BAD_REQUEST);
-    }
-
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(authDto.password, salt);
-    authDto.password = hashedPassword;
-    delete authDto.confirmPassword;
-
-    const otpCode = (
-      (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
-      100000
-    ).toString();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-
-    const html = otpEmailTemplate(authDto.name, otpCode);
-    const mailer: MailerDto = {
-      to: [{ name: authDto.name, address: authDto.email }],
-      subject: 'Account Verification OTP',
-      html,
-    };
     try {
-      const mailResult = await this.mailerService.sendMail(mailer);
-      if (!mailResult) {
+      if (
+        !authDto.username ||
+        !authDto.email ||
+        !authDto.password ||
+        !authDto.confirmPassword
+      ) {
         throw new HttpException(
-          'Failed to send verification email',
+          'All fields are required',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      authDto.username = authDto.username.toLowerCase().trim();
+      authDto.email = authDto.email.toLowerCase().trim();
+      authDto.password = authDto.password.trim();
+      authDto.confirmPassword = authDto.confirmPassword.trim();
+
+      const existingUser = await this.usersModel
+        .findOne({ email: authDto.email })
+        .select('+password');
+      if (existingUser) {
+        throw new HttpException('Email already exists', HttpStatus.BAD_REQUEST);
+      }
+
+      if (authDto.password !== authDto.confirmPassword) {
+        throw new HttpException(
+          'Passwords do not match',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(authDto.password, salt);
+      authDto.password = hashedPassword;
+      delete authDto.confirmPassword;
+
+      const otpCode = (
+        (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
+        100000
+      ).toString();
+      const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+
+      const createdUser = new this.usersModel({
+        username: authDto.username,
+        email: authDto.email,
+        password: authDto.password,
+        otpCode,
+        otpExpires,
+      });
+      await createdUser.save();
+
+      const customer = new this.customersModel({
+        userId: createdUser._id,
+      });
+      await customer.save();
+
+      const html = otpEmailTemplate(authDto.username, otpCode);
+      const mailer: MailerDto = {
+        to: [{ name: authDto.username, address: authDto.email }],
+        subject: 'Account Verification OTP',
+        html,
+      };
+      try {
+        const mailResult = await this.mailerService.sendMail(mailer);
+        if (!mailResult) {
+          throw new HttpException(
+            'Failed to send verification email',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      } catch (error) {
+        throw new HttpException(
+          error || 'Failed to send verification email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'User registered successfully, check your email for OTP code',
+        data: createdUser,
+      };
     } catch (error) {
       throw new HttpException(
-        'Failed to send verification email',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || 'Internal server error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-
-    const createdUser = new this.usersModel(authDto);
-    createdUser.otpCode = otpCode;
-    createdUser.otpExpires = otpExpires;
-    await createdUser.save();
-    return {
-      statusCode: HttpStatus.CREATED,
-      message: 'User registered successfully, check your email for OTP code',
-      data: createdUser,
-    };
   }
   // Login
-  async login(email: string, password: string): Promise<APIResponseDto> {
-    if (!email || !password) {
+  async login(username: string, password: string): Promise<APIResponseDto> {
+    username = username.toLowerCase().trim();
+    password = password.trim();
+    if (!username || !password) {
       throw new HttpException(
-        'Email and password are required',
+        'Username and password are required',
         HttpStatus.BAD_REQUEST,
       );
     }
-    const user = await this.usersModel.findOne({ email }).select('+password');
+
+    if (!username.match(/^[a-zA-Z0-9_.-]+$/)) {
+      throw new HttpException(
+        'Username can only contain letters, numbers, underscores, hyphens, and dots',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const user = await this.usersModel
+      .findOne({ username })
+      .select('+password');
     if (!user) {
       throw new HttpException(
-        'Invalid email or password',
+        'Invalid username or password',
         HttpStatus.UNAUTHORIZED,
       );
     }
@@ -124,18 +163,27 @@ export class AuthService {
       );
     }
     const payload = { _id: user._id, role: user.role };
-    const accessToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.get('jwt.accessToken.secret'),
-      expiresIn: this.configService.get(
-        'jwt.accessToken.signOptions.expiresIn',
-      ),
-    });
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      secret: this.configService.get('jwt.refreshToken.secret'),
-      expiresIn: this.configService.get(
-        'jwt.refreshToken.signOptions.expiresIn',
-      ),
-    });
+    let accessToken: string;
+    let refreshToken: string;
+    try {
+      accessToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get('jwt.accessToken.secret'),
+        expiresIn: this.configService.get(
+          'jwt.accessToken.signOptions.expiresIn',
+        ),
+      });
+      refreshToken = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get('jwt.refreshToken.secret'),
+        expiresIn: this.configService.get(
+          'jwt.refreshToken.signOptions.expiresIn',
+        ),
+      });
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to generate tokens',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
 
     const { password: _, ...userWithoutPassword } = user.toObject();
 
@@ -152,6 +200,13 @@ export class AuthService {
 
   // Active account
   async activeAccount(email: string, otpCode: string): Promise<APIResponseDto> {
+    if (!email || !otpCode) {
+      throw new HttpException(
+        'Email and OTP code are required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     const user = await this.usersModel.findOne({ email, otpCode });
     if (!user) {
       throw new HttpException(
@@ -178,50 +233,69 @@ export class AuthService {
 
   // Resend OTP
   async resendOtp(email: string): Promise<APIResponseDto> {
-    const user = await this.usersModel.findOne({ email });
-    if (!user) {
-      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-    }
-
-    const otpCode = (
-      (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
-      100000
-    ).toString();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
-    user.otpCode = otpCode;
-    user.otpExpires = otpExpires;
-    await user.save();
-    const html = otpEmailTemplate(user.name, otpCode);
-    const mailer: MailerDto = {
-      to: [{ name: user.name, address: user.email }],
-      subject: 'Account Verification OTP',
-      html,
-    };
     try {
-      const mailResult = await this.mailerService.sendMail(mailer);
-      if (!mailResult) {
+      const user = await this.usersModel.findOne({ email });
+
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+      const customer = await this.customersModel.findOne({ userId: user._id });
+
+      if (!customer) {
+        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      }
+
+      const otpCode = (
+        (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
+        100000
+      ).toString();
+      const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
+      user.otpCode = otpCode;
+      user.otpExpires = otpExpires;
+      await user.save();
+      const html = otpEmailTemplate(customer?.fullName, otpCode);
+      const mailer: MailerDto = {
+        to: [{ name: customer?.fullName, address: user.email }],
+        subject: 'Account Verification OTP',
+        html,
+      };
+      try {
+        const mailResult = await this.mailerService.sendMail(mailer);
+        if (!mailResult) {
+          throw new HttpException(
+            'Failed to send OTP email',
+            HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+      } catch (error) {
         throw new HttpException(
-          'Failed to send OTP email',
+          error.message || 'Failed to send OTP email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'OTP resent successfully',
+      };
     } catch (error) {
       throw new HttpException(
-        'Failed to send OTP email',
-        HttpStatus.INTERNAL_SERVER_ERROR,
+        error.message || 'Internal server error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    return {
-      statusCode: 200,
-      message: 'OTP resent successfully',
-    };
   }
 
   // Forgot password - send OTP
   async sendMailForgotPassword(email: string): Promise<APIResponseDto> {
     const user = await this.usersModel.findOne({ email });
+
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const customer = await this.customersModel.findOne({ userId: user._id });
+    if (!customer) {
+      throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
     }
     // Generate secure 6-digit OTP using crypto
     const otpCode = (
@@ -232,9 +306,9 @@ export class AuthService {
     user.otpCode = otpCode;
     user.otpExpires = otpExpires;
     await user.save();
-    const html = otpForgotPasswordTemplate(user.name, otpCode);
+    const html = otpForgotPasswordTemplate(customer?.fullName, otpCode);
     const mailer: MailerDto = {
-      to: [{ name: user.name, address: user.email }],
+      to: [{ name: customer?.fullName, address: user.email }],
       subject: 'Password Reset OTP',
       html,
     };
@@ -248,7 +322,7 @@ export class AuthService {
       }
     } catch (error) {
       throw new HttpException(
-        'Failed to send password reset email',
+        error.message || 'Failed to send password reset email',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

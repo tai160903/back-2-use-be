@@ -12,10 +12,14 @@ import { Users, UsersSchema } from '../users/schemas/users.schema';
 
 import { WalletsModule } from '../wallets/wallets.module';
 import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
+import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Users.name, schema: UsersSchema }]),
+    MongooseModule.forFeature([
+      { name: Users.name, schema: UsersSchema },
+      { name: Customers.name, schema: CustomersSchema },
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
