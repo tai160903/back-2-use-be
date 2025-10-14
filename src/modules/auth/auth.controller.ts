@@ -44,12 +44,12 @@ export class AuthController {
         email: { type: 'string', example: 'john.doe@example.com' },
         password: { type: 'string', example: 'password123' },
       },
-      required: ['email', 'password'],
+      required: ['username', 'password'],
     },
   })
   @Post('login')
-  login(@Body() body: { email: string; password: string }) {
-    return this.authService.login(body.email, body.password);
+  login(@Body() body: { username: string; password: string }) {
+    return this.authService.login(body.username, body.password);
   }
 
   //Active account (OTP + email)
