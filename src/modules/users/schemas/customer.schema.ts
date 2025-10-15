@@ -8,7 +8,7 @@ export class Customers {
   @Prop({ required: true, unique: true, ref: 'Users' })
   userId: string;
 
-  @Prop({ required: true })
+  @Prop()
   fullName: string;
 
   @Prop({ trim: true })
