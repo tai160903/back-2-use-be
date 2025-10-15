@@ -47,6 +47,19 @@ export class AuthService {
       authDto.password = authDto.password.trim();
       authDto.confirmPassword = authDto.confirmPassword.trim();
 
+      const existingUsername = await this.usersModel
+        .findOne({
+          username: authDto.username,
+        })
+        .select('+password');
+
+      if (existingUsername) {
+        throw new HttpException(
+          'Username already exists',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const existingUser = await this.usersModel
         .findOne({ email: authDto.email })
         .select('+password');
@@ -106,11 +119,11 @@ export class AuthService {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-
+      const { password: _, ...userWithoutPassword } = createdUser.toObject();
       return {
         statusCode: HttpStatus.CREATED,
         message: 'User registered successfully, check your email for OTP code',
-        data: createdUser,
+        data: userWithoutPassword,
       };
     } catch (error) {
       throw new HttpException(
@@ -130,9 +143,11 @@ export class AuthService {
       );
     }
 
-    if (!username.match(/^[a-zA-Z0-9_.-]+$/)) {
+    if (
+      !username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]{6,40}(?<![_.-])$/)
+    ) {
       throw new HttpException(
-        'Username can only contain letters, numbers, underscores, hyphens, and dots',
+        'Username must be 6-40 characters, only letters, numbers, underscores, hyphens, dots; cannot start/end with special characters or have two special characters in a row',
         HttpStatus.BAD_REQUEST,
       );
     }
