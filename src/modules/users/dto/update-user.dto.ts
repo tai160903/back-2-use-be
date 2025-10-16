@@ -1,19 +1,22 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   @ApiPropertyOptional({ example: 'John Doe' })
-  name?: string;
+  fullName?: string;
 
   @IsOptional()
   @IsString()
+  @Matches(/^0\d{9}$/, { message: 'Invalid phone number format' })
   @ApiPropertyOptional({ example: '0987654321' })
   phone?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   @ApiPropertyOptional({ example: '123 Street' })
   address?: string;
 

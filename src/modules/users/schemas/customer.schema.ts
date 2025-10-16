@@ -25,9 +25,6 @@ export class Customers {
 
   @Prop()
   rewardPoints: number;
-
-  @Prop()
-  rank: string;
 }
 
 export const CustomersSchema = SchemaFactory.createForClass(Customers);

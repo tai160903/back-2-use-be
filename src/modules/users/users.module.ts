@@ -10,10 +10,12 @@ import {
   UserBlockHistorySchema,
 } from './schemas/users-block-history';
 import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.module';
+import { Customers, CustomersSchema } from './schemas/customer.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Users.name, schema: UsersSchema },
+      { name: Customers.name, schema: CustomersSchema },
       { name: Wallets.name, schema: WalletsSchema },
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
     ]),

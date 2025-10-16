@@ -493,6 +493,10 @@ export class AuthService {
           balance: 0,
         });
         req.user = newUser;
+
+        await new this.customersModel({
+          userId: newUser._id,
+        }).save();
       } else {
         req.user = user;
       }

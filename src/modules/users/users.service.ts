@@ -19,11 +19,13 @@ import { GetUserBlockHistoryQueryDto } from './dto/get-user-block-history-query.
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
+import { Customers } from './schemas/customer.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(Users.name) private usersModel: Model<UsersDocument>,
+    @InjectModel(Customers.name) private customersModel: Model<any>,
     @InjectModel(Wallets.name) private walletsModel: Model<WalletsDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly blockHistoryModel: Model<UserBlockHistoryDocument>,
@@ -83,6 +85,9 @@ export class UsersService {
         .findOne({ _id: userId })
         .select('-password')
         .lean();
+
+      const customer = await this.customersModel.findOne({ userId });
+
       const wallet = await this.walletsModel.findOne({ userId });
 
       if (!user) {
@@ -95,7 +100,17 @@ export class UsersService {
       return {
         statusCode: HttpStatus.OK,
         message: 'User found successfully',
-        data: { user, wallet },
+        data: {
+          email: user.email,
+          avatar: user.avatar || '',
+          fullname: customer?.fullName || '',
+          phone: customer?.phone || '',
+          address: customer?.address || '',
+          yob: customer?.yob || null,
+          rewardPoints: customer?.rewardPoints || 0,
+          legitPoints: customer?.legitPoints || 0,
+          wallet: wallet?.balance || 0,
+        },
       };
     } catch (error) {
       throw new HttpException(
@@ -110,22 +125,55 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
   ): Promise<APIResponseDto> {
     try {
-      if (updateUserDto?.yob) {
-        updateUserDto.yob = new Date(updateUserDto.yob);
+      Object.keys(updateUserDto).forEach((key) => {
+        const value = updateUserDto[key];
+        if (typeof value === 'string') {
+          updateUserDto[key] = value.trim();
+          if (updateUserDto[key] === '') delete updateUserDto[key];
+        }
+      });
+
+      const customer = await this.customersModel.findOne({ userId });
+      if (!customer) {
+        throw new NotFoundException('Customer profile not found');
       }
-      const updatedUser = await this.usersModel.findByIdAndUpdate(
-        userId,
-        updateUserDto,
+
+      if (updateUserDto.yob) {
+        const dob = new Date(updateUserDto.yob);
+        if (isNaN(dob.getTime())) {
+          throw new BadRequestException('Invalid date of birth format');
+        }
+        const now = new Date();
+        if (dob > now) {
+          throw new BadRequestException(
+            'Date of birth cannot be in the future',
+          );
+        }
+        if (dob.getFullYear() < 1900) {
+          throw new BadRequestException('Date of birth is too old');
+        }
+      }
+
+      // if (updateUserDto.phone) {
+      //   const existing = await this.customersModel.findOne({
+      //     phone: updateUserDto.phone,
+      //     userId: { $ne: userId },
+      //   });
+      //   if (existing) {
+      //     throw new BadRequestException('Phone number already in use');
+      //   }
+      // }
+
+      const updatedCustomer = await this.customersModel.findOneAndUpdate(
+        { userId },
+        { $set: updateUserDto },
         { new: true },
       );
-      console.log(updatedUser);
-      if (!updatedUser) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-      }
+
       return {
         statusCode: HttpStatus.OK,
-        message: 'User updated successfully',
-        data: updatedUser,
+        message: 'Profile updated',
+        data: updatedCustomer,
       };
     } catch (error) {
       throw new HttpException(
