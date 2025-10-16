@@ -40,8 +40,8 @@ export class AdminBusinessFormService {
     businessForm.status = BusinessFormStatusEnum.APPROVED;
     await businessForm.save();
 
-    const userEmail = businessForm.storeMail;
-    const userName = businessForm.storeName;
+    const userEmail = businessForm.businessMail;
+    const userName = businessForm.businessName;
     const randomPassword = crypto.randomBytes(8).toString('hex');
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(randomPassword, salt);
@@ -69,9 +69,9 @@ export class AdminBusinessFormService {
         status: BusinessStatusEnum.ACTIVE,
         trailStartDate,
         trailEndDate,
-        storeName: businessForm.storeName,
-        storeAddress: businessForm.storeAddress,
-        storePhone: businessForm.storePhone,
+        businessName: businessForm.businessName,
+        businessAddress: businessForm.businessAddress,
+        businessPhone: businessForm.businessPhone,
         taxCode: businessForm.taxCode,
         foodSafetyCertUrl: businessForm.foodSafetyCertUrl,
         businessLicenseUrl: businessForm.businessLicenseUrl,
@@ -81,10 +81,15 @@ export class AdminBusinessFormService {
 
     try {
       const mailResult = await this.mailerService.sendMail({
-        to: [{ name: businessForm.storeName, address: businessForm.storeMail }],
+        to: [
+          {
+            name: businessForm.businessName,
+            address: businessForm.businessMail,
+          },
+        ],
         subject: 'Business Approved',
         html: businessApprovedTemplate(
-          businessForm.storeName,
+          businessForm.businessName,
           userEmail,
           randomPassword,
           trailStartDate,
@@ -127,9 +132,14 @@ export class AdminBusinessFormService {
 
     try {
       const mailResult = await this.mailerService.sendMail({
-        to: [{ name: businessForm.storeName, address: businessForm.storeMail }],
+        to: [
+          {
+            name: businessForm.businessName,
+            address: businessForm.businessMail,
+          },
+        ],
         subject: 'Business Rejected',
-        html: businessRejectedTemplate(businessForm.storeName, note),
+        html: businessRejectedTemplate(businessForm.businessName, note),
       });
       if (!mailResult) {
         throw new Error('Failed to send rejection email');

@@ -59,25 +59,26 @@ export class UsersController {
   ): Promise<APIPaginatedResponseDto<UserBlockHistory[]>> {
     return this.usersService.getUserBlockHistory(id, query);
   }
-}
 
-// @Post('edit-avatar')
-// @UseGuards(AuthGuard('jwt'))
-// @ApiOperation({ summary: 'Update current user avatar' })
-// @ApiConsumes('multipart/form-data')
-// @ApiBody({
-//   schema: {
-//     type: 'object',
-//     properties: {
-//       avatar: {
-//         type: 'string',
-//         format: 'binary',
-//       },
-//     },
-//   },
-// })
-// @ApiResponse({ status: 200, description: 'Avatar updated' })
-// @UseInterceptors(FileInterceptor('avatar'))
-// editAvatar(@Request() req: any, @UploadedFile() file: Express.Multer.File) {
-//   return this.usersService.updateAvatar(req.user._id, file);
-// }
+  @Post('edit-avatar')
+  @UseGuards(AuthGuard('jwt'))
+  @UseInterceptors(
+    FileInterceptor('avatar', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  @ApiOperation({ summary: 'Update current user avatar' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  async updateAvatar(
+    @Request() req: any,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.updateAvatar(req.user._id, file);
+  }
+}

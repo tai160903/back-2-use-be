@@ -15,7 +15,6 @@ import { WalletsService } from '../wallets/wallets.service';
 import { otpEmailTemplate } from 'src/infrastructure/mailer/templates/otp-email.template';
 import { otpForgotPasswordTemplate } from 'src/infrastructure/mailer/templates/otp-forgot-password.template';
 import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
-import { throws } from 'assert';
 
 @Injectable()
 export class AuthService {
@@ -120,11 +119,14 @@ export class AuthService {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-      const { password: _, ...userWithoutPassword } = createdUser.toObject();
+      const userResponse: any = {
+        username: createdUser.username,
+        email: createdUser.email,
+      };
       return {
         statusCode: HttpStatus.CREATED,
         message: 'User registered successfully, check your email for OTP code',
-        data: userWithoutPassword,
+        data: userResponse,
       };
     } catch (error) {
       throw new HttpException(
@@ -201,7 +203,11 @@ export class AuthService {
       );
     }
 
-    const { password: _, ...userWithoutPassword } = user.toObject();
+    const userResponse = {
+      username: user.username,
+      email: user.email,
+      avatar: user.avatar,
+    };
 
     return {
       statusCode: HttpStatus.OK,
@@ -209,7 +215,7 @@ export class AuthService {
       data: {
         accessToken,
         refreshToken,
-        user: userWithoutPassword,
+        user: userResponse,
       },
     };
   }

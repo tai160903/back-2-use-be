@@ -18,6 +18,7 @@ import {
 import { GetUserBlockHistoryQueryDto } from './dto/get-user-block-history-query.dto';
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 
 @Injectable()
 export class UsersService {
@@ -26,7 +27,55 @@ export class UsersService {
     @InjectModel(Wallets.name) private walletsModel: Model<WalletsDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly blockHistoryModel: Model<UserBlockHistoryDocument>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
+
+  // Update avatar: upload to Cloudinary and save URL to user
+  async updateAvatar(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<APIResponseDto> {
+    try {
+      if (!file || !file.buffer) {
+        throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
+      }
+
+      const allowed = ['image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowed.includes(file.mimetype)) {
+        throw new HttpException('Invalid file type', HttpStatus.BAD_REQUEST);
+      }
+
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        throw new HttpException('File too large', HttpStatus.PAYLOAD_TOO_LARGE);
+      }
+
+      const result = await this.cloudinaryService.uploadFile(
+        file,
+        'users/avatars',
+      );
+      const avatarUrl = String((result as any).secure_url);
+
+      const updated = await this.usersModel
+        .findByIdAndUpdate(userId, { avatar: avatarUrl }, { new: true })
+        .select('-password');
+
+      if (!updated) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Avatar updated',
+        data: updated.avatar,
+      };
+    } catch (error: any) {
+      throw new HttpException(
+        error.message || 'Failed to update avatar',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   async findMe(userId: string): Promise<APIResponseDto> {
     try {
