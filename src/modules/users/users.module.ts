@@ -9,6 +9,7 @@ import {
   UserBlockHistory,
   UserBlockHistorySchema,
 } from './schemas/users-block-history';
+import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -17,6 +18,7 @@ import {
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
     ]),
     WalletsModule,
+    CloudinaryModule,
   ],
   controllers: [UsersController],
   providers: [UsersService],
