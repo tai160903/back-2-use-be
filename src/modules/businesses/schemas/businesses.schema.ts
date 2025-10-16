@@ -25,6 +25,12 @@ export class Businesses {
   businessPhone: string;
 
   @Prop()
+  businessType: string;
+
+  @Prop()
+  businessLogoUrl: string;
+
+  @Prop()
   foodSafetyCertUrl: string;
 
   @Prop()
