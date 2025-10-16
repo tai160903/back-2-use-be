@@ -125,22 +125,55 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
   ): Promise<APIResponseDto> {
     try {
-      if (updateUserDto?.yob) {
-        updateUserDto.yob = new Date(updateUserDto.yob);
+      Object.keys(updateUserDto).forEach((key) => {
+        const value = updateUserDto[key];
+        if (typeof value === 'string') {
+          updateUserDto[key] = value.trim();
+          if (updateUserDto[key] === '') delete updateUserDto[key];
+        }
+      });
+
+      const customer = await this.customersModel.findOne({ userId });
+      if (!customer) {
+        throw new NotFoundException('Customer profile not found');
       }
-      const updatedUser = await this.usersModel.findByIdAndUpdate(
-        userId,
-        updateUserDto,
+
+      if (updateUserDto.yob) {
+        const dob = new Date(updateUserDto.yob);
+        if (isNaN(dob.getTime())) {
+          throw new BadRequestException('Invalid date of birth format');
+        }
+        const now = new Date();
+        if (dob > now) {
+          throw new BadRequestException(
+            'Date of birth cannot be in the future',
+          );
+        }
+        if (dob.getFullYear() < 1900) {
+          throw new BadRequestException('Date of birth is too old');
+        }
+      }
+
+      // if (updateUserDto.phone) {
+      //   const existing = await this.customersModel.findOne({
+      //     phone: updateUserDto.phone,
+      //     userId: { $ne: userId },
+      //   });
+      //   if (existing) {
+      //     throw new BadRequestException('Phone number already in use');
+      //   }
+      // }
+
+      const updatedCustomer = await this.customersModel.findOneAndUpdate(
+        { userId },
+        { $set: updateUserDto },
         { new: true },
       );
-      console.log(updatedUser);
-      if (!updatedUser) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-      }
+
       return {
         statusCode: HttpStatus.OK,
-        message: 'User updated successfully',
-        data: updatedUser,
+        message: 'Profile updated',
+        data: updatedCustomer,
       };
     } catch (error) {
       throw new HttpException(
