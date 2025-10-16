@@ -7,19 +7,25 @@ export type BusinessFormDocument = HydratedDocument<BusinessForm>;
 @Schema({ timestamps: true })
 export class BusinessForm {
   @Prop({ required: true })
-  storeMail: string;
+  businessMail: string;
 
   @Prop({ required: true })
-  storeName: string;
+  businessName: string;
 
   @Prop({ required: true })
   taxCode: string;
 
   @Prop({ required: true })
-  storeAddress: string;
+  businessAddress: string;
 
   @Prop({ required: true })
-  storePhone: string;
+  businessPhone: string;
+
+  @Prop({ required: true })
+  businessType: string;
+
+  @Prop({ required: true })
+  businessLogoUrl: string;
 
   @Prop({ required: true })
   foodSafetyCertUrl: string;

@@ -77,20 +77,24 @@ export class BusinessesController {
     schema: {
       type: 'object',
       properties: {
-        storeName: { type: 'string', example: 'ABC Store' },
-        storeMail: { type: 'string', example: 'abc@store.com' },
-        storeAddress: { type: 'string', example: '123 Main St' },
-        storePhone: { type: 'string', example: '0934567890' },
+        businessName: { type: 'string', example: 'ABC Store' },
+        businessLogo: { type: 'string', format: 'binary' },
+        businessType: { type: 'string', example: 'Cafe' },
+        businessMail: { type: 'string', example: 'abc@store.com' },
+        businessAddress: { type: 'string', example: '123 Main St' },
+        businessPhone: { type: 'string', example: '0934567890' },
         taxCode: { type: 'string', example: '987654321' },
         foodLicenseFile: { type: 'string', format: 'binary' },
         businessLicenseFile: { type: 'string', format: 'binary' },
       },
       required: [
-        'storeName',
-        'storeMail',
-        'storeAddress',
-        'storePhone',
+        'businessName',
+        'businessMail',
+        'businessType',
+        'businessAddress',
+        'businessPhone',
         'taxCode',
+        'businessLogo',
         'foodLicenseFile',
         'businessLicenseFile',
       ],
@@ -111,18 +115,21 @@ export class BusinessesController {
     @Body() dto: CreateBusinessFormDto,
     @UploadedFiles()
     files: {
+      businessLogo?: Express.Multer.File[];
       foodLicenseFile?: Express.Multer.File[];
       businessLicenseFile?: Express.Multer.File[];
     },
   ) {
     if (
+      !files.businessLogo ||
+      files.businessLogo.length === 0 ||
       !files.foodLicenseFile ||
       files.foodLicenseFile.length === 0 ||
       !files.businessLicenseFile ||
       files.businessLicenseFile.length === 0
     ) {
       throw new Error(
-        'Both foodLicenseFile and businessLicenseFile must be uploaded.',
+        'businessLogo, foodLicenseFile, and businessLicenseFile are required.',
       );
     }
 
@@ -137,7 +144,7 @@ export class BusinessesController {
         return {
           statusCode: 400,
           message:
-            'Both foodLicenseFile and businessLicenseFile must be uploaded.',
+            'businessLogo, foodLicenseFile, and businessLicenseFile are required.',
         };
       }
 
@@ -148,6 +155,9 @@ export class BusinessesController {
         'application/pdf',
       ];
 
+      const allowedLogoTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+
+      const businessLogoFile = files.businessLogo[0];
       const foodLicenseFile = files.foodLicenseFile[0];
       const businessLicenseFile = files.businessLicenseFile[0];
 
@@ -163,6 +173,13 @@ export class BusinessesController {
           message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
         };
       }
+      if (businessLogoFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+        return {
+          statusCode: 413,
+          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
+        };
+      }
+
       if (!allowedTypes.includes(foodLicenseFile.mimetype)) {
         return {
           statusCode: 400,
@@ -175,17 +192,33 @@ export class BusinessesController {
           message: 'businessLicenseFile must be jpg, jpeg, png, or pdf',
         };
       }
-      const foodLicenseUrl = await this.cloudinaryService.uploadFile(
-        foodLicenseFile,
-        'business/forms',
-      );
-      const businessLicenseUrl = await this.cloudinaryService.uploadFile(
-        businessLicenseFile,
-        'business/forms',
-      );
+
+      if (!allowedLogoTypes.includes(businessLogoFile.mimetype)) {
+        return {
+          statusCode: 400,
+          message: 'businessLogo must be jpg, jpeg, or png',
+        };
+      }
+
+      const logoUrl = await this.cloudinaryService
+        .uploadFile(businessLogoFile, 'business/logos')
+        .catch((error) => {
+          throw new Error('Error uploading business logo: ' + error.message);
+        });
+      const foodLicenseUrl = await this.cloudinaryService
+        .uploadFile(foodLicenseFile, 'business/forms')
+        .catch((error) => {
+          throw new Error('Error uploading food license: ' + error.message);
+        });
+      const businessLicenseUrl = await this.cloudinaryService
+        .uploadFile(businessLicenseFile, 'business/forms')
+        .catch((error) => {
+          throw new Error('Error uploading business license: ' + error.message);
+        });
 
       const businessFormData = {
         ...dto,
+        businessLogoUrl: String(logoUrl.secure_url),
         foodLicenseUrl: String(foodLicenseUrl.secure_url),
         businessLicenseUrl: String(businessLicenseUrl.secure_url),
       };
