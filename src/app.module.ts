@@ -16,6 +16,7 @@ import { AdminModule } from './modules/admin/admin.module';
 
 import vnpayConfig from './config/vnpay.config';
 import { MailerModule } from './infrastructure/mailer/mailer.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { MailerModule } from './infrastructure/mailer/mailer.module';
     CloudinaryModule,
     AdminModule,
     VnpayModule,
+    SubscriptionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

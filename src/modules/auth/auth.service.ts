@@ -147,7 +147,7 @@ export class AuthService {
     }
 
     if (
-      !username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]{6,20}(?<![_.-])$/)
+      !username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]{4,20}(?<![_.-])$/)
     ) {
       throw new HttpException(
         'Use only letters, numbers, dots, hyphens, or underscores. Cannot start or end with a special character.',

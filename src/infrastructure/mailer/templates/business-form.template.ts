@@ -1,9 +1,8 @@
 export function businessApprovedTemplate(
   storeName: string,
   email: string,
+  username: string,
   password: string,
-  trialStart: Date,
-  trialEnd: Date,
 ) {
   return `
     <h2>Business Approved</h2>
@@ -13,9 +12,8 @@ export function businessApprovedTemplate(
     <p><b>Account Information:</b></p>
     <ul>
       <li>Email: <b>${email}</b></li>
+      <li>Username: <b>${username}</b></li>
       <li>Password: <b>${password}</b></li>
-      <li>Trial Start: <b>${trialStart.toLocaleString()}</b></li>
-      <li>Trial End: <b>${trialEnd.toLocaleString()}</b></li>
     </ul>
     <p>Please change your password after first login.</p>
   `;
