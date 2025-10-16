@@ -15,6 +15,7 @@ import { WalletsService } from '../wallets/wallets.service';
 import { otpEmailTemplate } from 'src/infrastructure/mailer/templates/otp-email.template';
 import { otpForgotPasswordTemplate } from 'src/infrastructure/mailer/templates/otp-forgot-password.template';
 import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
+import { throws } from 'assert';
 
 @Injectable()
 export class AuthService {
@@ -144,10 +145,10 @@ export class AuthService {
     }
 
     if (
-      !username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]{6,40}(?<![_.-])$/)
+      !username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]{6,20}(?<![_.-])$/)
     ) {
       throw new HttpException(
-        'Username must be 6-40 characters, only letters, numbers, underscores, hyphens, dots; cannot start/end with special characters or have two special characters in a row',
+        'Use only letters, numbers, dots, hyphens, or underscores. Cannot start or end with a special character.',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -215,55 +216,102 @@ export class AuthService {
 
   // Active account
   async activeAccount(email: string, otpCode: string): Promise<APIResponseDto> {
-    if (!email || !otpCode) {
-      throw new HttpException(
-        'Email and OTP code are required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    try {
+      if (!email || !otpCode) {
+        throw new HttpException(
+          'Email and OTP code are required',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
-    const user = await this.usersModel.findOne({ email, otpCode });
-    if (!user) {
+      email = email.toLowerCase().trim();
+      otpCode = otpCode.trim();
+
+      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        throw new HttpException('Invalid email format', HttpStatus.BAD_REQUEST);
+      }
+
+      if (!otpCode.match(/^\d{6}$/)) {
+        throw new HttpException(
+          'OTP code must be a 6-digit number',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const user = await this.usersModel.findOne({ email, otpCode });
+      if (!user) {
+        throw new HttpException(
+          'Invalid OTP code or email',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      if (user.isActive) {
+        throw new HttpException('Account is already active', HttpStatus.OK);
+      }
+
+      if (!user.otpExpires || user.otpExpires < new Date()) {
+        throw new HttpException('OTP code expired', HttpStatus.UNAUTHORIZED);
+      }
+
+      try {
+        await this.walletsService.create({
+          userId: user._id.toString(),
+          balance: 0,
+        });
+      } catch (error: any) {
+        throw new HttpException(
+          error.message || 'Failed to create wallet',
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+      user.isActive = true;
+      user.otpCode = '';
+
+      user.otpCode = '';
+      user.otpExpires = new Date(0);
+      await user.save();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Account activated successfully',
+      };
+    } catch (error: any) {
       throw new HttpException(
-        'Invalid OTP code or email',
-        HttpStatus.UNAUTHORIZED,
+        error.message || 'Internal server error',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    if (!user.otpExpires || user.otpExpires < new Date()) {
-      throw new HttpException('OTP code expired', HttpStatus.UNAUTHORIZED);
-    }
-    user.isActive = true;
-    user.otpCode = '';
-    user.otpExpires = new Date(0);
-    await user.save();
-    await this.walletsService.create({
-      userId: user._id.toString(),
-      balance: 0,
-    });
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Account activated successfully',
-    };
   }
 
   // Resend OTP
   async resendOtp(email: string): Promise<APIResponseDto> {
     try {
+      if (!email) {
+        throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
+      }
+
+      email = email.toLowerCase().trim();
+
+      if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+        throw new HttpException('Invalid email format', HttpStatus.BAD_REQUEST);
+      }
+
       const user = await this.usersModel.findOne({ email });
 
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
+
       const customer = await this.customersModel.findOne({ userId: user._id });
 
       if (!customer) {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
       }
 
-      const otpCode = (
-        (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
-        100000
-      ).toString();
+      const randomNumber = parseInt(crypto.randomBytes(3).toString('hex'), 16);
+      const otpCode = ((randomNumber % 900000) + 100000).toString();
+
       const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       user.otpCode = otpCode;
       user.otpExpires = otpExpires;
@@ -274,20 +322,14 @@ export class AuthService {
         subject: 'Account Verification OTP',
         html,
       };
-      try {
-        const mailResult = await this.mailerService.sendMail(mailer);
-        if (!mailResult) {
-          throw new HttpException(
-            'Failed to send OTP email',
-            HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
-      } catch (error) {
+
+      await this.mailerService.sendMail(mailer).catch((error) => {
         throw new HttpException(
-          error.message || 'Failed to send OTP email',
+          error.message || 'Failed to send verification email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
-      }
+      });
+
       return {
         statusCode: HttpStatus.OK,
         message: 'OTP resent successfully',
