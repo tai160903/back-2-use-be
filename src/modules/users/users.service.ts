@@ -19,11 +19,13 @@ import { GetUserBlockHistoryQueryDto } from './dto/get-user-block-history-query.
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
+import { Customers } from './schemas/customer.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(Users.name) private usersModel: Model<UsersDocument>,
+    @InjectModel(Customers.name) private customersModel: Model<any>,
     @InjectModel(Wallets.name) private walletsModel: Model<WalletsDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly blockHistoryModel: Model<UserBlockHistoryDocument>,
@@ -83,6 +85,9 @@ export class UsersService {
         .findOne({ _id: userId })
         .select('-password')
         .lean();
+
+      const customer = await this.customersModel.findOne({ userId });
+
       const wallet = await this.walletsModel.findOne({ userId });
 
       if (!user) {
@@ -95,7 +100,17 @@ export class UsersService {
       return {
         statusCode: HttpStatus.OK,
         message: 'User found successfully',
-        data: { user, wallet },
+        data: {
+          email: user.email,
+          avatar: user.avatar || '',
+          fullname: customer?.fullName || '',
+          phone: customer?.phone || '',
+          address: customer?.address || '',
+          yob: customer?.yob || null,
+          rewardPoints: customer?.rewardPoints || 0,
+          legitPoints: customer?.legitPoints || 0,
+          wallet: wallet?.balance || 0,
+        },
       };
     } catch (error) {
       throw new HttpException(
