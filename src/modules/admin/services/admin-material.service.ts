@@ -53,7 +53,7 @@ export class AdminMaterialService {
 
     return {
       statusCode: HttpStatus.CREATED,
-      message: `Material '${createMaterialDto.materialName}' created successfully`,
+      message: `Create material '${createMaterialDto.materialName}' successfully`,
       data: savedMaterial,
     };
   }
@@ -70,7 +70,7 @@ export class AdminMaterialService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Materials retrieved successfully',
+      message: 'Get materials successfully',
       data,
       total,
       currentPage,
@@ -87,11 +87,11 @@ export class AdminMaterialService {
     const material = await this.materialModel.findById(id).exec();
 
     if (!material) {
-      throw new NotFoundException(`Material with ID '${id}' not found`);
+      throw new NotFoundException(`Material not found`);
     }
     return {
       statusCode: HttpStatus.OK,
-      message: `Material with ID '${id}' retrieved successfully`,
+      message: `Get material successfully`,
       data: material,
     };
   }
@@ -122,7 +122,7 @@ export class AdminMaterialService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Material with ID '${id}' reviewed successfully`,
+      message: `Review material '${material.materialName}' successfully`,
       data: material,
     };
   }
@@ -144,7 +144,7 @@ export class AdminMaterialService {
 
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
-      throw new NotFoundException(`Material with ID '${id}' not found`);
+      throw new NotFoundException(`Material not found`);
     }
 
     if (
@@ -167,7 +167,7 @@ export class AdminMaterialService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Material with ID '${id}' updated successfully`,
+      message: `Update material '${material.materialName}' successfully`,
       data: updatedMaterial,
     };
   }
@@ -180,14 +180,14 @@ export class AdminMaterialService {
 
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
-      throw new NotFoundException(`Material with ID '${id}' not found`);
+      throw new NotFoundException(`Material not found`);
     }
 
     await this.materialModel.deleteOne({ _id: id }).exec();
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Material with ID '${id}' deleted successfully`,
+      message: `Delete material '${material.materialName}' successfully`,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MaterialStatus } from 'src/common/constants/material-status.enum';
 
@@ -19,6 +19,7 @@ export class UpdateMaterialStatusDto {
       'The quality does not meet the required standards. (Leave empty if approved)',
   })
   @ValidateIf((o) => o.status === MaterialStatus.REJECTED)
+  @IsNotEmpty({ message: 'Reject reason is required when rejected' })
   @IsString()
   rejectReason: string;
 }
