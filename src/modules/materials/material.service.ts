@@ -1,10 +1,7 @@
 import { Injectable, HttpStatus, ConflictException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import {
-  Material,
-  MaterialDocument,
-} from './schemas/material.schema';
+import { Material, MaterialDocument } from './schemas/material.schema';
 import { GetMaterialsQueryDto } from './dto/get-materials-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { CreateMaterialDto } from './dto/create-material.dto';
@@ -27,6 +24,7 @@ export class MaterialService {
   ): Promise<APIResponseDto<Material>> {
     const existingMaterial = await this.materialModel.findOne({
       materialName: createMaterialDto.materialName,
+      status: MaterialStatus.APPROVED,
     });
 
     if (existingMaterial) {
@@ -45,7 +43,7 @@ export class MaterialService {
 
     return {
       statusCode: HttpStatus.CREATED,
-      message: `Material '${createMaterialDto.materialName}' created successfully`,
+      message: `Create material '${createMaterialDto.materialName}' successfully`,
       data: savedMaterial,
     };
   }
@@ -62,7 +60,7 @@ export class MaterialService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Approved materials retrieved successfully',
+      message: 'Get approved materials successfully',
       data,
       total,
       currentPage,
@@ -89,7 +87,7 @@ export class MaterialService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Your materials retrieved successfully',
+      message: 'Get your materials successfully',
       data,
       total,
       currentPage,

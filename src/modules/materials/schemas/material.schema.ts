@@ -6,7 +6,7 @@ export type MaterialDocument = HydratedDocument<Material>;
 
 @Schema({ timestamps: true })
 export class Material {
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   materialName: string;
 
   @Prop({ required: true })
@@ -26,3 +26,11 @@ export class Material {
 }
 
 export const MaterialSchema = SchemaFactory.createForClass(Material);
+
+MaterialSchema.index(
+  { materialName: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: MaterialStatus.APPROVED },
+  },
+);
