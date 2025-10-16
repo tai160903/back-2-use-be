@@ -82,7 +82,7 @@ export class BusinessesController {
         businessAddress: { type: 'string', example: '123 Main St' },
         businessPhone: { type: 'string', example: '0934567890' },
         taxCode: { type: 'string', example: '987654321' },
-        foodLicenseFile: { type: 'string', format: 'binary' },
+        foodSafetyCertUrl: { type: 'string', format: 'binary' },
         businessLicenseFile: { type: 'string', format: 'binary' },
       },
       required: [
@@ -93,7 +93,7 @@ export class BusinessesController {
         'businessPhone',
         'taxCode',
         'businessLogo',
-        'foodLicenseFile',
+        'foodSafetyCertUrl',
         'businessLicenseFile',
       ],
     },
@@ -101,7 +101,8 @@ export class BusinessesController {
   @UseInterceptors(
     FileFieldsInterceptor(
       [
-        { name: 'foodLicenseFile', maxCount: 1 },
+        { name: 'businessLogo', maxCount: 1 },
+        { name: 'foodSafetyCertUrl', maxCount: 1 },
         { name: 'businessLicenseFile', maxCount: 1 },
       ],
       {
@@ -114,35 +115,35 @@ export class BusinessesController {
     @UploadedFiles()
     files: {
       businessLogo?: Express.Multer.File[];
-      foodLicenseFile?: Express.Multer.File[];
+      foodSafetyCertUrl?: Express.Multer.File[];
       businessLicenseFile?: Express.Multer.File[];
     },
   ) {
     if (
       !files.businessLogo ||
       files.businessLogo.length === 0 ||
-      !files.foodLicenseFile ||
-      files.foodLicenseFile.length === 0 ||
+      !files.foodSafetyCertUrl ||
+      files.foodSafetyCertUrl.length === 0 ||
       !files.businessLicenseFile ||
       files.businessLicenseFile.length === 0
     ) {
       throw new Error(
-        'businessLogo, foodLicenseFile, and businessLicenseFile are required.',
+        'businessLogo, foodSafetyCertUrl, and businessLicenseFile are required.',
       );
     }
 
     const MAX_FILE_SIZE_MB = 5;
     try {
       if (
-        !files.foodLicenseFile ||
-        files.foodLicenseFile.length === 0 ||
+        !files.foodSafetyCertUrl ||
+        files.foodSafetyCertUrl.length === 0 ||
         !files.businessLicenseFile ||
         files.businessLicenseFile.length === 0
       ) {
         return {
           statusCode: 400,
           message:
-            'businessLogo, foodLicenseFile, and businessLicenseFile are required.',
+            'businessLogo, foodSafetyCertUrl, and businessLicenseFile are required.',
         };
       }
 
@@ -156,10 +157,10 @@ export class BusinessesController {
       const allowedLogoTypes = ['image/jpeg', 'image/png', 'image/jpg'];
 
       const businessLogoFile = files.businessLogo[0];
-      const foodLicenseFile = files.foodLicenseFile[0];
+      const foodSafetyCertUrl = files.foodSafetyCertUrl[0];
       const businessLicenseFile = files.businessLicenseFile[0];
 
-      if (foodLicenseFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      if (foodSafetyCertUrl.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
         return {
           statusCode: 413,
           message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
@@ -178,10 +179,10 @@ export class BusinessesController {
         };
       }
 
-      if (!allowedTypes.includes(foodLicenseFile.mimetype)) {
+      if (!allowedTypes.includes(foodSafetyCertUrl.mimetype)) {
         return {
           statusCode: 400,
-          message: 'foodLicenseFile must be jpg, jpeg, png, or pdf',
+          message: 'foodSafetyCertUrl must be jpg, jpeg, png, or pdf',
         };
       }
       if (!allowedTypes.includes(businessLicenseFile.mimetype)) {
@@ -203,10 +204,12 @@ export class BusinessesController {
         .catch((error) => {
           throw new Error('Error uploading business logo: ' + error.message);
         });
-      const foodLicenseUrl = await this.cloudinaryService
-        .uploadFile(foodLicenseFile, 'business/forms')
-        .catch((error) => {
-          throw new Error('Error uploading food license: ' + error.message);
+      const foodSafetyCertResult = await this.cloudinaryService
+        .uploadFile(foodSafetyCertUrl, 'business/forms')
+        .catch((error: any) => {
+          throw new Error(
+            'Error uploading food safety cert: ' + (error?.message || error),
+          );
         });
       const businessLicenseUrl = await this.cloudinaryService
         .uploadFile(businessLicenseFile, 'business/forms')
@@ -217,7 +220,7 @@ export class BusinessesController {
       const businessFormData = {
         ...dto,
         businessLogoUrl: String(logoUrl.secure_url),
-        foodLicenseUrl: String(foodLicenseUrl.secure_url),
+        foodSafetyCertUrl: String(foodSafetyCertResult.secure_url),
         businessLicenseUrl: String(businessLicenseUrl.secure_url),
       };
       return this.businessesService.createForm(businessFormData);
