@@ -103,7 +103,7 @@ export class UsersService {
         data: {
           email: user.email,
           avatar: user.avatar || '',
-          fullname: customer?.fullName || '',
+          fullName: customer?.fullName || '',
           phone: customer?.phone || '',
           address: customer?.address || '',
           yob: customer?.yob || null,

@@ -9,7 +9,7 @@ export class Subscription {
   name: string;
 
   @Prop()
-  description: string;
+  description: string[];
 
   @Prop({ required: true })
   price: number;
@@ -21,7 +21,7 @@ export class Subscription {
   isActive: boolean;
 
   @Prop({ required: true })
-  isTrail: boolean;
+  isTrial: boolean;
 }
 
 export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
