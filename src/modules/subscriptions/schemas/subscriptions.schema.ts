@@ -5,7 +5,7 @@ export type SubscriptionsDocument = HydratedDocument<Subscriptions>;
 
 @Schema({ timestamps: true })
 export class Subscriptions {
-  @Prop({ required: true })
+  @Prop({ required: true, unique: true, trim: true })
   name: string;
 
   @Prop()
@@ -22,6 +22,9 @@ export class Subscriptions {
 
   @Prop({ required: true })
   isTrial: boolean;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
 }
 
 export const SubscriptionsSchema = SchemaFactory.createForClass(Subscriptions);

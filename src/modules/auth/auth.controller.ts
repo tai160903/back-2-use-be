@@ -38,7 +38,17 @@ export class AuthController {
     summary: 'Login a user',
     description: 'Login a user in the system',
   })
-  @ApiBody({ type: LoginDto, required: true })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        username: { type: 'string', example: 'johndoe' },
+        password: { type: 'string', example: 'password123' },
+      },
+      required: ['username', 'password'],
+    },
+    required: true,
+  })
   @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto.username, loginDto.password);

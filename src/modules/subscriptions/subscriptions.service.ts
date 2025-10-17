@@ -19,13 +19,25 @@ export class SubscriptionsService {
     console.log(createSubscriptionDto);
     const name = createSubscriptionDto.name.trim();
     const existing = await this.subscriptionModel.findOne({
-      name,
+      name: { $regex: new RegExp(`^${name}$`, 'i') },
     });
     if (existing) {
       throw new HttpException(
         'Subscription with this name already exists',
         HttpStatus.BAD_REQUEST,
       );
+    }
+
+    if (createSubscriptionDto.isTrial) {
+      const existingTrial = await this.subscriptionModel.findOne({
+        isTrial: true,
+      });
+      if (existingTrial) {
+        throw new HttpException(
+          'A trial subscription plan already exists',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     }
 
     if (createSubscriptionDto.isTrial && createSubscriptionDto.price > 0) {
@@ -41,6 +53,10 @@ export class SubscriptionsService {
       );
     }
 
+    createSubscriptionDto.description = createSubscriptionDto.description.map(
+      (f) => f.trim(),
+    );
+
     const subscription = await this.subscriptionModel.create(
       createSubscriptionDto,
     );
@@ -53,7 +69,9 @@ export class SubscriptionsService {
 
   async findAll() {
     try {
-      const subscriptions = await this.subscriptionModel.find().exec();
+      const subscriptions = await this.subscriptionModel
+        .find({ $and: [{ isDeleted: false }] })
+        .exec();
       return {
         statusCode: HttpStatus.OK,
         message: 'Subscriptions retrieved successfully',
