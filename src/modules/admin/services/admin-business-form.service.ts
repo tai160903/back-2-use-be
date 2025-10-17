@@ -1,3 +1,4 @@
+import { Subscription } from './../../subscriptions/entities/subscription.entity';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 // import { CreateAdminDto } from './dto/create-admin.dto';
@@ -18,6 +19,9 @@ import {
   businessApprovedTemplate,
   businessRejectedTemplate,
 } from 'src/infrastructure/mailer/templates/business-form.template';
+import { Subscriptions } from 'src/modules/subscriptions/schemas/subscriptions.schema';
+import { BusinessSubscriptions } from 'src/modules/businesses/schemas/business-subscriptions.schema';
+import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 
 @Injectable()
 export class AdminBusinessFormService {
@@ -27,11 +31,14 @@ export class AdminBusinessFormService {
     private mailerService: MailerService,
     @InjectModel(Users.name) private userModel: Model<Users>,
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
+    @InjectModel(Subscriptions.name)
+    private subscriptionModel: Model<Subscriptions>,
+    @InjectModel(BusinessSubscriptions.name)
+    private businessSubscriptionModel: Model<BusinessSubscriptions>,
   ) {}
 
   async approveBusiness(id: string): Promise<APIResponseDto> {
     try {
-      console.log('ud', id);
       const businessForm = await this.businessFormModel.findById(id);
       console.log('businessForm', businessForm);
       if (!businessForm) {
@@ -46,10 +53,10 @@ export class AdminBusinessFormService {
       const userEmail = businessForm.businessMail;
       const baseUsername = businessForm.businessName
         .toLowerCase()
-        .replace(/\s+/g, '') // bỏ khoảng trắng
-        .replace(/[^a-z0-9]/g, ''); // chỉ giữ chữ và số
+        .replace(/\s+/g, '')
+        .replace(/[^a-z0-9]/g, '');
 
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000); // số 4 chữ số
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const generatedUsername = `${baseUsername}${randomSuffix}`;
 
       const randomPassword = crypto.randomBytes(8).toString('hex');
@@ -69,9 +76,19 @@ export class AdminBusinessFormService {
         await user.save();
       }
 
-      const now = new Date();
-      // const trailStartDate = now;
-      // const trailEndDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const subscriptionTrial = await this.subscriptionModel.findOne({
+        price: 0,
+        isTrial: true,
+        isActive: true,
+      });
+
+      if (!subscriptionTrial) {
+        throw new HttpException(
+          'No active trial subscription found. Please create one before approving businesses.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
       let business = await this.businessModel.findOne({ userId: user._id });
       if (!business) {
         business = new this.businessModel({
@@ -90,6 +107,20 @@ export class AdminBusinessFormService {
         await business.save();
       }
 
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(startDate.getDate() + subscriptionTrial.durationInDays);
+
+      const businessSubscription = new this.businessSubscriptionModel({
+        businessId: business._id,
+        subscriptionId: subscriptionTrial._id,
+        startDate: startDate,
+        endDate: endDate,
+        isActive: true,
+        isTrialUsed: true,
+      });
+      await businessSubscription.save();
+
       const mailResult = await this.mailerService
         .sendMail({
           to: [
@@ -104,6 +135,9 @@ export class AdminBusinessFormService {
             userEmail,
             generatedUsername,
             randomPassword,
+            subscriptionTrial.durationInDays,
+            businessSubscription.startDate,
+            businessSubscription.endDate,
           ),
         })
         .catch((error) => {
@@ -183,6 +217,63 @@ export class AdminBusinessFormService {
       data: businessForm,
     };
   }
+
+  async getAllForms(
+    page = 1,
+    limit = 10,
+    status?: string,
+  ): Promise<APIPaginatedResponseDto<BusinessForm[]>> {
+    try {
+      const skip = (page - 1) * limit;
+      const query: any = {};
+      if (status) query.status = status;
+      const [forms, total] = await Promise.all([
+        this.businessFormModel.find(query).skip(skip).limit(limit),
+        this.businessFormModel.countDocuments(query),
+      ]);
+      return {
+        statusCode: 200,
+        message: 'Fetched all business forms',
+        data: forms,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        message: 'Error fetching business forms',
+        data: [],
+        total: 0,
+        currentPage: page,
+        totalPages: 0,
+      };
+    }
+  }
+
+  async getFormDetail(id: string): Promise<APIResponseDto> {
+    try {
+      const form = await this.businessFormModel.findById(id);
+      if (!form) {
+        return {
+          statusCode: 404,
+          message: 'Business form not found',
+        };
+      }
+      return {
+        statusCode: 200,
+        message: 'Fetched business form detail',
+        data: form,
+      };
+    } catch (error) {
+      return {
+        statusCode: 500,
+        message: 'Error fetching business form detail',
+        data: error.message,
+      };
+    }
+  }
+
   // create(createAdminDto: CreateAdminDto) {
   //   return 'This action adds a new admin';
   // }

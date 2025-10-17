@@ -2,8 +2,8 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsBoolean,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsString,
   Min,
 } from 'class-validator';
@@ -27,12 +27,12 @@ export class CreateSubscriptionDto {
   description: string[];
 
   @IsNotEmpty()
-  @IsNumber()
+  @IsInt()
   @ApiProperty({ example: 1999, description: 'Price in cents' })
   price: number;
 
   @IsNotEmpty()
-  @IsNumber()
+  @IsInt()
   @Min(1, { message: 'DurationInDays must be greater than 0' })
   @ApiProperty({ example: 30, description: 'Duration in days' })
   durationInDays: number;

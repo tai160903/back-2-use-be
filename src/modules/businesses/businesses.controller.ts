@@ -3,11 +3,9 @@ import {
   Post,
   Body,
   UseFilters,
-  HttpStatus,
-  Get,
-  Query,
-  Param,
   UseGuards,
+  Get,
+  Param,
 } from '@nestjs/common';
 import { BusinessesService } from './businesses.service';
 import { UseInterceptors, UploadedFiles } from '@nestjs/common';
@@ -19,10 +17,8 @@ import {
   ApiTags,
   ApiConsumes,
   ApiParam,
-  ApiQuery,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 
@@ -30,39 +26,12 @@ import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 @ApiTags('Businesses')
 @UseFilters(HttpExceptionFilter)
 export class BusinessesController {
-  constructor(
-    private readonly businessesService: BusinessesService,
-    private readonly cloudinaryService: CloudinaryService,
-  ) {}
-  @ApiOperation({ summary: 'Get all business forms (paginated)' })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    example: 'pending',
-    enum: ['pending', 'approve', 'reject'],
-    description: 'Filter by status: pending, approve, reject',
-  })
-  @ApiBearerAuth('access-token')
-  @UseGuards(RoleCheckGuard.withRoles(['admin']))
-  @Get('form/all')
-  async getAllForms(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('status') status?: string,
-  ) {
-    return this.businessesService.getAllForms(
-      page ?? 1,
-      limit ?? 10,
-      status ?? '',
-    );
-  }
+  constructor(private readonly businessesService: BusinessesService) {}
 
   @ApiOperation({ summary: 'Get business form detail by id' })
   @ApiParam({ name: 'id', required: true, type: String, example: '652f1a...' })
   @ApiBearerAuth('access-token')
-  @UseGuards(RoleCheckGuard.withRoles(['admin', 'business']))
+  @UseGuards(RoleCheckGuard.withRoles(['business']))
   @Get('form/detail/:id')
   async getFormDetail(@Param('id') id: string) {
     return this.businessesService.getFormDetail(id);
@@ -119,117 +88,7 @@ export class BusinessesController {
       businessLicenseFile?: Express.Multer.File[];
     },
   ) {
-    if (
-      !files.businessLogo ||
-      files.businessLogo.length === 0 ||
-      !files.foodSafetyCertUrl ||
-      files.foodSafetyCertUrl.length === 0 ||
-      !files.businessLicenseFile ||
-      files.businessLicenseFile.length === 0
-    ) {
-      throw new Error(
-        'businessLogo, foodSafetyCertUrl, and businessLicenseFile are required.',
-      );
-    }
-
-    const MAX_FILE_SIZE_MB = 5;
-    try {
-      if (
-        !files.foodSafetyCertUrl ||
-        files.foodSafetyCertUrl.length === 0 ||
-        !files.businessLicenseFile ||
-        files.businessLicenseFile.length === 0
-      ) {
-        return {
-          statusCode: 400,
-          message:
-            'businessLogo, foodSafetyCertUrl, and businessLicenseFile are required.',
-        };
-      }
-
-      const allowedTypes = [
-        'image/jpeg',
-        'image/png',
-        'image/jpg',
-        'application/pdf',
-      ];
-
-      const allowedLogoTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-
-      const businessLogoFile = files.businessLogo[0];
-      const foodSafetyCertUrl = files.foodSafetyCertUrl[0];
-      const businessLicenseFile = files.businessLicenseFile[0];
-
-      if (foodSafetyCertUrl.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        return {
-          statusCode: 413,
-          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
-        };
-      }
-      if (businessLicenseFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        return {
-          statusCode: 413,
-          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
-        };
-      }
-      if (businessLogoFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        return {
-          statusCode: 413,
-          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
-        };
-      }
-
-      if (!allowedTypes.includes(foodSafetyCertUrl.mimetype)) {
-        return {
-          statusCode: 400,
-          message: 'foodSafetyCertUrl must be jpg, jpeg, png, or pdf',
-        };
-      }
-      if (!allowedTypes.includes(businessLicenseFile.mimetype)) {
-        return {
-          statusCode: 400,
-          message: 'businessLicenseFile must be jpg, jpeg, png, or pdf',
-        };
-      }
-
-      if (!allowedLogoTypes.includes(businessLogoFile.mimetype)) {
-        return {
-          statusCode: 400,
-          message: 'businessLogo must be jpg, jpeg, or png',
-        };
-      }
-
-      const logoUrl = await this.cloudinaryService
-        .uploadFile(businessLogoFile, 'business/logos')
-        .catch((error) => {
-          throw new Error('Error uploading business logo: ' + error.message);
-        });
-      const foodSafetyCertResult = await this.cloudinaryService
-        .uploadFile(foodSafetyCertUrl, 'business/forms')
-        .catch((error: any) => {
-          throw new Error(
-            'Error uploading food safety cert: ' + (error?.message || error),
-          );
-        });
-      const businessLicenseUrl = await this.cloudinaryService
-        .uploadFile(businessLicenseFile, 'business/forms')
-        .catch((error) => {
-          throw new Error('Error uploading business license: ' + error.message);
-        });
-
-      const businessFormData = {
-        ...dto,
-        businessLogoUrl: String(logoUrl.secure_url),
-        foodSafetyCertUrl: String(foodSafetyCertResult.secure_url),
-        businessLicenseUrl: String(businessLicenseUrl.secure_url),
-      };
-      return this.businessesService.createForm(businessFormData);
-    } catch (error) {
-      return {
-        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-        message: 'Error processing request',
-        data: error.message,
-      };
-    }
+    // delegate validation, upload and save to the service
+    return this.businessesService.createForm(dto, files);
   }
 }

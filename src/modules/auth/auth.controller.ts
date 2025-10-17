@@ -16,6 +16,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { GoogleOAuthGuard } from '../../common/guards/google-oauth.guard';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 @UseFilters(HttpExceptionFilter)
@@ -46,10 +47,11 @@ export class AuthController {
       },
       required: ['username', 'password'],
     },
+    required: true,
   })
   @Post('login')
-  login(@Body() body: { username: string; password: string }) {
-    return this.authService.login(body.username, body.password);
+  login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto.username, loginDto.password);
   }
 
   //Active account (OTP + email)

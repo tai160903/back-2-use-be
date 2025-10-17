@@ -2,29 +2,42 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Subscription } from 'rxjs';
 import { Model } from 'mongoose';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
+import { Subscriptions } from './schemas/subscriptions.schema';
 
 @Injectable()
 export class SubscriptionsService {
   constructor(
-    @InjectModel(Subscription.name)
-    private subscriptionModel: Model<Subscription>,
+    @InjectModel(Subscriptions.name)
+    private subscriptionModel: Model<Subscriptions>,
   ) {}
 
   async create(
     createSubscriptionDto: CreateSubscriptionDto,
   ): Promise<APIResponseDto> {
+    console.log(createSubscriptionDto);
     const name = createSubscriptionDto.name.trim();
     const existing = await this.subscriptionModel.findOne({
-      name,
+      name: { $regex: new RegExp(`^${name}$`, 'i') },
     });
     if (existing) {
       throw new HttpException(
         'Subscription with this name already exists',
         HttpStatus.BAD_REQUEST,
       );
+    }
+
+    if (createSubscriptionDto.isTrial) {
+      const existingTrial = await this.subscriptionModel.findOne({
+        isTrial: true,
+      });
+      if (existingTrial) {
+        throw new HttpException(
+          'A trial subscription plan already exists',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     }
 
     if (createSubscriptionDto.isTrial && createSubscriptionDto.price > 0) {
@@ -40,6 +53,10 @@ export class SubscriptionsService {
       );
     }
 
+    createSubscriptionDto.description = createSubscriptionDto.description.map(
+      (f) => f.trim(),
+    );
+
     const subscription = await this.subscriptionModel.create(
       createSubscriptionDto,
     );
@@ -50,19 +67,47 @@ export class SubscriptionsService {
     };
   }
 
-  findAll() {
-    return `This action returns all subscriptions`;
+  async findAll() {
+    try {
+      const subscriptions = await this.subscriptionModel
+        .find({ $and: [{ isDeleted: false }] })
+        .exec();
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Subscriptions retrieved successfully',
+        data: subscriptions,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to retrieve subscriptions',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} subscription`;
+  async findOne(id: string) {
+    try {
+      if (!id) {
+        throw new HttpException('ID must be provided', HttpStatus.BAD_REQUEST);
+      }
+      const subscription = await this.subscriptionModel.findById(id).exec();
+      if (!subscription) {
+        throw new HttpException('Subscription not found', HttpStatus.NOT_FOUND);
+      }
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Subscription retrieved successfully',
+        data: subscription,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to retrieve subscription',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   update(id: number, updateSubscriptionDto: UpdateSubscriptionDto) {
     return `This action updates a #${id} subscription`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} subscription`;
   }
 }

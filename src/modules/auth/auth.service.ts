@@ -15,12 +15,19 @@ import { WalletsService } from '../wallets/wallets.service';
 import { otpEmailTemplate } from 'src/infrastructure/mailer/templates/otp-email.template';
 import { otpForgotPasswordTemplate } from 'src/infrastructure/mailer/templates/otp-forgot-password.template';
 import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
+import { BusinessSubscriptions } from '../businesses/schemas/business-subscriptions.schema';
+import { RolesEnum } from 'src/common/constants/roles.enum';
+import { Businesses } from '../businesses/schemas/businesses.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(Users.name) private usersModel: Model<Users>,
     @InjectModel(Customers.name) private customersModel: Model<Customers>,
+    @InjectModel(BusinessSubscriptions.name)
+    private businessSubscriptionModel: Model<BusinessSubscriptions>,
+    @InjectModel(Businesses.name)
+    private businessModel: Model<Businesses>,
     private jwtService: JwtService,
     private mailerService: MailerService,
     private configService: ConfigService,
@@ -139,26 +146,6 @@ export class AuthService {
   async login(username: string, password: string): Promise<APIResponseDto> {
     username = username.toLowerCase().trim();
     password = password.trim();
-    if (!username || !password) {
-      throw new HttpException(
-        'Username and password are required',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    if (!username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]+(?<![_.-])$/)) {
-      throw new HttpException(
-        'Use only letters, numbers, dots, hyphens, or underscores; cannot start/end with a special character or have two special characters in a row.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
-    if (username.length < 6 || username.length > 20) {
-      throw new HttpException(
-        'Username must be between 6 and 20 characters',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
 
     const user = await this.usersModel
       .findOne({ username })
@@ -185,6 +172,35 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+
+    if (user.role === RolesEnum.BUSINESS) {
+      const business = await this.businessModel.findOne({
+        userId: user._id,
+      });
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.UNAUTHORIZED);
+      }
+
+      const activeSubscription = await this.businessSubscriptionModel
+        .findOne({
+          businessId: business._id,
+        })
+        .sort({ endDate: -1 });
+      if (!activeSubscription) {
+        throw new HttpException(
+          'Business subscription is not active',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      if (activeSubscription.endDate < new Date()) {
+        throw new HttpException(
+          'Business subscription has expired',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+    }
+
     const payload = { _id: user._id, role: user.role };
     let accessToken: string;
     let refreshToken: string;
@@ -208,19 +224,18 @@ export class AuthService {
       );
     }
 
-    const userResponse = {
-      username: user.username,
-      email: user.email,
-      avatar: user.avatar,
-    };
-
     return {
       statusCode: HttpStatus.OK,
       message: 'Login successful',
       data: {
         accessToken,
         refreshToken,
-        user: userResponse,
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+        },
       },
     };
   }
