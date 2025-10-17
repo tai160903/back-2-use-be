@@ -27,6 +27,14 @@ import {
   UserBlockHistorySchema,
 } from '../users/schemas/users-block-history';
 import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
+import {
+  Subscriptions,
+  SubscriptionsSchema,
+} from '../subscriptions/schemas/subscriptions.schema';
+import {
+  BusinessSubscriptions,
+  BusinessSubscriptionsSchema,
+} from '../businesses/schemas/business-subscriptions.schema';
 
 @Module({
   imports: [
@@ -37,6 +45,8 @@ import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
       { name: Users.name, schema: UsersSchema },
       { name: Businesses.name, schema: BusinessesSchema },
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
+      { name: Subscriptions.name, schema: SubscriptionsSchema },
+      { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
     ]),
     BusinessesModule,
 

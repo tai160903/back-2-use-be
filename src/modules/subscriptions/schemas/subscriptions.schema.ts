@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type SubscriptionDocument = HydratedDocument<Subscription>;
+export type SubscriptionsDocument = HydratedDocument<Subscriptions>;
 
 @Schema({ timestamps: true })
-export class Subscription {
+export class Subscriptions {
   @Prop({ required: true })
   name: string;
 
@@ -24,4 +24,4 @@ export class Subscription {
   isTrial: boolean;
 }
 
-export const SubscriptionSchema = SchemaFactory.createForClass(Subscription);
+export const SubscriptionsSchema = SchemaFactory.createForClass(Subscriptions);

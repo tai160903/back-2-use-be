@@ -25,6 +25,7 @@ import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 @Controller('subscriptions')
 @ApiTags('Subscriptions')
 @ApiBearerAuth('access-token')
+@UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
 export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
 
@@ -32,7 +33,6 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Create a subscription' })
   @ApiResponse({ status: 201, description: 'Subscription created' })
   @ApiBody({ type: CreateSubscriptionDto })
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
   create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
     return this.subscriptionsService.create(createSubscriptionDto);
   }
@@ -47,7 +47,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Get a subscription by id' })
   @ApiParam({ name: 'id', type: String })
   findOne(@Param('id') id: string) {
-    return this.subscriptionsService.findOne(+id);
+    return this.subscriptionsService.findOne(id);
   }
 
   @Patch(':id')
@@ -58,12 +58,5 @@ export class SubscriptionsController {
     @Body() updateSubscriptionDto: UpdateSubscriptionDto,
   ) {
     return this.subscriptionsService.update(+id, updateSubscriptionDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a subscription' })
-  @ApiParam({ name: 'id', type: String })
-  remove(@Param('id') id: string) {
-    return this.subscriptionsService.remove(+id);
   }
 }

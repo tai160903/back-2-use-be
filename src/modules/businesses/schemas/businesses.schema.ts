@@ -12,28 +12,28 @@ export class Businesses {
   @Prop({ unique: true, ref: 'Users', required: true })
   userId: Types.ObjectId;
 
-  @Prop()
+  @Prop({ required: true, trim: true, minlength: 3, maxlength: 100 })
   businessName: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   taxCode: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   businessAddress: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   businessPhone: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   businessType: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   businessLogoUrl: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   foodSafetyCertUrl: string;
 
-  @Prop()
+  @Prop({ required: true, trim: true })
   businessLicenseUrl: string;
 
   @Prop({

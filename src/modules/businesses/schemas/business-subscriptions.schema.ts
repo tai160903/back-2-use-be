@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type BusinessSubscriptionsDocument =
   HydratedDocument<BusinessSubscriptions>;
@@ -7,10 +7,10 @@ export type BusinessSubscriptionsDocument =
 @Schema({ timestamps: true })
 export class BusinessSubscriptions {
   @Prop({ required: true, ref: 'Businesses' })
-  businessId: string;
+  businessId: Types.ObjectId;
 
   @Prop({ required: true, ref: 'Subscriptions' })
-  subscriptionId: string;
+  subscriptionId: Types.ObjectId;
 
   @Prop({ required: true })
   startDate: Date;
@@ -18,10 +18,10 @@ export class BusinessSubscriptions {
   @Prop({ required: true })
   endDate: Date;
 
-  @Prop({})
+  @Prop({ required: true })
   isActive: boolean;
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: false })
   isTrialUsed: boolean;
 }
 

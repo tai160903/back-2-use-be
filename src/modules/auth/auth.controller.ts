@@ -16,6 +16,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { GoogleOAuthGuard } from '../../common/guards/google-oauth.guard';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 @UseFilters(HttpExceptionFilter)
@@ -37,19 +38,10 @@ export class AuthController {
     summary: 'Login a user',
     description: 'Login a user in the system',
   })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        username: { type: 'string', example: 'johndoe' },
-        password: { type: 'string', example: 'password123' },
-      },
-      required: ['username', 'password'],
-    },
-  })
+  @ApiBody({ type: LoginDto, required: true })
   @Post('login')
-  login(@Body() body: { username: string; password: string }) {
-    return this.authService.login(body.username, body.password);
+  login(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto.username, loginDto.password);
   }
 
   //Active account (OTP + email)
