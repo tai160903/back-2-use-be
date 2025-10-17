@@ -109,7 +109,10 @@ export class UsersService {
           yob: customer?.yob || null,
           rewardPoints: customer?.rewardPoints || 0,
           legitPoints: customer?.legitPoints || 0,
-          wallet: wallet?.balance || 0,
+          wallet: {
+            id: wallet._id,
+            balance: wallet.balance,
+          },
         },
       };
     } catch (error) {
