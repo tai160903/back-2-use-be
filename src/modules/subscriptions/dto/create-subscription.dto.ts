@@ -1,12 +1,4 @@
-import {
-  ArrayNotEmpty,
-  IsArray,
-  IsBoolean,
-  IsInt,
-  IsNotEmpty,
-  IsString,
-  Min,
-} from 'class-validator';
+import { IsBoolean, IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateSubscriptionDto {
@@ -14,17 +6,6 @@ export class CreateSubscriptionDto {
   @IsNotEmpty()
   @ApiProperty({ example: 'Premium Plan', description: 'Subscription name' })
   name: string;
-
-  @IsArray()
-  @ArrayNotEmpty()
-  @IsString({ each: true })
-  @IsNotEmpty({ each: true })
-  @ApiProperty({
-    type: [String],
-    example: ['Feature 1', 'Feature 2'],
-    description: 'List of features',
-  })
-  description: string[];
 
   @IsNotEmpty()
   @IsInt()
