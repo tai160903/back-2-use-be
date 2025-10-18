@@ -5,11 +5,8 @@ export type SubscriptionsDocument = HydratedDocument<Subscriptions>;
 
 @Schema({ timestamps: true })
 export class Subscriptions {
-  @Prop({ required: true, unique: true, trim: true })
+  @Prop({ required: true, trim: true })
   name: string;
-
-  @Prop()
-  description: string[];
 
   @Prop({ required: true })
   price: number;

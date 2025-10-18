@@ -7,6 +7,9 @@ import {
   Param,
   Delete,
   UseGuards,
+  Put,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
@@ -21,6 +24,7 @@ import {
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
+import { UpdateFeaturesDto } from './dto/update-features.dto';
 
 @Controller('subscriptions')
 @ApiTags('Subscriptions')
@@ -50,13 +54,40 @@ export class SubscriptionsController {
     return this.subscriptionsService.findOne(id);
   }
 
-  @Patch(':id')
+  // Subscription features
+  @Get('/features')
+  @ApiOperation({ summary: 'Get subscription features' })
+  findFeatures() {
+    return this.subscriptionsService.findFeatures();
+  }
+
+  @Put('/features')
+  @ApiOperation({ summary: 'Update subscription features' })
+  @ApiBody({ type: UpdateFeaturesDto })
+  updateFeatures(@Body() featuresDto: UpdateFeaturesDto) {
+    return this.subscriptionsService.updateFeatures(featuresDto.features);
+  }
+  @Delete('/features/:feature')
+  @ApiOperation({ summary: 'Delete subscription feature' })
+  @ApiParam({ name: 'feature', type: String })
+  removeFeature(@Param('feature') feature: string) {
+    return this.subscriptionsService.removeFeature(feature);
+  }
+
+  @Put(':id')
   @ApiOperation({ summary: 'Update a subscription' })
   @ApiParam({ name: 'id', type: String })
   update(
     @Param('id') id: string,
     @Body() updateSubscriptionDto: UpdateSubscriptionDto,
   ) {
-    return this.subscriptionsService.update(+id, updateSubscriptionDto);
+    return this.subscriptionsService.update(id, updateSubscriptionDto);
+  }
+
+  @Patch('delete/:id')
+  @ApiOperation({ summary: 'Delete a subscription' })
+  @ApiParam({ name: 'id', type: String })
+  delete(@Param('id') id: string) {
+    return this.subscriptionsService.remove(id);
   }
 }

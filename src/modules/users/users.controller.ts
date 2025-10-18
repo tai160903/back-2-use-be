@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Request,
   UploadedFile,
@@ -41,7 +42,7 @@ export class UsersController {
     return this.usersService.findMe(req.user._id);
   }
 
-  @Post('edit-profile')
+  @Put('edit-profile')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Update current user profile' })
   @ApiBody({ type: UpdateUserDto })
@@ -60,7 +61,7 @@ export class UsersController {
     return this.usersService.getUserBlockHistory(id, query);
   }
 
-  @Post('edit-avatar')
+  @Put('edit-avatar')
   @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(
     FileInterceptor('avatar', { limits: { fileSize: 5 * 1024 * 1024 } }),

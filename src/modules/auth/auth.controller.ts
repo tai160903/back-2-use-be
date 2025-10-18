@@ -7,6 +7,8 @@ import {
   Request,
   Redirect,
   UseFilters,
+  Put,
+  Patch,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
@@ -69,7 +71,7 @@ export class AuthController {
       required: ['email', 'otp'],
     },
   })
-  @Post('active-account')
+  @Patch('active-account')
   activeAccount(@Body() body: { email: string; otp: string }) {
     return this.authService.activeAccount(body.email, body.otp);
   }
@@ -131,7 +133,7 @@ export class AuthController {
   })
   @ApiBearerAuth('access-token')
   @UseGuards(AuthGuard)
-  @Post('change-password')
+  @Put('change-password')
   changePassword(
     @Body() changePasswordDto: ChangePasswordDto,
     @Request() req: any,
