@@ -1,4 +1,4 @@
-import { isValidObjectId, Model } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import {
   Injectable,
   HttpStatus,
@@ -122,7 +122,9 @@ export class AdminBusinessService {
       throw new BadRequestException(`Invalid Business ID '${id}'`);
     }
 
-    const business = await this.businessModel.findOne({ userId: id });
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(id),
+    });
     const user = await this.userModel.findById(id, RolesEnum.BUSINESS);
 
     if (!business) {

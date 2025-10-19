@@ -81,7 +81,10 @@ export class UsersService {
         data: updated.avatar,
       };
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error || 'Failed to update avatar');
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error || 'Failed to update avatar');
       const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(message, status);
     }
@@ -97,7 +100,7 @@ export class UsersService {
 
       let customer: CustomersDocument | null = null;
       let business: BusinessDocument | null = null;
-  if (user.role === RolesEnum.CUSTOMER) {
+      if (user.role === RolesEnum.CUSTOMER) {
         customer = await this.customersModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -172,7 +175,10 @@ export class UsersService {
         data,
       };
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error || 'Internal server error');
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error || 'Internal server error');
       const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(message, status);
     }
@@ -192,7 +198,9 @@ export class UsersService {
         }
       });
 
-      const customer = await this.customersModel.findOne({ userId });
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
       if (!customer) {
         throw new NotFoundException('Customer profile not found');
       }
@@ -224,7 +232,7 @@ export class UsersService {
       // }
 
       const updatedCustomer = await this.customersModel.findOneAndUpdate(
-        { userId },
+        { userId: new Types.ObjectId(userId) },
         { $set: updateUserDto },
         { new: true },
       );
@@ -235,7 +243,10 @@ export class UsersService {
         data: updatedCustomer,
       };
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error || 'Internal server error');
+      const message =
+        error instanceof Error
+          ? error.message
+          : String(error || 'Internal server error');
       const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
       throw new HttpException(message, status);
     }

@@ -19,7 +19,6 @@ export class RoleCheckGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     let user = request.user;
 
-    // Nếu chưa có user hoặc role, thì decode lại từ token
     if (!user || !user.role) {
       const authHeader =
         request.headers['authorization'] || request.headers['Authorization'];
