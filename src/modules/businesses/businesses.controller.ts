@@ -6,7 +6,9 @@ import {
   UseGuards,
   Get,
   Param,
+  Req,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { BusinessesService } from './businesses.service';
 import { UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -88,7 +90,17 @@ export class BusinessesController {
       businessLicenseFile?: Express.Multer.File[];
     },
   ) {
-    // delegate validation, upload and save to the service
     return this.businessesService.createForm(dto, files);
+  }
+
+  @Post('buy-subscription')
+  @ApiOperation({ summary: 'Buy a subscription for business' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async buySubscription(
+    @Req() req: any,
+    @Body('subscriptionId') subscriptionId: string,
+  ) {
+    return this.businessesService.buySubscription(req.user._id, subscriptionId);
   }
 }

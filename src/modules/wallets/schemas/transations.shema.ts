@@ -7,6 +7,9 @@ export type TransactionsDocument = HydratedDocument<Transactions>;
 export class Transactions {
   @Prop({ required: true, ref: 'Wallets' })
   walletId: Types.ObjectId;
+  @Prop({ required: true, ref: 'Users' })
+  userId: Types.ObjectId;
+
   @Prop({ required: true })
   amount: number;
   @Prop({ required: true, enum: ['deposit', 'withdraw'] })

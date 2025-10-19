@@ -27,6 +27,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { UserBlockHistory } from './schemas/users-block-history';
 import { GetUserBlockHistoryQueryDto } from './dto/get-user-block-history-query.dto';
+import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 
 @ApiTags('Users')
 @ApiBearerAuth('access-token')
@@ -35,18 +36,24 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('me')
-  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'User profile' })
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles(['customer', 'business']),
+  )
   findMe(@Request() req: any) {
     return this.usersService.findMe(req.user._id);
   }
 
   @Put('edit-profile')
-  @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Update current user profile' })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ status: 200, description: 'User updated' })
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles(['customer', 'business']),
+  )
   updateMe(@Request() req: any, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateMe(req.user._id, updateUserDto);
   }
@@ -62,7 +69,6 @@ export class UsersController {
   }
 
   @Put('edit-avatar')
-  @UseGuards(AuthGuard('jwt'))
   @UseInterceptors(
     FileInterceptor('avatar', { limits: { fileSize: 5 * 1024 * 1024 } }),
   )
@@ -76,6 +82,10 @@ export class UsersController {
       },
     },
   })
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles(['customer', 'business']),
+  )
   async updateAvatar(
     @Request() req: any,
     @UploadedFile() file: Express.Multer.File,
