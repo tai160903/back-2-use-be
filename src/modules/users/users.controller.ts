@@ -50,10 +50,7 @@ export class UsersController {
   @ApiOperation({ summary: 'Update current user profile' })
   @ApiBody({ type: UpdateUserDto })
   @ApiResponse({ status: 200, description: 'User updated' })
-  @UseGuards(
-    AuthGuard('jwt'),
-    RoleCheckGuard.withRoles(['customer', 'business']),
-  )
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['customer']))
   updateMe(@Request() req: any, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.updateMe(req.user._id, updateUserDto);
   }

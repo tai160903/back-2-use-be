@@ -1,4 +1,4 @@
-import { isValidObjectId, Model } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import {
   Injectable,
   Inject,
@@ -117,7 +117,9 @@ export class AdminCustomerService {
       .findOne({ _id: id, role: RolesEnum.CUSTOMER })
       .select(this.projection);
 
-    const customer = await this.customerModel.findOne({ userId: id });
+    const customer = await this.customerModel.findOne({
+      userId: new Types.ObjectId(id),
+    });
 
     if (!customer) {
       throw new NotFoundException('Customer not found');

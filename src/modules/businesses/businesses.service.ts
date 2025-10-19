@@ -117,7 +117,9 @@ export class BusinessesService {
 
   async getFormDetail(id: string): Promise<APIResponseDto> {
     try {
-      const form = await this.businessesModel.findOne({ businessFormId: id });
+      const form = await this.businessesModel.findOne({
+        businessFormId: new Types.ObjectId(id),
+      });
       if (!form) {
         return {
           statusCode: 404,

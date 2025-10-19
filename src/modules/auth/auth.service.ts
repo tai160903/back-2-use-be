@@ -4,7 +4,7 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import * as bcrypt from 'bcrypt';
 import { AuthDto } from './dto/auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -175,7 +175,7 @@ export class AuthService {
 
     if (user.role === RolesEnum.BUSINESS) {
       const business = await this.businessModel.findOne({
-        userId: user._id,
+        userId: new Types.ObjectId(user._id),
       });
       if (!business) {
         throw new HttpException('Business not found', HttpStatus.UNAUTHORIZED);
@@ -183,7 +183,8 @@ export class AuthService {
 
       const activeSubscription = await this.businessSubscriptionModel
         .findOne({
-          businessId: business._id,
+          businessId: new Types.ObjectId(business._id),
+          isActive: true,
         })
         .sort({ endDate: -1 });
       if (!activeSubscription) {
@@ -329,7 +330,9 @@ export class AuthService {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
-      const customer = await this.customersModel.findOne({ userId: user._id });
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
 
       if (!customer) {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
@@ -376,7 +379,9 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    const customer = await this.customersModel.findOne({ userId: user._id });
+    const customer = await this.customersModel.findOne({
+      userId: new Types.ObjectId(user._id),
+    });
     if (!customer) {
       throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
     }
