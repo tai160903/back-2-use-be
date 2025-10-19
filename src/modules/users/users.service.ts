@@ -11,6 +11,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { isValidObjectId, Model, Types } from 'mongoose';
 import { Users, UsersDocument } from './schemas/users.schema';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 import {
   UserBlockHistory,
   UserBlockHistoryDocument,
@@ -19,14 +20,21 @@ import { GetUserBlockHistoryQueryDto } from './dto/get-user-block-history-query.
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
-import { Customers } from './schemas/customer.schema';
+import { Customers, CustomersDocument } from './schemas/customer.schema';
+import {
+  Businesses,
+  BusinessDocument,
+} from '../businesses/schemas/businesses.schema';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(Users.name) private usersModel: Model<UsersDocument>,
-    @InjectModel(Customers.name) private customersModel: Model<any>,
+    @InjectModel(Customers.name)
+    private customersModel: Model<CustomersDocument>,
     @InjectModel(Wallets.name) private walletsModel: Model<WalletsDocument>,
+    @InjectModel(Businesses.name)
+    private businessesModel: Model<BusinessDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly blockHistoryModel: Model<UserBlockHistoryDocument>,
     private readonly cloudinaryService: CloudinaryService,
@@ -56,7 +64,8 @@ export class UsersService {
         file,
         'users/avatars',
       );
-      const avatarUrl = String((result as any).secure_url);
+      const uploadResult = result as { secure_url?: string } | undefined;
+      const avatarUrl = String(uploadResult?.secure_url ?? '');
 
       const updated = await this.usersModel
         .findByIdAndUpdate(userId, { avatar: avatarUrl }, { new: true })
@@ -71,55 +80,101 @@ export class UsersService {
         message: 'Avatar updated',
         data: updated.avatar,
       };
-    } catch (error: any) {
-      throw new HttpException(
-        error.message || 'Failed to update avatar',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error || 'Failed to update avatar');
+      const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+      throw new HttpException(message, status);
     }
   }
 
   async findMe(userId: string): Promise<APIResponseDto> {
     try {
-      const user = await this.usersModel
-        .findOne({ _id: userId })
-        .select('-password')
-        .lean();
-
-      const customer = await this.customersModel.findOne({ userId });
-
-      const wallet = await this.walletsModel.findOne({ userId });
+      const user = await this.usersModel.findById(userId).select('-password');
 
       if (!user) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
+      let customer: CustomersDocument | null = null;
+      let business: BusinessDocument | null = null;
+  if (user.role === RolesEnum.CUSTOMER) {
+        customer = await this.customersModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+        if (!customer) {
+          throw new HttpException(
+            'Customer profile not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+      } else {
+        business = await this.businessesModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+        if (!business) {
+          throw new HttpException(
+            'Business profile not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+      }
+      const wallet = await this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
       if (!wallet) {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
+      const data: {
+        email: string;
+        avatar: string;
+        wallet: { _id: Types.ObjectId; balance: number };
+        fullName?: string;
+        phone?: string;
+        address?: string;
+        yob?: Date | null;
+        rewardPoints?: number;
+        legitPoints?: number;
+        businessName?: string;
+        businessAddress?: string;
+        businessPhone?: string;
+        taxCode?: string;
+        businessType?: string;
+        businessLogo?: string;
+      } = {
+        email: user.email,
+        avatar: user.avatar || '',
+        wallet: {
+          _id: wallet._id,
+          balance: wallet.balance,
+        },
+      };
+
+      if (user.role === RolesEnum.CUSTOMER) {
+        data.fullName = customer?.fullName || '';
+        data.phone = customer?.phone || '';
+        data.address = customer?.address || '';
+        data.yob = customer?.yob || null;
+        data.rewardPoints = customer?.rewardPoints || 0;
+        data.legitPoints = customer?.legitPoints || 0;
+      } else {
+        data.businessName = business?.businessName || '';
+        data.businessAddress = business?.businessAddress || '';
+        data.businessPhone = business?.businessPhone || '';
+        data.taxCode = business?.taxCode || '';
+        data.businessType = business?.businessType || '';
+        data.businessLogo = business?.businessLogoUrl || '';
+      }
+
       return {
         statusCode: HttpStatus.OK,
         message: 'User found successfully',
-        data: {
-          email: user.email,
-          avatar: user.avatar || '',
-          fullName: customer?.fullName || '',
-          phone: customer?.phone || '',
-          address: customer?.address || '',
-          yob: customer?.yob || null,
-          rewardPoints: customer?.rewardPoints || 0,
-          legitPoints: customer?.legitPoints || 0,
-          wallet: {
-            id: wallet._id,
-            balance: wallet.balance,
-          },
-        },
+        data,
       };
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Internal server error',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error || 'Internal server error');
+      const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+      throw new HttpException(message, status);
     }
   }
 
@@ -128,11 +183,12 @@ export class UsersService {
     updateUserDto: UpdateUserDto,
   ): Promise<APIResponseDto> {
     try {
-      Object.keys(updateUserDto).forEach((key) => {
-        const value = updateUserDto[key];
+      const dtoAny = updateUserDto as any;
+      Object.keys(dtoAny).forEach((key) => {
+        const value = dtoAny[key];
         if (typeof value === 'string') {
-          updateUserDto[key] = value.trim();
-          if (updateUserDto[key] === '') delete updateUserDto[key];
+          dtoAny[key] = value.trim();
+          if (dtoAny[key] === '') delete dtoAny[key];
         }
       });
 
@@ -178,11 +234,10 @@ export class UsersService {
         message: 'Profile updated',
         data: updatedCustomer,
       };
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Internal server error',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error || 'Internal server error');
+      const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
+      throw new HttpException(message, status);
     }
   }
 
@@ -202,7 +257,7 @@ export class UsersService {
       throw new NotFoundException(`User with ID '${userId}' not found`);
     }
 
-    const filter: any = { userId: new Types.ObjectId(userId) };
+    const filter: Record<string, any> = { userId: new Types.ObjectId(userId) };
 
     if (typeof isBlocked === 'boolean') {
       filter.isBlocked = isBlocked;

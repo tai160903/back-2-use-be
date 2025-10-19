@@ -28,23 +28,19 @@ import { UpdateFeaturesDto } from './dto/update-features.dto';
 
 @Controller('subscriptions')
 @ApiTags('Subscriptions')
-@ApiBearerAuth('access-token')
-@UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
 export class SubscriptionsController {
   constructor(private readonly subscriptionsService: SubscriptionsService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Create a subscription' })
-  @ApiResponse({ status: 201, description: 'Subscription created' })
-  @ApiBody({ type: CreateSubscriptionDto })
-  create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
-    return this.subscriptionsService.create(createSubscriptionDto);
-  }
 
   @Get()
   @ApiOperation({ summary: 'Get all subscriptions' })
   findAll() {
     return this.subscriptionsService.findAll();
+  }
+
+  @Get('/features')
+  @ApiOperation({ summary: 'Get subscription features' })
+  findFeatures() {
+    return this.subscriptionsService.findFeatures();
   }
 
   @Get(':id')
@@ -55,39 +51,52 @@ export class SubscriptionsController {
   }
 
   // Subscription features
-  @Get('/features')
-  @ApiOperation({ summary: 'Get subscription features' })
-  findFeatures() {
-    return this.subscriptionsService.findFeatures();
+
+  @Post()
+  @ApiOperation({ summary: 'Create a subscription' })
+  @ApiResponse({ status: 201, description: 'Subscription created' })
+  @ApiBody({ type: CreateSubscriptionDto })
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
+  create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
+    return this.subscriptionsService.create(createSubscriptionDto);
   }
 
   @Put('/features')
   @ApiOperation({ summary: 'Update subscription features' })
   @ApiBody({ type: UpdateFeaturesDto })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
   updateFeatures(@Body() featuresDto: UpdateFeaturesDto) {
     return this.subscriptionsService.updateFeatures(featuresDto.features);
   }
+
   @Delete('/features/:feature')
   @ApiOperation({ summary: 'Delete subscription feature' })
   @ApiParam({ name: 'feature', type: String })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
   removeFeature(@Param('feature') feature: string) {
     return this.subscriptionsService.removeFeature(feature);
-  }
-
-  @Put(':id')
-  @ApiOperation({ summary: 'Update a subscription' })
-  @ApiParam({ name: 'id', type: String })
-  update(
-    @Param('id') id: string,
-    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
-  ) {
-    return this.subscriptionsService.update(id, updateSubscriptionDto);
   }
 
   @Patch('delete/:id')
   @ApiOperation({ summary: 'Delete a subscription' })
   @ApiParam({ name: 'id', type: String })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
   delete(@Param('id') id: string) {
     return this.subscriptionsService.remove(id);
+  }
+
+  @Put(':id')
+  @ApiOperation({ summary: 'Update a subscription' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
+  update(
+    @Param('id') id: string,
+    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
+  ) {
+    return this.subscriptionsService.update(id, updateSubscriptionDto);
   }
 }

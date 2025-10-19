@@ -1,13 +1,17 @@
 import { CreateBusinessFormDto } from './dto/create-business-form.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
+import { HttpException, HttpStatus } from '@nestjs/common';
 // import { CreateBusinessDto } from './dto/create-business.dto';
 // import { UpdateBusinessDto } from './dto/update-business.dto';
 import { Businesses } from './schemas/businesses.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { BusinessForm } from './schemas/business-form.schema';
+import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
+import { BusinessSubscriptions } from './schemas/business-subscriptions.schema';
 import { Injectable } from '@nestjs/common';
+import { Wallets } from '../wallets/schemas/wallets.schema';
 
 @Injectable()
 export class BusinessesService {
@@ -15,8 +19,101 @@ export class BusinessesService {
     @InjectModel(Businesses.name) private businessesModel: Model<Businesses>,
     @InjectModel(BusinessForm.name)
     private businessFormModel: Model<BusinessForm>,
+    @InjectModel(Subscriptions.name)
+    private subscriptionModel: Model<Subscriptions>,
+    @InjectModel(BusinessSubscriptions.name)
+    private businessSubscriptionModel: Model<BusinessSubscriptions>,
+    @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
+
+  async buySubscription(
+    userId: string,
+    subscriptionId: string,
+  ): Promise<APIResponseDto> {
+    try {
+      if (!userId) {
+        throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+      }
+
+      const business = await this.businessesModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .exec();
+      if (!business) {
+        throw new HttpException(
+          'Business not found for user',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const wallet = await this.walletsModel.findOne({ userId }).exec();
+      if (!wallet || wallet.balance <= 0) {
+        throw new HttpException(
+          'Insufficient wallet balance',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const subscription = await this.subscriptionModel
+        .findById(subscriptionId)
+        .exec();
+      if (!subscription || subscription.isDeleted) {
+        throw new HttpException('Subscription not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (subscription.isTrial) {
+        const usedTrial = await this.businessSubscriptionModel
+          .findOne({ businessId: business._id, isTrialUsed: true })
+          .exec();
+        if (usedTrial) {
+          throw new HttpException(
+            'This business has already used a trial subscription',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      if (subscription.price > wallet.balance) {
+        throw new HttpException(
+          'Insufficient wallet balance',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const active = await this.businessSubscriptionModel
+        .findOne({ businessId: business._id, endDate: { $gte: new Date() } })
+        .sort({ endDate: -1 })
+        .exec();
+      const startDate = active ? active.endDate : new Date();
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + subscription.durationInDays);
+
+      wallet.balance -= subscription.price;
+      await wallet.save();
+
+      const businessSub = new this.businessSubscriptionModel({
+        businessId: business._id,
+        subscriptionId: subscription._id,
+        startDate,
+        endDate,
+        isActive: true,
+        isTrialUsed: !!subscription.isTrial,
+      });
+
+      await businessSub.save();
+
+      return {
+        statusCode: HttpStatus.CREATED,
+        message: 'Subscription purchased successfully',
+        data: businessSub,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to purchase subscription',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   async getFormDetail(id: string): Promise<APIResponseDto> {
     try {

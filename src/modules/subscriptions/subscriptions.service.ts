@@ -27,7 +27,7 @@ export class SubscriptionsService {
     });
     if (existing) {
       throw new HttpException(
-        'Gói subscription với tên và thời lượng này đã tồn tại',
+        'A subscription with this name and duration already exists',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -38,7 +38,7 @@ export class SubscriptionsService {
       });
       if (existingTrial) {
         throw new HttpException(
-          'Chỉ được phép có một gói trial duy nhất',
+          'Only one trial subscription is allowed',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -46,13 +46,13 @@ export class SubscriptionsService {
 
     if (createSubscriptionDto.isTrial && createSubscriptionDto.price > 0) {
       throw new HttpException(
-        'Gói trial không được có giá > 0',
+        'Trial subscription cannot have a price greater than 0',
         HttpStatus.BAD_REQUEST,
       );
     }
     if (!createSubscriptionDto.isTrial && createSubscriptionDto.price <= 0) {
       throw new HttpException(
-        'Gói trả phí phải có giá > 0',
+        'Paid subscription must have a price greater than 0',
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -64,7 +64,7 @@ export class SubscriptionsService {
 
     return {
       statusCode: HttpStatus.CREATED,
-      message: 'Tạo gói subscription thành công',
+      message: 'Subscription created successfully',
       data: subscription,
     };
   }
@@ -77,7 +77,7 @@ export class SubscriptionsService {
       const featureRecord = await this.featureModel.findOne().exec();
       return {
         statusCode: HttpStatus.OK,
-        message: 'Danh sách gói đăng ký',
+        message: 'Subscriptions retrieved successfully',
         data: {
           subscriptions,
           description: featureRecord?.features || '',
@@ -107,7 +107,7 @@ export class SubscriptionsService {
         statusCode: HttpStatus.OK,
         message: 'Subscription retrieved successfully',
         data: {
-          ...subscription,
+          subscription,
           description: featureRecord?.features || '',
         },
       };
@@ -135,16 +135,21 @@ export class SubscriptionsService {
     const finalDuration =
       updateSubscriptionDto.durationInDays ?? subscription.durationInDays;
 
-    const existing = await this.subscriptionModel.findOne({
-      _id: { $ne: id },
-      name: { $regex: new RegExp(`^${finalName}$`, 'i') },
-      durationInDays: finalDuration,
-    });
-    if (existing) {
-      throw new HttpException(
-        'Name and duration combination already exists',
-        HttpStatus.BAD_REQUEST,
-      );
+    if (updateSubscriptionDto.name || updateSubscriptionDto.durationInDays) {
+      const existing = await this.subscriptionModel.findOne({
+        _id: { $ne: id },
+        name: { $regex: new RegExp(`^${finalName}$`, 'i') },
+        ...(updateSubscriptionDto.durationInDays && {
+          durationInDays: finalDuration,
+        }),
+      });
+
+      if (existing) {
+        throw new HttpException(
+          'Another subscription with the same name and duration already exists',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     }
 
     if (updateSubscriptionDto.isTrial !== undefined) {
@@ -167,7 +172,7 @@ export class SubscriptionsService {
         updateSubscriptionDto.price > 0
       ) {
         throw new HttpException(
-          'Trial subscriptions cannot have a price > 0',
+          'Trial subscriptions cannot have a price greater than 0',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -178,7 +183,7 @@ export class SubscriptionsService {
         updateSubscriptionDto.price <= 0
       ) {
         throw new HttpException(
-          'Paid subscriptions must have a price > 0',
+          'Paid subscriptions must have a price greater than 0',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -192,7 +197,7 @@ export class SubscriptionsService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Update subscription successfully',
+      message: 'Subscription updated successfully',
       data: updatedSubscription,
     };
   }
@@ -217,13 +222,12 @@ export class SubscriptionsService {
     const record = await this.featureModel.findOne().exec();
     return {
       statusCode: HttpStatus.OK,
-      message: 'Get subscription features successfully',
+      message: 'Subscription features retrieved successfully',
       data: record?.features ?? [],
     };
   }
 
   async updateFeatures(features: string[]): Promise<APIResponseDto> {
-    console.log(features);
     if (!features || !Array.isArray(features)) {
       throw new HttpException('Invalid features list', HttpStatus.BAD_REQUEST);
     }
@@ -236,7 +240,7 @@ export class SubscriptionsService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Update subscription features successfully',
+      message: 'Subscription features updated successfully',
       data: updated,
     };
   }
@@ -253,7 +257,7 @@ export class SubscriptionsService {
 
     if (!updated) {
       throw new HttpException(
-        'Not found subscription features list',
+        'Subscription features list not found',
         HttpStatus.NOT_FOUND,
       );
     }
