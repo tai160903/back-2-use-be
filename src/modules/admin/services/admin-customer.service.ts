@@ -28,15 +28,22 @@ import {
   Customers,
   CustomersDocument,
 } from 'src/modules/users/schemas/customer.schema';
+import { aggregatePaginate } from 'src/common/utils/aggregate-pagination.util';
+import {
+  CustomerDetailProjectionStage,
+  CustomerProjectionStage,
+  RemoveUserFieldStage,
+  UserLookupStage,
+} from 'src/common/pipelines';
 
 @Injectable()
 export class AdminCustomerService {
   constructor(
-    @InjectModel(Users.name) private readonly userModel: Model<UsersDocument>,
+    @InjectModel(Users.name) private readonly userModel: Model<Users>,
     @InjectModel(UserBlockHistory.name)
     private readonly userBlockHistoryModel: Model<UserBlockHistoryDocument>,
     @InjectModel(Customers.name)
-    private readonly customerModel: Model<CustomersDocument>,
+    private readonly customerModel: Model<Customers>,
     private mailerService: MailerService,
   ) {}
 
@@ -46,58 +53,70 @@ export class AdminCustomerService {
   // Admin get all users with role customer
   async getAllCustomers(
     query: GetCustomerQueryDto,
-  ): Promise<APIPaginatedResponseDto<UserResponseDto[]>> {
+  ): Promise<APIPaginatedResponseDto<any[]>> {
     const { isBlocked, page = 1, limit = 10 } = query;
 
-    const filter: any = { role: RolesEnum.CUSTOMER };
-    if (isBlocked !== undefined) {
-      filter.isBlocked = isBlocked;
-    }
+    const pipeline: Record<string, any>[] = [
+      UserLookupStage,
+      {
+        $match: {
+          ...(isBlocked !== undefined ? { 'user.isBlocked': isBlocked } : {}),
+          'user.role': RolesEnum.CUSTOMER,
+        },
+      },
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      CustomerProjectionStage,
+    ];
 
-    const { data, total, currentPage, totalPages } =
-      await paginate<UsersDocument>(
-        this.userModel,
-        filter,
-        page,
-        limit,
-        this.projection,
-      );
-
-    const userDtos = data.map((user) =>
-      plainToInstance(UserResponseDto, user.toObject()),
+    const result = await aggregatePaginate(
+      this.customerModel,
+      pipeline,
+      page,
+      limit,
     );
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Customers retrieved successfully',
-      data: userDtos,
-      total,
-      currentPage,
-      totalPages,
+      data: result.data,
+      total: result.total,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
     };
   }
 
   // Admin get customer by id
-  async getCustomerById(id: string): Promise<APIResponseDto<UserResponseDto>> {
+  async getCustomerById(id: string): Promise<APIResponseDto<Customers>> {
     if (!isValidObjectId(id)) {
       throw new BadRequestException(`Invalid User ID '${id}'`);
     }
 
-    const user = await this.userModel
-      .findById(id)
-      .select(this.projection)
+    const pipeline: any[] = [
+      UserLookupStage,
+      {
+        $match: { _id: new Types.ObjectId(id) },
+      },
+      CustomerDetailProjectionStage,
+      RemoveUserFieldStage,
+    ];
+
+    const result = await this.customerModel
+      .aggregate<Customers>(pipeline)
       .exec();
 
-    if (!user) {
-      throw new NotFoundException(`User with ID '${id}' not found`);
+    if (!result || result.length === 0) {
+      throw new NotFoundException(`Customer with ID '${id}' not found`);
     }
-
-    const userDto = plainToInstance(UserResponseDto, user.toObject());
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Customer with id '${id}' retrieved successfully`,
-      data: userDto,
+      message: `Get customer details successfully`,
+      data: result[0],
     };
   }
 
@@ -129,19 +148,18 @@ export class AdminCustomerService {
       throw new NotFoundException('Associated user not found');
     }
 
-    if (user.isBlocked === true) {
+    if (user.isBlocked === isBlocked) {
       return {
         statusCode: HttpStatus.OK,
         message: `Customer is already ${isBlocked ? 'blocked' : 'unblocked'}`,
       };
     }
 
-    user.isBlocked = true;
-
+    user.isBlocked = isBlocked;
     await user.save();
 
     await this.userBlockHistoryModel.create({
-      userId: user._id,
+      userId: customer.userId,
       reason,
       isBlocked,
       blockBy: adminId || null,

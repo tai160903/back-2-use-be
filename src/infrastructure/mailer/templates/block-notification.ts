@@ -10,11 +10,9 @@ export function blockNotificationTemplate(
   const message = isBlocked
     ? `We regret to inform you that your account has been temporarily <b>blocked</b> due to the following reason:`
     : `Good news! Your account has been <b>unblocked</b> and you can now continue using our services.`;
-  const reasonText = isBlocked
-    ? `<p style="margin: 10px 0; font-style: italic; color: #374151;">Reason: ${
-        reason || 'No reason provided.'
-      }</p>`
-    : '';
+  const reasonText = `<p style="margin: 10px 0; font-style: italic; color: #374151;">Reason: ${
+    reason || 'No reason provided.'
+  }</p>`;
 
   return `
   <div style="font-family: Arial, sans-serif; background-color: #f9fafb; padding: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">

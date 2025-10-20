@@ -283,7 +283,7 @@ export class UsersService {
       );
 
     const populatedData = await this.blockHistoryModel.populate(data, [
-      { path: 'blockBy', select: 'name email' },
+      { path: 'blockBy', select: 'username email' },
     ]);
 
     return {

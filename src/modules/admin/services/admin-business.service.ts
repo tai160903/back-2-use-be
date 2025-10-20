@@ -24,6 +24,13 @@ import {
 } from 'src/modules/users/schemas/users-block-history';
 import { UserResponseDto } from '../dto/admin-customer/user-response.dto';
 import { plainToInstance } from 'class-transformer';
+import {
+  BusinessDetailProjectionStage,
+  BusinessProjectionStage,
+  RemoveUserFieldStage,
+  UserLookupStage,
+} from 'src/common/pipelines';
+import path from 'path';
 
 @Injectable()
 export class AdminBusinessService {
@@ -36,31 +43,27 @@ export class AdminBusinessService {
     private mailerService: MailerService,
   ) {}
 
-  projection =
-    '_id name email phone address yob role isActive isBlocked createdAt updatedAt';
-
-  // Admin get all businesses (flatten user info)
+  // Admin get all businesses
   async getAllBusinesses(
     query: GetBusinessQueryDto,
   ): Promise<APIPaginatedResponseDto<SimpleBusinessDto[]>> {
     const { isBlocked, page = 1, limit = 10 } = query;
 
     const pipeline: Record<string, any>[] = [
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      { $unwind: '$user' },
+      UserLookupStage,
       {
         $match: {
           ...(isBlocked !== undefined ? { 'user.isBlocked': isBlocked } : {}),
           'user.role': RolesEnum.BUSINESS,
         },
       },
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      BusinessProjectionStage,
     ];
 
     const result = await aggregatePaginate(
@@ -70,43 +73,43 @@ export class AdminBusinessService {
       limit,
     );
 
-    const flattenedData: SimpleBusinessDto[] = result.data.map((item) => ({
-      _id: item._id?.toString(),
-      userId: item.userId.toString(),
-      storeName: item.storeName,
-      storePhone: item.storePhone,
-      storeAddress: item.storeAddress,
-      role: item.user?.role,
-      isActive: item.user?.isActive,
-      isBlocked: item.user?.isBlocked,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    }));
-
     return {
       statusCode: HttpStatus.OK,
       message: 'Get businesses successfully',
-      data: flattenedData,
+      data: result.data,
       total: result.total,
       currentPage: result.currentPage,
       totalPages: result.totalPages,
     };
   }
 
+  // Get business by id
   async getBusinessById(id: string): Promise<APIResponseDto<Businesses>> {
     if (!isValidObjectId(id)) {
       throw new BadRequestException(`Invalid Business ID '${id}'`);
     }
-    const business = await this.businessModel.findById(id).exec();
 
-    if (!business) {
+    const pipeline: any[] = [
+      UserLookupStage,
+      {
+        $match: { _id: new Types.ObjectId(id) },
+      },
+      BusinessDetailProjectionStage,
+      RemoveUserFieldStage,
+    ];
+
+    const result = await this.businessModel
+      .aggregate<Businesses>(pipeline)
+      .exec();
+
+    if (!result || result.length === 0) {
       throw new NotFoundException(`Business with ID '${id}' not found`);
     }
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Business with id '${id}' retrieved successfully`,
-      data: business,
+      message: `Get business details successfully`,
+      data: result[0],
     };
   }
 
@@ -125,7 +128,11 @@ export class AdminBusinessService {
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(id),
     });
-    const user = await this.userModel.findById(id, RolesEnum.BUSINESS);
+
+    const user = await this.userModel.findOne({
+      _id: id,
+      role: RolesEnum.BUSINESS,
+    });
 
     if (!business) {
       throw new NotFoundException('Business not found');
@@ -135,20 +142,18 @@ export class AdminBusinessService {
       throw new NotFoundException('Associated user not found');
     }
 
-    if (user?.isBlocked === true) {
+    if (user.isBlocked === isBlocked) {
       return {
         statusCode: HttpStatus.OK,
         message: `Business is already ${isBlocked ? 'blocked' : 'unblocked'}`,
       };
     }
 
-    if (user) {
-      user.isBlocked = true;
-      await user.save();
-    }
+    user.isBlocked = isBlocked;
+    await user.save();
 
     await this.userBlockHistoryModel.create({
-      userId: business._id,
+      userId: business.userId,
       reason,
       isBlocked,
       blockBy: adminId || null,
