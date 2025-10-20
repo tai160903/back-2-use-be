@@ -1,4 +1,4 @@
-import { Model } from 'mongoose';
+import { Model, PipelineStage } from 'mongoose';
 
 export async function aggregatePaginate<T>(
   model: Model<T>,
@@ -19,7 +19,7 @@ export async function aggregatePaginate<T>(
       { $skip: skip },
       { $limit: limit },
     ]),
-    model.aggregate([...pipeline, { $count: 'total' }]),
+    model.aggregate<{ total: number }>([...pipeline, { $count: 'total' }]),
   ]);
 
   const total = totalResult[0]?.total || 0;

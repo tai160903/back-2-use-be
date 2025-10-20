@@ -1,9 +1,11 @@
 export interface SimpleBusinessDto {
   _id: string;
   userId: string;
-  storeName: string;
-  storePhone: string;
-  storeAddress: string;
+  businessName: string;
+  businessPhone: string;
+  businessAddress: string;
+  businessType: string;
+  businessLogoUrl: string;
   role: string;
   isActive: boolean;
   isBlocked: boolean;

@@ -8,7 +8,12 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiParam,
+  ApiTags,
+} from '@nestjs/swagger';
 import { AdminBusinessService } from '../services/admin-business.service';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Businesses } from 'src/modules/businesses/schemas/businesses.schema';

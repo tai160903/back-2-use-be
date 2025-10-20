@@ -20,6 +20,7 @@ import { UserResponseDto } from '../dto/admin-customer/user-response.dto';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { UpdateCustomerBlockStatusDto } from '../dto/admin-customer/update-customer-block-status.dto';
 import { MailerService } from 'src/infrastructure/mailer/mailer.service';
+import { Customers } from 'src/modules/users/schemas/customer.schema';
 
 @ApiTags('Customer (Admin)')
 @ApiBearerAuth('access-token')
@@ -41,7 +42,7 @@ export class AdminCustomerController {
   @ApiParam({ name: 'id', description: 'Customer ID' })
   async getCustomerById(
     @Param('id') id: string,
-  ): Promise<APIResponseDto<UserResponseDto>> {
+  ): Promise<APIResponseDto<Customers>> {
     return this.customerService.getCustomerById(id);
   }
 
