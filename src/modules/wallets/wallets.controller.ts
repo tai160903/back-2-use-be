@@ -23,6 +23,7 @@ import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { AuthGuard } from '@nestjs/passport';
+import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 
 @ApiTags('Wallets')
 @Controller('wallets')
@@ -82,7 +83,9 @@ export class WalletsController {
   async withdraw(
     @Param('walletId') walletId: string,
     @Body('amount') amount: number,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.walletsService.withdraw(walletId, amount);
+    const userId = req.user?._id;
+    return this.walletsService.withdraw(walletId, amount, userId);
   }
 }

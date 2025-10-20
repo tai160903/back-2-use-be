@@ -4,13 +4,16 @@ import { WalletsController } from './wallets.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Wallets, WalletsSchema } from './schemas/wallets.schema';
 import { VnpayModule } from '../../infrastructure/vnpay/vnpay.module';
-import { Transactions, TransactionsSchema } from './schemas/transations.shema';
+import {
+  WalletTransactions,
+  WalletTransactionsSchema,
+} from '../wallet-transactions/schema/wallet-transactions.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Wallets.name, schema: WalletsSchema },
-      { name: Transactions.name, schema: TransactionsSchema },
+      { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
     VnpayModule,
   ],
