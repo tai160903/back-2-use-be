@@ -3,18 +3,18 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Wallets, WalletsDocument } from './schemas/wallets.schema';
 import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { Request } from 'express';
-import { Transactions } from './schemas/transations.shema';
+import { WalletTransactions } from '../wallet-transactions/schema/wallet-transactions.schema';
 
 @Injectable()
 export class WalletsService {
   constructor(
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
-    @InjectModel(Transactions.name)
-    private transactionsModel: Model<Transactions>,
+    @InjectModel(WalletTransactions.name)
+    private transactionsModel: Model<WalletTransactions>,
     private readonly vnpayService: VnpayService,
   ) {}
 
@@ -31,7 +31,7 @@ export class WalletsService {
         };
       }
       const wallet = new this.walletsModel({
-        userId: createWalletDto.userId,
+        userId: new Types.ObjectId(createWalletDto.userId),
         balance: 0,
       });
       await wallet.save();
@@ -102,6 +102,7 @@ export class WalletsService {
     }
   }
 
+  // Add fund to wallet
   async deposit(
     walletId: string,
     amount: number,
@@ -115,10 +116,12 @@ export class WalletsService {
           message: 'Deposit amount must be greater than 0',
         };
       }
+
       const walletRes = await this.findOne(walletId);
       if (walletRes.statusCode !== 200 || !walletRes.data) {
         return walletRes;
       }
+
       const wallet = walletRes.data as WalletsDocument;
       if (userId && wallet.userId?.toString() !== userId?.toString()) {
         return {
@@ -166,17 +169,21 @@ export class WalletsService {
         };
       }
 
-      const transation = await this.transactionsModel.create({
+      const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
-        userId: performingUserId,
+        userId: new Types.ObjectId(performingUserId as string),
         amount,
-        type: 'deposit',
+        transactionType: 'deposit',
+        direction: 'in',
+        status: 'processing',
+        referenceType: 'manual',
+        description: `VNPay Top-up #${Date.now()}`,
       });
 
-      console.log('Created Transaction:', transation);
+      console.log('Created Transaction:', transaction);
 
       const paymentUrl = this.vnpayService.createPaymentUrl(
-        transation._id.toString(),
+        transaction._id.toString(),
         amount,
         ipAddr,
         orderInfo,
@@ -192,6 +199,7 @@ export class WalletsService {
     }
   }
 
+  // Withdraw money
   async withdraw(walletId: string, amount: number, userId?: string) {
     try {
       const walletRes = await this.findOne(walletId);
@@ -211,8 +219,23 @@ export class WalletsService {
           message: 'Insufficient balance to withdraw',
         };
       }
+
       wallet.balance -= amount;
       await wallet.save();
+
+      const transaction = await this.transactionsModel.create({
+        walletId: wallet._id,
+        userId: new Types.ObjectId(userId),
+        amount,
+        transactionType: 'withdraw',
+        direction: 'out',
+        status: 'completed',
+        referenceType: 'manual',
+        description: `Manual withdrawal #${Date.now()}`,
+      });
+
+      console.log('Created Withdraw:', transaction);
+
       return {
         statusCode: 200,
         message: 'Withdrawal successful',

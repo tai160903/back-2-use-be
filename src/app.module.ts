@@ -17,6 +17,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import vnpayConfig from './config/vnpay.config';
 import { MailerModule } from './infrastructure/mailer/mailer.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
+import { WalletTransactions } from './modules/wallet-transactions/schema/wallet-transactions.schema';
+import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-transactions.module';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     MaterialModule,
     BusinessesModule,
     WalletsModule,
+    WalletTransactionsModule,
     CloudinaryModule,
     AdminModule,
     VnpayModule,

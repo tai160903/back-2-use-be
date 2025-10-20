@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { VnpayService } from './vnpay.service';
 import { VnpayController } from './vnpay.controller';
 import {
-  Transactions,
-  TransactionsSchema,
-} from 'src/modules/wallets/schemas/transations.shema';
+  WalletTransactions,
+  WalletTransactionsSchema,
+} from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import {
   Wallets,
@@ -15,7 +15,7 @@ import {
   imports: [
     MongooseModule.forFeature([
       { name: Wallets.name, schema: WalletsSchema },
-      { name: Transactions.name, schema: TransactionsSchema },
+      { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
   ],
   providers: [VnpayService],

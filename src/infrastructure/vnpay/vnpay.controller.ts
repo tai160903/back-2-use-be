@@ -4,16 +4,16 @@ import { Response } from 'express';
 import { VnpayService } from './vnpay.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Transactions } from '../../modules/wallets/schemas/transations.shema';
 import { Wallets } from '../../modules/wallets/schemas/wallets.schema';
+import { WalletTransactions } from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
 
 @ApiExcludeController()
 @Controller('vnpay')
 export class VnpayController {
   constructor(
     private readonly vnpayService: VnpayService,
-    @InjectModel(Transactions.name)
-    private transactionsModel: Model<Transactions>,
+    @InjectModel(WalletTransactions.name)
+    private transactionsModel: Model<WalletTransactions>,
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
   ) {}
 

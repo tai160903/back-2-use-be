@@ -5,8 +5,9 @@ export type WalletsDocument = HydratedDocument<Wallets>;
 
 @Schema({ timestamps: true })
 export class Wallets {
-  @Prop({ required: true, unique: true, ref: 'Users' })
+  @Prop({ type: Types.ObjectId, required: true, unique: true, ref: 'Users' })
   userId: Types.ObjectId;
+
   @Prop({ required: true, default: 0 })
   balance: number;
 }
