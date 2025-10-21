@@ -96,6 +96,15 @@ export class BusinessesController {
   @Post('buy-subscription')
   @ApiOperation({ summary: 'Buy a subscription for business' })
   @ApiBearerAuth('access-token')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        subscriptionId: { type: 'string', example: '64f0c2e5b4d1c2a5e6f7g8h9' },
+      },
+      required: ['subscriptionId'],
+    },
+  })
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
   async buySubscription(
     @Req() req: any,

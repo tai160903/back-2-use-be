@@ -12,6 +12,7 @@ import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
 import { BusinessSubscriptions } from './schemas/business-subscriptions.schema';
 import { Injectable } from '@nestjs/common';
 import { Wallets } from '../wallets/schemas/wallets.schema';
+import { Users } from '../users/schemas/users.schema';
 
 @Injectable()
 export class BusinessesService {
@@ -24,6 +25,7 @@ export class BusinessesService {
     @InjectModel(BusinessSubscriptions.name)
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
+    @InjectModel(Users.name) private usersModel: Model<Users>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -46,7 +48,9 @@ export class BusinessesService {
         );
       }
 
-      const wallet = await this.walletsModel.findOne({ userId }).exec();
+      const wallet = await this.walletsModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .exec();
       if (!wallet || wallet.balance <= 0) {
         throw new HttpException(
           'Insufficient wallet balance',
@@ -166,11 +170,10 @@ export class BusinessesService {
         !files.businessLicenseFile ||
         files.businessLicenseFile.length === 0
       ) {
-        return {
-          statusCode: 400,
-          message:
-            'businessLogo, foodSafetyCertUrl, and businessLicenseFile are required.',
-        };
+        throw new HttpException(
+          'businessLogo, foodSafetyCertUrl, and businessLicenseFile are required.',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const allowedTypes = [
@@ -186,41 +189,52 @@ export class BusinessesService {
       const businessLicenseFile = files.businessLicenseFile[0];
 
       if (foodSafetyCertFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        return {
-          statusCode: 413,
-          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
-        };
+        throw new HttpException(
+          `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
+          HttpStatus.PAYLOAD_TOO_LARGE,
+        );
       }
       if (businessLicenseFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        return {
-          statusCode: 413,
-          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
-        };
+        throw new HttpException(
+          `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
+          HttpStatus.PAYLOAD_TOO_LARGE,
+        );
       }
       if (businessLogoFile.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
-        return {
-          statusCode: 413,
-          message: `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
-        };
+        throw new HttpException(
+          `File too large. Maximum allowed is ${MAX_FILE_SIZE_MB}MB`,
+          HttpStatus.PAYLOAD_TOO_LARGE,
+        );
       }
 
       if (!allowedTypes.includes(foodSafetyCertFile.mimetype)) {
-        return {
-          statusCode: 400,
-          message: 'foodSafetyCertUrl must be jpg, jpeg, png, or pdf',
-        };
+        throw new HttpException(
+          'foodSafetyCertUrl must be jpg, jpeg, png, or pdf',
+          HttpStatus.BAD_REQUEST,
+        );
       }
       if (!allowedTypes.includes(businessLicenseFile.mimetype)) {
-        return {
-          statusCode: 400,
-          message: 'businessLicenseFile must be jpg, jpeg, png, or pdf',
-        };
+        throw new HttpException(
+          'businessLicenseFile must be jpg, jpeg, png, or pdf',
+          HttpStatus.BAD_REQUEST,
+        );
       }
       if (!allowedLogoTypes.includes(businessLogoFile.mimetype)) {
-        return {
-          statusCode: 400,
-          message: 'businessLogo must be jpg, jpeg, or png',
-        };
+        throw new HttpException(
+          'businessLogo must be jpg, jpeg, or png',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const existingForm = await this.usersModel.findOne({
+        email: dto.businessMail,
+      });
+
+      if (existingForm) {
+        throw new HttpException(
+          'This email is already approved for a business',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       // upload files to Cloudinary
@@ -252,38 +266,11 @@ export class BusinessesService {
         message: 'Business form created successfully',
         data: business,
       };
-    } catch (err) {
-      let message: string;
-      if (err && (err as Error).message) {
-        message = (err as Error).message;
-      } else {
-        message = String(err);
-      }
-      return {
-        statusCode: 500,
-        message: 'Error creating business form',
-        data: message,
-      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to create business form',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
-
-  // create(createBusinessDto: CreateBusinessDto) {
-  //   return 'This action adds a new business';
-  // }
-
-  // findAll() {
-  //   return `This action returns all businesses`;
-  // }
-
-  // findOne(id: number) {
-  //   return `This action returns a #${id} business`;
-  // }
-
-  // update(id: number, updateBusinessDto: UpdateBusinessDto) {
-  //   return `This action updates a #${id} business`;
-  // }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} business`;
-  // }
 }

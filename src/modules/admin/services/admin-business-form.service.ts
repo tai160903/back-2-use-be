@@ -1,4 +1,3 @@
-import { Subscription } from './../../subscriptions/entities/subscription.entity';
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 // import { CreateAdminDto } from './dto/create-admin.dto';
@@ -22,40 +21,47 @@ import {
 import { Subscriptions } from 'src/modules/subscriptions/schemas/subscriptions.schema';
 import { BusinessSubscriptions } from 'src/modules/businesses/schemas/business-subscriptions.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { Wallets } from 'src/modules/wallets/schemas/wallets.schema';
 
 @Injectable()
 export class AdminBusinessFormService {
   constructor(
     @InjectModel(BusinessForm.name)
     private businessFormModel: Model<BusinessForm>,
-    private mailerService: MailerService,
     @InjectModel(Users.name) private userModel: Model<Users>,
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
     @InjectModel(Subscriptions.name)
     private subscriptionModel: Model<Subscriptions>,
     @InjectModel(BusinessSubscriptions.name)
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
+    @InjectModel(Wallets.name) private walletModel: Model<Wallets>,
+    private mailerService: MailerService,
   ) {}
 
   async approveBusiness(id: string): Promise<APIResponseDto> {
     try {
       const businessForm = await this.businessFormModel.findById(id);
-      console.log('businessForm', businessForm);
       if (!businessForm) {
         return {
           statusCode: 404,
           message: 'Business form not found',
         };
       }
+
+      if (businessForm.status === BusinessFormStatusEnum.APPROVED) {
+        throw new HttpException(
+          'Business form is already approved',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       businessForm.status = BusinessFormStatusEnum.APPROVED;
       await businessForm.save();
-
       const userEmail = businessForm.businessMail;
       const baseUsername = businessForm.businessName
         .toLowerCase()
         .replace(/\s+/g, '')
         .replace(/[^a-z0-9]/g, '');
-
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const generatedUsername = `${baseUsername}${randomSuffix}`;
 
@@ -74,6 +80,11 @@ export class AdminBusinessFormService {
           role: RolesEnum.BUSINESS,
         });
         await user.save();
+      } else {
+        throw new HttpException(
+          'User with this email already exists',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const subscriptionTrial = await this.subscriptionModel.findOne({
@@ -108,8 +119,8 @@ export class AdminBusinessFormService {
       }
 
       const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(startDate.getDate() + subscriptionTrial.durationInDays);
+      const endDate = new Date(startDate.getTime());
+      endDate.setDate(endDate.getDate() + subscriptionTrial.durationInDays);
 
       const businessSubscription = new this.businessSubscriptionModel({
         businessId: business._id,
@@ -120,9 +131,14 @@ export class AdminBusinessFormService {
         isTrialUsed: true,
       });
       await businessSubscription.save();
+      await this.walletModel.create({
+        userId: user._id,
+        balance: 0,
+      });
 
-      const mailResult = await this.mailerService
-        .sendMail({
+      let mailResult;
+      try {
+        mailResult = await this.mailerService.sendMail({
           to: [
             {
               name: businessForm.businessName,
@@ -139,13 +155,13 @@ export class AdminBusinessFormService {
             businessSubscription.startDate,
             businessSubscription.endDate,
           ),
-        })
-        .catch((error) => {
-          throw new HttpException(
-            error.message || 'Failed to send approval email',
-            HttpStatus.INTERNAL_SERVER_ERROR,
-          );
         });
+      } catch (error) {
+        throw new HttpException(
+          (error as Error).message || 'Failed to send approval email',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
       if (!mailResult) {
         throw new HttpException(
           'Failed to send approval email',

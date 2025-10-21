@@ -17,6 +17,7 @@ import {
   BusinessSubscriptionsSchema,
 } from './schemas/business-subscriptions.schema';
 import { Wallets, WalletsSchema } from '../wallets/schemas/wallets.schema';
+import { Users, UsersSchema } from '../users/schemas/users.schema';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { Wallets, WalletsSchema } from '../wallets/schemas/wallets.schema';
       { name: Subscriptions.name, schema: SubscriptionsSchema },
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
       { name: Wallets.name, schema: WalletsSchema },
+      { name: Users.name, schema: UsersSchema },
     ]),
     CloudinaryModule,
   ],
