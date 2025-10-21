@@ -35,6 +35,7 @@ import {
   BusinessSubscriptions,
   BusinessSubscriptionsSchema,
 } from '../businesses/schemas/business-subscriptions.schema';
+import { Wallets, WalletsSchema } from '../wallets/schemas/wallets.schema';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import {
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
       { name: Subscriptions.name, schema: SubscriptionsSchema },
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
+      { name: Wallets.name, schema: WalletsSchema },
     ]),
     BusinessesModule,
 
