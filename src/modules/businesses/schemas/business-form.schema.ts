@@ -25,6 +25,12 @@ export class BusinessForm {
   businessType: string;
 
   @Prop({ required: true })
+  openTime: string;
+
+  @Prop({ required: true })
+  closeTime: string;
+
+  @Prop({ required: true })
   businessLogoUrl: string;
 
   @Prop({ required: true })

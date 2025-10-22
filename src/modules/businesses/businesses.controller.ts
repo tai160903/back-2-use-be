@@ -52,6 +52,8 @@ export class BusinessesController {
         businessMail: { type: 'string', example: 'abc@store.com' },
         businessAddress: { type: 'string', example: '123 Main St' },
         businessPhone: { type: 'string', example: '0934567890' },
+        openTime: { type: 'string', example: '08:00' },
+        closeTime: { type: 'string', example: '22:00' },
         taxCode: { type: 'string', example: '987654321' },
         foodSafetyCertUrl: { type: 'string', format: 'binary' },
         businessLicenseFile: { type: 'string', format: 'binary' },

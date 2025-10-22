@@ -20,10 +20,10 @@ export class Customers {
   @Prop()
   yob: Date;
 
-  @Prop()
+  @Prop({ default: 0 })
   legitPoints: number;
 
-  @Prop()
+  @Prop({ default: 0 })
   rewardPoints: number;
 }
 
