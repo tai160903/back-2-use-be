@@ -28,7 +28,6 @@ export class VnpayController {
     const transactionId = query['vnp_TxnRef'];
     const responseCode = query['vnp_ResponseCode'];
     const transaction = await this.transactionsModel.findById(transactionId);
-    console.log('VNPay Transaction:', transaction);
     if (!transaction) {
       return res.status(404).json({ message: 'Transaction not found' });
     }
@@ -52,6 +51,44 @@ export class VnpayController {
       return res.redirect(
         `${process.env.CLIENT_RETURN_URL}/payment-failed?code=${responseCode}`,
       );
+    }
+  }
+
+  @Get('payment-return')
+  async vnpayPaymentReturn(@Query() query: any, @Res() res: Response) {
+    const {
+      vnp_ResponseCode,
+      vnp_TransactionStatus,
+      vnp_Amount,
+      vnp_OrderInfo,
+      vnp_TxnRef,
+    } = query;
+
+    if (vnp_ResponseCode === '00' && vnp_TransactionStatus === '00') {
+      const walletId = vnp_OrderInfo.replace('Payment_', '');
+      const amount = parseInt(vnp_Amount) / 100;
+
+      const transaction = await this.transactionsModel.findById(vnp_TxnRef);
+      if (transaction) {
+        transaction.status = 'completed';
+        await transaction.save();
+      }
+
+      const wallet = await this.walletsModel.findById(walletId);
+      if (wallet) {
+        wallet.balance += amount;
+        await wallet.save();
+      }
+
+      return res.redirect('http://192.168.0.199:8081/payment-success');
+    } else {
+      const transaction = await this.transactionsModel.findById(vnp_TxnRef);
+      if (transaction) {
+        transaction.status = 'failed';
+        await transaction.save();
+      }
+
+      return res.redirect('http://192.168.0.199:8081/payment-failed');
     }
   }
 }
