@@ -21,6 +21,7 @@ import {
   Businesses,
   BusinessesSchema,
 } from '../businesses/schemas/businesses.schema';
+import { ResendMailModule } from 'src/infrastructure/resend/resend-mail.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import {
     }),
     MailerModule,
     WalletsModule,
+    ResendMailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, GoogleStrategy, JwtStrategy],

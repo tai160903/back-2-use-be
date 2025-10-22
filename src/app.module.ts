@@ -19,6 +19,7 @@ import { MailerModule } from './infrastructure/mailer/mailer.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { WalletTransactions } from './modules/wallet-transactions/schema/wallet-transactions.schema';
 import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-transactions.module';
+import { ResendMailModule } from './infrastructure/resend/resend-mail.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-t
     AdminModule,
     VnpayModule,
     SubscriptionsModule,
+    ResendMailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

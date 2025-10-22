@@ -176,6 +176,22 @@ export class AuthController {
     );
   }
 
+  // Resend forgot pass
+  @ApiOperation({ summary: 'Forgot password - send OTP via email' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', example: 'john.doe@example.com' },
+      },
+      required: ['email'],
+    },
+  })
+  @Post('resend-forgot-password')
+  async forgotPassword(@Body() body: { email: string }) {
+    return this.authService.resendForgotPassword(body.email);
+  }
+
   @ApiOperation({
     summary: 'Google OAuth login (web)',
     description: 'Redirects to Google for OAuth login (web client)',
