@@ -18,7 +18,6 @@ import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
 import { BusinessSubscriptions } from '../businesses/schemas/business-subscriptions.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { Businesses } from '../businesses/schemas/businesses.schema';
-import { ResendMailService } from 'src/infrastructure/resend/resend-mail.service';
 
 @Injectable()
 export class AuthService {
@@ -33,7 +32,6 @@ export class AuthService {
     private mailerService: MailerService,
     private configService: ConfigService,
     private walletsService: WalletsService,
-    private resendMailService: ResendMailService,
   ) {}
 
   // Register
@@ -420,40 +418,6 @@ export class AuthService {
       statusCode: 200,
       message: 'OTP for password reset sent to email',
     };
-  }
-
-  // Resend - forgot pass
-  async resendForgotPassword(email: string) {
-    // ✅ Giả sử email tồn tại, generate OTP
-    const otpCode = (
-      (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
-      100000
-    ).toString();
-
-    const html = `
-      <div style="font-family:sans-serif;line-height:1.5">
-        <h2>Reset your password</h2>
-        <p>Hi ${email},</p>
-        <p>Your OTP code is:</p>
-        <h1 style="color:#007bff">${otpCode}</h1>
-        <p>This code expires in 5 minutes.</p>
-      </div>
-    `;
-
-    try {
-      await this.resendMailService.sendMail(email, 'Password Reset OTP', html);
-
-      return {
-        statusCode: 200,
-        message: 'OTP has been sent to your email',
-        otp: otpCode, // chỉ log để test (thực tế nên bỏ)
-      };
-    } catch (error) {
-      throw new HttpException(
-        'Failed to send email',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
   }
 
   // Verify OTP and reset password
