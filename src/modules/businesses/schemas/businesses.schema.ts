@@ -28,6 +28,12 @@ export class Businesses {
   businessType: string;
 
   @Prop({ required: true, trim: true })
+  openTime: string;
+
+  @Prop({ required: true, trim: true })
+  closeTime: string;
+
+  @Prop({ required: true, trim: true })
   businessLogoUrl: string;
 
   @Prop({ required: true, trim: true })

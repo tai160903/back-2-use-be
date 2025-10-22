@@ -29,4 +29,20 @@ export class CreateBusinessFormDto {
   @IsString()
   @IsNotEmpty()
   taxCode: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'openTime must be in HH:mm 24-hour format',
+  })
+  @IsString()
+  @IsNotEmpty()
+  openTime: string;
+
+  @Matches(/^([01]\d|2[0-3]):([0-5]\d)$/, {
+    message: 'closeTime must be in HH:mm 24-hour format',
+  })
+  @IsString()
+  @IsNotEmpty()
+  closeTime: string;
 }
