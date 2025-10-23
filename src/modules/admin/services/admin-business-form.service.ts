@@ -22,6 +22,7 @@ import { Subscriptions } from 'src/modules/subscriptions/schemas/subscriptions.s
 import { BusinessSubscriptions } from 'src/modules/businesses/schemas/business-subscriptions.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Wallets } from 'src/modules/wallets/schemas/wallets.schema';
+import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 
 @Injectable()
 export class AdminBusinessFormService {
@@ -36,6 +37,7 @@ export class AdminBusinessFormService {
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
     @InjectModel(Wallets.name) private walletModel: Model<Wallets>,
     private mailerService: MailerService,
+    private readonly geocodingService: GeocodingService,
   ) {}
 
   async approveBusiness(id: string): Promise<APIResponseDto> {
@@ -100,6 +102,11 @@ export class AdminBusinessFormService {
         );
       }
 
+      const { latitude, longitude } =
+        await this.geocodingService.getCoordinates(
+          businessForm.businessAddress,
+        );
+
       let business = await this.businessModel.findOne({ userId: user._id });
       if (!business) {
         business = new this.businessModel({
@@ -116,6 +123,13 @@ export class AdminBusinessFormService {
           businessLicenseUrl: businessForm.businessLicenseUrl,
           openTime: businessForm.openTime,
           closeTime: businessForm.closeTime,
+          location:
+            longitude && latitude
+              ? {
+                  type: 'Point',
+                  coordinates: [longitude, latitude],
+                }
+              : undefined,
         });
         await business.save();
       }

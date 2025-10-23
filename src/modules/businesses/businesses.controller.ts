@@ -7,6 +7,7 @@ import {
   Get,
   Param,
   Req,
+  Query,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { BusinessesService } from './businesses.service';
@@ -23,6 +24,12 @@ import {
 } from '@nestjs/swagger';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
+import { GetNearbyBusinessesDto } from './dto/get-nearby-businesses.dto';
+import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { Businesses } from './schemas/businesses.schema';
+import { AsyncSubject } from 'rxjs';
+import { query } from 'express';
+import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
 
 @Controller('businesses')
 @ApiTags('Businesses')
@@ -113,5 +120,27 @@ export class BusinessesController {
     @Body('subscriptionId') subscriptionId: string,
   ) {
     return this.businessesService.buySubscription(req.user._id, subscriptionId);
+  }
+
+  //Get all businesses
+  @Get()
+  async getAllBusinesses(
+    @Query() query: GetAllBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    return this.businessesService.getAllBusinesses(query);
+  }
+
+  //Get nearby businesses
+  @Get('nearby')
+  async getNearbyBusinesses(
+    @Query() query: GetNearbyBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    return this.businessesService.findNearby(
+      query.latitude,
+      query.longitude,
+      query.radius,
+      query.page,
+      query.limit,
+    );
   }
 }

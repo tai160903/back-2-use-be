@@ -36,6 +36,7 @@ import {
   BusinessSubscriptionsSchema,
 } from '../businesses/schemas/business-subscriptions.schema';
 import { Wallets, WalletsSchema } from '../wallets/schemas/wallets.schema';
+import { GeocodingModule } from 'src/infrastructure/geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -51,8 +52,8 @@ import { Wallets, WalletsSchema } from '../wallets/schemas/wallets.schema';
       { name: Wallets.name, schema: WalletsSchema },
     ]),
     BusinessesModule,
-
     MailerModule,
+    GeocodingModule,
   ],
   controllers: [
     AdminBusinessFormController,
