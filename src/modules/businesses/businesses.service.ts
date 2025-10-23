@@ -14,6 +14,10 @@ import { Injectable } from '@nestjs/common';
 import { Wallets } from '../wallets/schemas/wallets.schema';
 import { Users } from '../users/schemas/users.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { BusinessProjectionStage, UserLookupStage } from 'src/common/pipelines';
+import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
+import { RolesEnum } from 'src/common/constants/roles.enum';
+import { aggregatePaginate } from 'src/common/utils/aggregate-pagination.util';
 
 @Injectable()
 export class BusinessesService {
@@ -275,7 +279,47 @@ export class BusinessesService {
     }
   }
 
-  // Get nearby business
+  // Get all businesses
+  async getAllBusinesses(
+    query: GetAllBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    const { page = 1, limit = 10 } = query;
+
+    const pipeline: PipelineStage[] = [
+      UserLookupStage,
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: {
+          'user.role': RolesEnum.BUSINESS,
+          'user.isBlocked': false,
+        },
+      },
+      BusinessProjectionStage,
+    ];
+
+    const result = await aggregatePaginate(
+      this.businessesModel,
+      pipeline,
+      page,
+      limit,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get active businesses successfully',
+      data: result.data,
+      total: result.total,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+    };
+  }
+
+  // Get nearby businesses
   async findNearby(
     latitude: number,
     longitude: number,
@@ -295,15 +339,38 @@ export class BusinessesService {
           distanceMultiplier: 1,
         },
       },
+      UserLookupStage,
+      { $unwind: '$user' },
+      { $match: { 'user.isBlocked': false } },
+      BusinessProjectionStage,
       { $skip: skip },
       { $limit: limit },
     ];
 
-    const data = await this.businessesModel.aggregate(pipeline);
-    const total = (await this.businessesModel.countDocuments()) || data.length;
+    const countPipeline: PipelineStage[] = [
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [longitude, latitude] },
+          distanceField: 'distance',
+          maxDistance: radius,
+          spherical: true,
+        },
+      },
+      UserLookupStage,
+      { $unwind: '$user' },
+      { $match: { 'user.isBlocked': false } },
+      { $count: 'total' },
+    ];
+
+    const [data, totalResult] = await Promise.all([
+      this.businessesModel.aggregate(pipeline),
+      this.businessesModel.aggregate(countPipeline),
+    ]);
+
+    const total = totalResult[0]?.total || 0;
 
     return {
-      statusCode: 200,
+      statusCode: HttpStatus.OK,
       message: 'Get nearby businesses successfully',
       data,
       total,

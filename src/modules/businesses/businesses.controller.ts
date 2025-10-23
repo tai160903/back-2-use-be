@@ -27,6 +27,9 @@ import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { GetNearbyBusinessesDto } from './dto/get-nearby-businesses.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Businesses } from './schemas/businesses.schema';
+import { AsyncSubject } from 'rxjs';
+import { query } from 'express';
+import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
 
 @Controller('businesses')
 @ApiTags('Businesses')
@@ -117,6 +120,14 @@ export class BusinessesController {
     @Body('subscriptionId') subscriptionId: string,
   ) {
     return this.businessesService.buySubscription(req.user._id, subscriptionId);
+  }
+
+  //Get all businesses
+  @Get()
+  async getAllBusinesses(
+    @Query() query: GetAllBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    return this.businessesService.getAllBusinesses(query);
   }
 
   //Get nearby businesses
