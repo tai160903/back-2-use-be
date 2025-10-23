@@ -4,8 +4,8 @@ import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.serv
 import { HttpException, HttpStatus } from '@nestjs/common';
 // import { CreateBusinessDto } from './dto/create-business.dto';
 // import { UpdateBusinessDto } from './dto/update-business.dto';
-import { Businesses } from './schemas/businesses.schema';
-import { Model, Types } from 'mongoose';
+import { BusinessDocument, Businesses } from './schemas/businesses.schema';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { BusinessForm } from './schemas/business-form.schema';
 import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
@@ -13,6 +13,7 @@ import { BusinessSubscriptions } from './schemas/business-subscriptions.schema';
 import { Injectable } from '@nestjs/common';
 import { Wallets } from '../wallets/schemas/wallets.schema';
 import { Users } from '../users/schemas/users.schema';
+import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 
 @Injectable()
 export class BusinessesService {
@@ -272,5 +273,42 @@ export class BusinessesService {
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
+  }
+
+  // Get nearby business
+  async findNearby(
+    latitude: number,
+    longitude: number,
+    radius: number = 2000,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    const skip = (page - 1) * limit;
+
+    const pipeline: PipelineStage[] = [
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [longitude, latitude] },
+          distanceField: 'distance',
+          maxDistance: radius,
+          spherical: true,
+          distanceMultiplier: 1,
+        },
+      },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    const data = await this.businessesModel.aggregate(pipeline);
+    const total = (await this.businessesModel.countDocuments()) || data.length;
+
+    return {
+      statusCode: 200,
+      message: 'Get nearby businesses successfully',
+      data,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }

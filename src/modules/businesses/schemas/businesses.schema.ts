@@ -47,6 +47,23 @@ export class Businesses {
     default: BusinessStatusEnum.PENDING,
   })
   status: BusinessStatusEnum;
+
+  @Prop({
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  })
+  location: {
+    type: string;
+    coordinates: number[];
+  };
 }
 
 export const BusinessesSchema = SchemaFactory.createForClass(Businesses);
+BusinessesSchema.index({ location: '2dsphere' });
