@@ -5,9 +5,9 @@ import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 // import { CreateBusinessDto } from './dto/create-business.dto';
 // import { UpdateBusinessDto } from './dto/update-business.dto';
 
-import { BusinessDocument, Businesses, Connection } from './schemas/businesses.schema';
-import { Model, PipelineStage, Types } from 'mongoose';
-import { InjectModel,InjectConnection } from '@nestjs/mongoose';
+import { BusinessDocument, Businesses } from './schemas/businesses.schema';
+import { Connection, Model, PipelineStage, Types } from 'mongoose';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
 import { BusinessForm } from './schemas/business-form.schema';
 import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
 import { BusinessSubscriptions } from './schemas/business-subscriptions.schema';
@@ -369,7 +369,8 @@ export class BusinessesService {
     this.logger.log(
       `[${now.toISOString()}] Processed ${expiredSubscriptions.length} expired subscriptions.`,
     );
-    
+  }
+
   // Get all businesses
   async getAllBusinesses(
     query: GetAllBusinessesDto,
