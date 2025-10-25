@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as qs from 'qs';
-import { ProductCode, dateFormat } from 'vnpay';
+import { dateFormat } from 'vnpay';
 @Injectable()
 export class VnpayService {
   private vnp_TmnCode: string;

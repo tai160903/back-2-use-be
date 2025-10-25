@@ -21,7 +21,6 @@ import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
-import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 
@@ -29,10 +28,7 @@ import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-reques
 @Controller('wallets')
 @UseFilters(HttpExceptionFilter)
 export class WalletsController {
-  constructor(
-    private readonly walletsService: WalletsService,
-    private readonly vnpayService: VnpayService,
-  ) {}
+  constructor(private readonly walletsService: WalletsService) {}
 
   @ApiOperation({ summary: 'Create wallet' })
   @ApiBody({ type: CreateWalletDto, required: true })
@@ -63,8 +59,8 @@ export class WalletsController {
   @ApiOperation({ summary: 'Deposit money into wallet (via VNPAY)' })
   @ApiParam({ name: 'walletId', type: String })
   @ApiBody({ schema: { properties: { amount: { type: 'number' } } } })
-  @Post(':walletId/deposit')
   @ApiBearerAuth('access-token')
+  @Post(':walletId/deposit')
   @UseGuards(AuthGuard('jwt'))
   async deposit(
     @Param('walletId') walletId: string,

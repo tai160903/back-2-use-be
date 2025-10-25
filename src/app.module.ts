@@ -19,6 +19,8 @@ import { MailerModule } from './infrastructure/mailer/mailer.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { WalletTransactions } from './modules/wallet-transactions/schema/wallet-transactions.schema';
 import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-transactions.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-t
       load: [jwtConfig, vnpayConfig],
     }),
     MongooseModule.forRoot(process.env.DATABASE_URL || ''),
+    ScheduleModule.forRoot(),
     AuthModule,
     UsersModule,
     MailerModule,
@@ -38,6 +41,7 @@ import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-t
     AdminModule,
     VnpayModule,
     SubscriptionsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

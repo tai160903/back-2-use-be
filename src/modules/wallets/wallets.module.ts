@@ -8,6 +8,7 @@ import {
   WalletTransactions,
   WalletTransactionsSchema,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import {
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
     VnpayModule,
+    NotificationsModule,
   ],
   controllers: [WalletsController],
   providers: [WalletsService],

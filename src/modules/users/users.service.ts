@@ -1,3 +1,7 @@
+import {
+  BusinessSubscriptions,
+  BusinessSubscriptionsDocument,
+} from 'src/modules/businesses/schemas/business-subscriptions.schema';
 import { Wallets, WalletsDocument } from './../wallets/schemas/wallets.schema';
 import {
   BadRequestException,
@@ -35,6 +39,8 @@ export class UsersService {
     @InjectModel(Wallets.name) private walletsModel: Model<WalletsDocument>,
     @InjectModel(Businesses.name)
     private businessesModel: Model<BusinessDocument>,
+    @InjectModel(BusinessSubscriptions.name)
+    private businessSubscriptionsModel: Model<BusinessSubscriptionsDocument>,
     @InjectModel(UserBlockHistory.name)
     private readonly blockHistoryModel: Model<UserBlockHistoryDocument>,
     private readonly cloudinaryService: CloudinaryService,
@@ -98,8 +104,17 @@ export class UsersService {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
+      const wallet = await this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!wallet) {
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
+      }
+
       let customer: CustomersDocument | null = null;
       let business: BusinessDocument | null = null;
+      let businessSubscriptions: BusinessSubscriptionsDocument[] | null = null;
       if (user.role === RolesEnum.CUSTOMER) {
         customer = await this.customersModel.findOne({
           userId: new Types.ObjectId(userId),
@@ -120,14 +135,28 @@ export class UsersService {
             HttpStatus.NOT_FOUND,
           );
         }
+        // Fetch current active subscription and any future scheduled subscriptions
+        const now = new Date();
+        businessSubscriptions = await this.businessSubscriptionsModel
+          .find({
+            businessId: business._id,
+            $or: [
+              // Current active: within time window and active
+              {
+                isActive: true,
+                startDate: { $lte: now },
+                endDate: { $gte: now },
+              },
+              // Future: starts in the future (regardless of isActive flag)
+              {
+                startDate: { $gt: now },
+              },
+            ],
+          })
+          .sort({ startDate: 1 })
+          .populate('subscriptionId');
       }
-      const wallet = await this.walletsModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
 
-      if (!wallet) {
-        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
-      }
       const data: {
         email: string;
         avatar: string;
@@ -144,6 +173,7 @@ export class UsersService {
         taxCode?: string;
         businessType?: string;
         businessLogo?: string;
+        businessSubscriptions?: BusinessSubscriptionsDocument[];
       } = {
         email: user.email,
         avatar: user.avatar || '',
@@ -167,6 +197,7 @@ export class UsersService {
         data.taxCode = business?.taxCode || '';
         data.businessType = business?.businessType || '';
         data.businessLogo = business?.businessLogoUrl || '';
+        data.businessSubscriptions = businessSubscriptions || [];
       }
 
       return {
@@ -174,13 +205,11 @@ export class UsersService {
         message: 'User found successfully',
         data,
       };
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : String(error || 'Internal server error');
-      const status = (error as any)?.status ?? HttpStatus.INTERNAL_SERVER_ERROR;
-      throw new HttpException(message, status);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to fetch user profile',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

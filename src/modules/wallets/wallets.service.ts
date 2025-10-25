@@ -180,8 +180,6 @@ export class WalletsService {
         description: `VNPay Top-up #${Date.now()}`,
       });
 
-      console.log('Created Transaction:', transaction);
-
       const paymentUrl = this.vnpayService.createPaymentUrl(
         transaction._id.toString(),
         amount,

@@ -18,6 +18,15 @@ import {
 } from './schemas/business-subscriptions.schema';
 import { Wallets, WalletsSchema } from '../wallets/schemas/wallets.schema';
 import { Users, UsersSchema } from '../users/schemas/users.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
+import {
+  NotificationsSchema,
+  Notification,
+} from '../notifications/schemas/notifications.schema';
+import {
+  WalletTransactions,
+  WalletTransactionsSchema,
+} from '../wallet-transactions/schema/wallet-transactions.schema';
 
 @Module({
   imports: [
@@ -31,8 +40,11 @@ import { Users, UsersSchema } from '../users/schemas/users.schema';
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
       { name: Wallets.name, schema: WalletsSchema },
       { name: Users.name, schema: UsersSchema },
+      { name: Notification.name, schema: NotificationsSchema },
+      { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
     CloudinaryModule,
+    NotificationsModule,
   ],
   controllers: [BusinessesController],
   providers: [BusinessesService],
