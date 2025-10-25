@@ -4,9 +4,10 @@ import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.serv
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 // import { CreateBusinessDto } from './dto/create-business.dto';
 // import { UpdateBusinessDto } from './dto/update-business.dto';
-import { Businesses } from './schemas/businesses.schema';
-import { Connection, Model, Types } from 'mongoose';
-import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+
+import { BusinessDocument, Businesses, Connection } from './schemas/businesses.schema';
+import { Model, PipelineStage, Types } from 'mongoose';
+import { InjectModel,InjectConnection } from '@nestjs/mongoose';
 import { BusinessForm } from './schemas/business-form.schema';
 import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
 import { BusinessSubscriptions } from './schemas/business-subscriptions.schema';
@@ -19,6 +20,11 @@ import {
   WalletTransactions,
   WalletTransactionsDocument,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
+import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { BusinessProjectionStage, UserLookupStage } from 'src/common/pipelines';
+import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
+import { RolesEnum } from 'src/common/constants/roles.enum';
+import { aggregatePaginate } from 'src/common/utils/aggregate-pagination.util';
 
 @Injectable()
 export class BusinessesService {
@@ -363,5 +369,104 @@ export class BusinessesService {
     this.logger.log(
       `[${now.toISOString()}] Processed ${expiredSubscriptions.length} expired subscriptions.`,
     );
+    
+  // Get all businesses
+  async getAllBusinesses(
+    query: GetAllBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    const { page = 1, limit = 10 } = query;
+
+    const pipeline: PipelineStage[] = [
+      UserLookupStage,
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: false,
+        },
+      },
+      {
+        $match: {
+          'user.role': RolesEnum.BUSINESS,
+          'user.isBlocked': false,
+        },
+      },
+      BusinessProjectionStage,
+    ];
+
+    const result = await aggregatePaginate(
+      this.businessesModel,
+      pipeline,
+      page,
+      limit,
+    );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get active businesses successfully',
+      data: result.data,
+      total: result.total,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+    };
+  }
+
+  // Get nearby businesses
+  async findNearby(
+    latitude: number,
+    longitude: number,
+    radius: number = 2000,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    const skip = (page - 1) * limit;
+
+    const pipeline: PipelineStage[] = [
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [longitude, latitude] },
+          distanceField: 'distance',
+          maxDistance: radius,
+          spherical: true,
+          distanceMultiplier: 1,
+        },
+      },
+      UserLookupStage,
+      { $unwind: '$user' },
+      { $match: { 'user.isBlocked': false } },
+      BusinessProjectionStage,
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    const countPipeline: PipelineStage[] = [
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [longitude, latitude] },
+          distanceField: 'distance',
+          maxDistance: radius,
+          spherical: true,
+        },
+      },
+      UserLookupStage,
+      { $unwind: '$user' },
+      { $match: { 'user.isBlocked': false } },
+      { $count: 'total' },
+    ];
+
+    const [data, totalResult] = await Promise.all([
+      this.businessesModel.aggregate(pipeline),
+      this.businessesModel.aggregate(countPipeline),
+    ]);
+
+    const total = totalResult[0]?.total || 0;
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get nearby businesses successfully',
+      data,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 }
