@@ -15,6 +15,10 @@ import {
   Businesses,
   BusinessesSchema,
 } from '../businesses/schemas/businesses.schema';
+import {
+  BusinessSubscriptions,
+  BusinessSubscriptionsSchema,
+} from '../businesses/schemas/business-subscriptions.schema';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -23,6 +27,7 @@ import {
       { name: Wallets.name, schema: WalletsSchema },
       { name: Businesses.name, schema: BusinessesSchema },
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },
+      { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
     ]),
     WalletsModule,
     CloudinaryModule,
