@@ -21,6 +21,7 @@ import { WalletTransactions } from './modules/wallet-transactions/schema/wallet-
 import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-transactions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { VouchersModule } from './modules/vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     VnpayModule,
     SubscriptionsModule,
     NotificationsModule,
+    VouchersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
