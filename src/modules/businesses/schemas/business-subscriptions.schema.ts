@@ -23,6 +23,12 @@ export class BusinessSubscriptions {
 
   @Prop({ required: true, default: false })
   isTrialUsed: boolean;
+
+  @Prop({ default: false })
+  isExpiringNotified: boolean;
+
+  @Prop()
+  expiringNotifiedAt: Date;
 }
 
 export const BusinessSubscriptionsSchema = SchemaFactory.createForClass(

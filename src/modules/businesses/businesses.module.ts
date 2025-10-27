@@ -27,6 +27,7 @@ import {
   WalletTransactions,
   WalletTransactionsSchema,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
+import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import {
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
     CloudinaryModule,
+    MailerModule,
     NotificationsModule,
   ],
   controllers: [BusinessesController],
