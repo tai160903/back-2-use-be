@@ -19,6 +19,7 @@ import { MailerModule } from './infrastructure/mailer/mailer.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { WalletTransactions } from './modules/wallet-transactions/schema/wallet-transactions.schema';
 import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-transactions.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { VouchersModule } from './modules/vouchers/vouchers.module';
 
@@ -41,6 +42,7 @@ import { VouchersModule } from './modules/vouchers/vouchers.module';
     AdminModule,
     VnpayModule,
     SubscriptionsModule,
+    NotificationsModule,
     VouchersModule,
   ],
   controllers: [AppController],

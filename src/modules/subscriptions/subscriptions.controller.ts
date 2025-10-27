@@ -56,6 +56,7 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'Create a subscription' })
   @ApiResponse({ status: 201, description: 'Subscription created' })
   @ApiBody({ type: CreateSubscriptionDto })
+  @ApiBearerAuth('access-token')
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
   create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
     return this.subscriptionsService.create(createSubscriptionDto);

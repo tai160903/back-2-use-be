@@ -10,13 +10,20 @@ import {
   Wallets,
   WalletsSchema,
 } from 'src/modules/wallets/schemas/wallets.schema';
+import { NotificationsModule } from 'src/modules/notifications/notifications.module';
+import {
+  Notification,
+  NotificationsSchema,
+} from 'src/modules/notifications/schemas/notifications.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Wallets.name, schema: WalletsSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
+      { name: Notification.name, schema: NotificationsSchema },
     ]),
+    NotificationsModule,
   ],
   providers: [VnpayService],
   controllers: [VnpayController],
