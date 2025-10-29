@@ -359,209 +359,205 @@ export class BusinessesService {
     }
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
-  async handleSubscriptionsLifecycle() {
-    const now = new Date();
+  // @Cron(CronExpression.EVERY_MINUTE)
+  // async handleSubscriptionsLifecycle() {
+  //   const now = new Date();
 
-    // 1️⃣ Deactivate expired subscriptions
-    const expiredSubs = await this.businessSubscriptionModel.find({
-      endDate: { $lt: now },
-      isActive: true,
-    });
+  //   const expiredSubs = await this.businessSubscriptionModel.find({
+  //     endDate: { $lt: now },
+  //     isActive: true,
+  //   });
 
-    this.logger.log(
-      `[${now.toISOString()}] Found ${expiredSubs.length} expired subscriptions.`,
-    );
+  //   this.logger.log(
+  //     `[${now.toISOString()}] Found ${expiredSubs.length} expired subscriptions.`,
+  //   );
 
-    for (const sub of expiredSubs) {
-      try {
-        sub.isActive = false;
-        await sub.save();
+  //   for (const sub of expiredSubs) {
+  //     try {
+  //       sub.isActive = false;
+  //       await sub.save();
 
-        const business = await this.businessesModel.findById(sub.businessId);
+  //       const business = await this.businessesModel.findById(sub.businessId);
 
-        if (business) {
-          const subscription = await this.subscriptionModel.findById(
-            sub.subscriptionId,
-          );
+  //       if (business) {
+  //         const subscription = await this.subscriptionModel.findById(
+  //           sub.subscriptionId,
+  //         );
 
-          // Send notification
-          await this.notificationsService.create({
-            userId: business.userId.toString(),
-            title: 'Subscription Expired',
-            message:
-              'Your subscription has expired. Please renew to continue using our services.',
-            type: 'system',
-          });
+  //         await this.notificationsService.create({
+  //           userId: business.userId.toString(),
+  //           title: 'Subscription Expired',
+  //           message:
+  //             'Your subscription has expired. Please renew to continue using our services.',
+  //           type: 'system',
+  //         });
 
-          // Send email
-          const user = await this.usersModel.findById(business.userId);
-          this.logger.log(
-            `Preparing to send expired email to: ${user?.email || 'NO EMAIL'}`,
-          );
+  //         const user = await this.usersModel.findById(business.userId);
+  //         this.logger.log(
+  //           `Preparing to send expired email to: ${user?.email || 'NO EMAIL'}`,
+  //         );
 
-          if (user?.email && subscription) {
-            try {
-              await this.mailerService.sendMail({
-                to: [{ address: user.email, name: business.businessName }],
-                subject: 'Subscription Expired',
-                html: subscriptionExpiredTemplate(
-                  business.businessName,
-                  subscription.name,
-                  sub.endDate.toDateString(),
-                ),
-              });
-              this.logger.log(
-                `Successfully sent expired email to ${user.email}`,
-              );
-            } catch (emailError) {
-              const errMsg =
-                emailError instanceof Error
-                  ? emailError.message
-                  : String(emailError);
-              this.logger.error(
-                `Failed to send expired email to ${user.email}: ${errMsg}`,
-              );
-            }
-          } else {
-            this.logger.warn(
-              `No email or subscription found for business ${business._id.toString()}`,
-            );
-          }
-        }
+  //         if (user?.email && subscription) {
+  //           try {
+  //             await this.mailerService.sendMail({
+  //               to: [{ address: user.email, name: business.businessName }],
+  //               subject: 'Subscription Expired',
+  //               html: subscriptionExpiredTemplate(
+  //                 business.businessName,
+  //                 subscription.name,
+  //                 sub.endDate.toDateString(),
+  //               ),
+  //             });
+  //             this.logger.log(
+  //               `Successfully sent expired email to ${user.email}`,
+  //             );
+  //           } catch (emailError) {
+  //             const errMsg =
+  //               emailError instanceof Error
+  //                 ? emailError.message
+  //                 : String(emailError);
+  //             this.logger.error(
+  //               `Failed to send expired email to ${user.email}: ${errMsg}`,
+  //             );
+  //           }
+  //         } else {
+  //           this.logger.warn(
+  //             `No email or subscription found for business ${business._id.toString()}`,
+  //           );
+  //         }
+  //       }
 
-        // Find next subscription for this business (the one that should start next)
-        const nextSub = await this.businessSubscriptionModel
-          .findOne({
-            businessId: sub.businessId,
-            startDate: { $lte: now }, // ensure it’s ready to start
-            isActive: false,
-          })
-          .sort({ startDate: 1 })
-          .limit(1);
+  //       const nextSub = await this.businessSubscriptionModel
+  //         .findOne({
+  //           businessId: sub.businessId,
+  //           startDate: { $lte: now },
+  //           isActive: false,
+  //         })
+  //         .sort({ startDate: 1 })
+  //         .limit(1);
 
-        if (nextSub) {
-          nextSub.isActive = true;
-          await nextSub.save();
+  //       if (nextSub) {
+  //         nextSub.isActive = true;
+  //         await nextSub.save();
 
-          if (business) {
-            const nextSubscription = await this.subscriptionModel.findById(
-              nextSub.subscriptionId,
-            );
+  //         if (business) {
+  //           const nextSubscription = await this.subscriptionModel.findById(
+  //             nextSub.subscriptionId,
+  //           );
 
-            // Send notification
-            await this.notificationsService.create({
-              userId: business.userId.toString(),
-              title: 'Subscription Activated',
-              message: 'Your new subscription has been activated.',
-              type: 'system',
-            });
+  //           // Send notification
+  //           await this.notificationsService.create({
+  //             userId: business.userId.toString(),
+  //             title: 'Subscription Activated',
+  //             message: 'Your new subscription has been activated.',
+  //             type: 'system',
+  //           });
 
-            // Send email
-            const user = await this.usersModel.findById(business.userId);
-            this.logger.log(
-              `Preparing to send activation email (after expired) to: ${user?.email || 'NO EMAIL'}`,
-            );
+  //           // Send email
+  //           const user = await this.usersModel.findById(business.userId);
+  //           this.logger.log(
+  //             `Preparing to send activation email (after expired) to: ${user?.email || 'NO EMAIL'}`,
+  //           );
 
-            if (user?.email && nextSubscription) {
-              try {
-                await this.mailerService.sendMail({
-                  to: [{ address: user.email, name: business.businessName }],
-                  subject: 'Subscription Activated',
-                  html: subscriptionActivatedTemplate(
-                    business.businessName,
-                    nextSubscription.name,
-                    nextSub.startDate.toDateString(),
-                    nextSub.endDate.toDateString(),
-                  ),
-                });
-                this.logger.log(
-                  `Successfully sent activation email to ${user.email}`,
-                );
-              } catch (emailError) {
-                const errMsg =
-                  emailError instanceof Error
-                    ? emailError.message
-                    : String(emailError);
-                this.logger.error(
-                  `Failed to send activation email to ${user.email}: ${errMsg}`,
-                );
-              }
-            } else {
-              this.logger.warn(
-                `No email or subscription found for business ${business._id.toString()}`,
-              );
-            }
-          }
-        }
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        this.logger.error(
-          `Error processing subscription ${sub._id.toString()}: ${errMsg}`,
-        );
-      }
-    }
+  //           if (user?.email && nextSubscription) {
+  //             try {
+  //               await this.mailerService.sendMail({
+  //                 to: [{ address: user.email, name: business.businessName }],
+  //                 subject: 'Subscription Activated',
+  //                 html: subscriptionActivatedTemplate(
+  //                   business.businessName,
+  //                   nextSubscription.name,
+  //                   nextSub.startDate.toDateString(),
+  //                   nextSub.endDate.toDateString(),
+  //                 ),
+  //               });
+  //               this.logger.log(
+  //                 `Successfully sent activation email to ${user.email}`,
+  //               );
+  //             } catch (emailError) {
+  //               const errMsg =
+  //                 emailError instanceof Error
+  //                   ? emailError.message
+  //                   : String(emailError);
+  //               this.logger.error(
+  //                 `Failed to send activation email to ${user.email}: ${errMsg}`,
+  //               );
+  //             }
+  //           } else {
+  //             this.logger.warn(
+  //               `No email or subscription found for business ${business._id.toString()}`,
+  //             );
+  //           }
+  //         }
+  //       }
+  //     } catch (err) {
+  //       const errMsg = err instanceof Error ? err.message : String(err);
+  //       this.logger.error(
+  //         `Error processing subscription ${sub._id.toString()}: ${errMsg}`,
+  //       );
+  //     }
+  //   }
 
-    // 2️⃣ Activate any pending subscriptions that are ready but not yet active
-    const pendingSubs = await this.businessSubscriptionModel.find({
-      startDate: { $lte: now },
-      isActive: false,
-    });
+  //   // 2️⃣ Activate any pending subscriptions that are ready but not yet active
+  //   const pendingSubs = await this.businessSubscriptionModel.find({
+  //     startDate: { $lte: now },
+  //     isActive: false,
+  //   });
 
-    for (const sub of pendingSubs) {
-      try {
-        // Only activate if there's no active subscription for this business
-        const hasActive = await this.businessSubscriptionModel.exists({
-          businessId: sub.businessId,
-          isActive: true,
-        });
+  //   for (const sub of pendingSubs) {
+  //     try {
+  //       // Only activate if there's no active subscription for this business
+  //       const hasActive = await this.businessSubscriptionModel.exists({
+  //         businessId: sub.businessId,
+  //         isActive: true,
+  //       });
 
-        if (!hasActive) {
-          sub.isActive = true;
-          await sub.save();
+  //       if (!hasActive) {
+  //         sub.isActive = true;
+  //         await sub.save();
 
-          const business = await this.businessesModel.findById(sub.businessId);
-          if (business) {
-            const subscription = await this.subscriptionModel.findById(
-              sub.subscriptionId,
-            );
+  //         const business = await this.businessesModel.findById(sub.businessId);
+  //         if (business) {
+  //           const subscription = await this.subscriptionModel.findById(
+  //             sub.subscriptionId,
+  //           );
 
-            // Send notification
-            await this.notificationsService.create({
-              userId: business.userId.toString(),
-              title: 'Subscription Activated',
-              message: 'Your subscription has been activated.',
-              type: 'system',
-            });
+  //           // Send notification
+  //           await this.notificationsService.create({
+  //             userId: business.userId.toString(),
+  //             title: 'Subscription Activated',
+  //             message: 'Your subscription has been activated.',
+  //             type: 'system',
+  //           });
 
-            // Send email
-            const user = await this.usersModel.findById(business.userId);
-            if (user?.email && subscription) {
-              await this.mailerService.sendMail({
-                to: [{ address: user.email, name: business.businessName }],
-                subject: 'Subscription Activated',
-                html: subscriptionActivatedTemplate(
-                  business.businessName,
-                  subscription.name,
-                  sub.startDate.toDateString(),
-                  sub.endDate.toDateString(),
-                ),
-              });
-            }
-          }
-        }
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        this.logger.error(
-          `Error activating subscription ${sub._id.toString()}: ${errMsg}`,
-        );
-      }
-    }
+  //           // Send email
+  //           const user = await this.usersModel.findById(business.userId);
+  //           if (user?.email && subscription) {
+  //             await this.mailerService.sendMail({
+  //               to: [{ address: user.email, name: business.businessName }],
+  //               subject: 'Subscription Activated',
+  //               html: subscriptionActivatedTemplate(
+  //                 business.businessName,
+  //                 subscription.name,
+  //                 sub.startDate.toDateString(),
+  //                 sub.endDate.toDateString(),
+  //               ),
+  //             });
+  //           }
+  //         }
+  //       }
+  //     } catch (err) {
+  //       const errMsg = err instanceof Error ? err.message : String(err);
+  //       this.logger.error(
+  //         `Error activating subscription ${sub._id.toString()}: ${errMsg}`,
+  //       );
+  //     }
+  //   }
 
-    this.logger.log(
-      `[${now.toISOString()}] Processed ${expiredSubs.length} expired and ${pendingSubs.length} pending subscriptions.`,
-    );
-  }
+  //   this.logger.log(
+  //     `[${now.toISOString()}] Processed ${expiredSubs.length} expired and ${pendingSubs.length} pending subscriptions.`,
+  //   );
+  // }
 
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   // @Cron(CronExpression.EVERY_5_SECONDS)
