@@ -2,11 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import {
-  Vouchers,
-  VouchersDocument,
-  VouchersStatus,
-} from './schema/vouchers.schema';
+import { Vouchers, VouchersDocument } from './schema/vouchers.schema';
+import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 
 @Injectable()
 export class VoucherCronService {

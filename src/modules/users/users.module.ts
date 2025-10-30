@@ -34,5 +34,6 @@ import {
   ],
   controllers: [UsersController],
   providers: [UsersService],
+  exports: [MongooseModule, UsersService],
 })
 export class UsersModule {}

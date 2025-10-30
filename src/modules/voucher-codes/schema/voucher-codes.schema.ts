@@ -1,17 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, Types } from 'mongoose';
+import { VoucherCodeStatus } from 'src/common/constants/voucher-codes-status.enum';
 
 export type VoucherCodesDocument = VoucherCodes & Document;
 
-export enum VoucherCodeStatus {
-  REDEEMED = 'redeemed', // user đã đổi, chưa sử dụng
-  USED = 'used', // business đã quét, đã dùng
-  EXPIRED = 'expired', // hết hạn (tự động cập nhật)
-}
-
 @Schema({ timestamps: true })
 export class VoucherCodes {
-  // Tham chiếu về voucher cha
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Vouchers',
@@ -54,7 +48,6 @@ export class VoucherCodes {
 
 export const VoucherCodesSchema = SchemaFactory.createForClass(VoucherCodes);
 
-// Index để tối ưu truy vấn
 VoucherCodesSchema.index({ voucherId: 1 });
 VoucherCodesSchema.index({ redeemedBy: 1 });
 VoucherCodesSchema.index({ usedBy: 1 });
