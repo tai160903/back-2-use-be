@@ -1,14 +1,9 @@
 // schemas/voucher.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, Types } from 'mongoose';
+import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 
 export type VouchersDocument = Vouchers & Document;
-
-export enum VouchersStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  EXPIRED = 'expired',
-}
 
 @Schema({ timestamps: true, minimize: false })
 export class Vouchers {
@@ -54,4 +49,3 @@ export class Vouchers {
 }
 
 export const VouchersSchema = SchemaFactory.createForClass(Vouchers);
-VouchersSchema.index({ baseCode: 1 });

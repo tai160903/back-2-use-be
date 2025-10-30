@@ -40,6 +40,10 @@ import { GeocodingModule } from 'src/infrastructure/geocoding/geocoding.module';
 import { Vouchers, VouchersSchema } from '../vouchers/schema/vouchers.schema';
 import { AdminVoucherController } from './controllers/admin-voucher.controller';
 import { AdminVoucherService } from './services/admin-voucher.service';
+import {
+  VoucherCodes,
+  VoucherCodesSchema,
+} from '../voucher-codes/schema/voucher-codes.schema';
 
 @Module({
   imports: [
@@ -54,6 +58,7 @@ import { AdminVoucherService } from './services/admin-voucher.service';
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
       { name: Wallets.name, schema: WalletsSchema },
       { name: Vouchers.name, schema: VouchersSchema },
+      { name: VoucherCodes.name, schema: VoucherCodesSchema },
     ]),
     BusinessesModule,
     MailerModule,
