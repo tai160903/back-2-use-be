@@ -28,21 +28,23 @@ import {
   WalletTransactionsSchema,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
+import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
+      { name: BusinessForm.name, schema: BusinessFormSchema },
       {
         name: Businesses.name,
         schema: BusinessesSchema,
       },
-      { name: BusinessForm.name, schema: BusinessFormSchema },
-      { name: Subscriptions.name, schema: SubscriptionsSchema },
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
-      { name: Wallets.name, schema: WalletsSchema },
-      { name: Users.name, schema: UsersSchema },
+      { name: Customers.name, schema: CustomersSchema },
       { name: Notification.name, schema: NotificationsSchema },
+      { name: Subscriptions.name, schema: SubscriptionsSchema },
+      { name: Users.name, schema: UsersSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
+      { name: Wallets.name, schema: WalletsSchema },
     ]),
     CloudinaryModule,
     MailerModule,

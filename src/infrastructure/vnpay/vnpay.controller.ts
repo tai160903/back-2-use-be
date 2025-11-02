@@ -51,7 +51,7 @@ export class VnpayController {
         await transaction.save();
 
         if (wallet) {
-          wallet.balance += transaction.amount;
+          wallet.availableBalance += transaction.amount;
           await wallet.save();
         }
 
@@ -116,7 +116,7 @@ export class VnpayController {
 
         const wallet = await this.walletsModel.findById(walletId);
         if (wallet) {
-          wallet.balance += amount;
+          wallet.availableBalance += amount;
           await wallet.save();
 
           // persist notification

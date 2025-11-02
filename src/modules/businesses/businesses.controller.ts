@@ -8,6 +8,7 @@ import {
   Param,
   Req,
   Query,
+  Request,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { BusinessesService } from './businesses.service';
@@ -21,14 +22,14 @@ import {
   ApiConsumes,
   ApiParam,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { GetNearbyBusinessesDto } from './dto/get-nearby-businesses.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Businesses } from './schemas/businesses.schema';
-import { AsyncSubject } from 'rxjs';
-import { query } from 'express';
+
 import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
 
 @Controller('businesses')
@@ -48,6 +49,8 @@ export class BusinessesController {
 
   @Post('form')
   @ApiOperation({ summary: 'Register Business' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['customer']))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -98,8 +101,9 @@ export class BusinessesController {
       foodSafetyCertUrl?: Express.Multer.File[];
       businessLicenseFile?: Express.Multer.File[];
     },
+    @Request() req: any,
   ) {
-    return this.businessesService.createForm(dto, files);
+    return this.businessesService.createForm(req.user._id, dto, files);
   }
 
   @Post('buy-subscription')
@@ -141,6 +145,45 @@ export class BusinessesController {
       query.radius,
       query.page,
       query.limit,
+    );
+  }
+
+  @Get('history-business-form')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get history business form' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    example: 'pending',
+    enum: ['pending', 'approved', 'rejected'],
+    description: 'Status of the business form history',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    example: 10,
+    description: 'Limit of the business form history',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    example: 1,
+    description: 'Page number of the business form history',
+  })
+  @UseGuards(AuthGuard('jwt'))
+  async getHistoryBusinessForm(
+    @Req() req: any,
+    @Query('status') status: string,
+    @Query('limit') limit: number,
+    @Query('page') page: number,
+  ) {
+    return this.businessesService.getHistoryBusinessForm(
+      req.user._id,
+      status,
+      limit,
+      page,
     );
   }
 }

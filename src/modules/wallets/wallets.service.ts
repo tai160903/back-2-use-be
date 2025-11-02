@@ -30,11 +30,12 @@ export class WalletsService {
           message: 'Wallet already exists for this user',
         };
       }
-      const wallet = new this.walletsModel({
+      const wallet = await this.walletsModel.create({
         userId: new Types.ObjectId(createWalletDto.userId),
-        balance: 0,
+        type: createWalletDto.type,
+        availableBalance: createWalletDto.availableBalance,
+        holdingBalance: createWalletDto.holdingBalance,
       });
-      await wallet.save();
       return {
         statusCode: 201,
         message: 'Wallet created successfully',
@@ -84,8 +85,8 @@ export class WalletsService {
           message: 'Wallet not found',
         };
       }
-      if (updateWalletDto.balance !== undefined) {
-        wallet.balance = updateWalletDto.balance;
+      if (updateWalletDto.availableBalance !== undefined) {
+        wallet.availableBalance = updateWalletDto.availableBalance;
       }
       await wallet.save();
       return {
@@ -211,14 +212,14 @@ export class WalletsService {
           message: 'You do not have permission to operate on this wallet',
         };
       }
-      if (wallet.balance < amount) {
+      if (wallet.availableBalance < amount) {
         return {
           statusCode: 400,
           message: 'Insufficient balance to withdraw',
         };
       }
 
-      wallet.balance -= amount;
+      wallet.availableBalance -= amount;
       await wallet.save();
 
       const transaction = await this.transactionsModel.create({
@@ -231,8 +232,6 @@ export class WalletsService {
         referenceType: 'manual',
         description: `Manual withdrawal #${Date.now()}`,
       });
-
-      console.log('Created Withdraw:', transaction);
 
       return {
         statusCode: 200,

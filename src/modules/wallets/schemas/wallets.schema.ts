@@ -5,11 +5,19 @@ export type WalletsDocument = HydratedDocument<Wallets>;
 
 @Schema({ timestamps: true })
 export class Wallets {
-  @Prop({ type: Types.ObjectId, required: true, unique: true, ref: 'Users' })
+  @Prop({ type: Types.ObjectId, required: true, ref: 'Users' })
   userId: Types.ObjectId;
 
+  @Prop({ required: true, enum: ['customer', 'business'] })
+  type: string;
+
   @Prop({ required: true, default: 0 })
-  balance: number;
+  availableBalance: number;
+
+  @Prop({ required: true, default: 0 })
+  holdingBalance: number;
 }
 
 export const WalletsSchema = SchemaFactory.createForClass(Wallets);
+
+// WalletsSchema.index({ userId: 1, type: 1 }, { unique: true });

@@ -21,10 +21,13 @@ export class Customers {
   yob: Date;
 
   @Prop({ default: 0 })
-  legitPoints: number;
+  rankingPoints: number;
 
   @Prop({ default: 0 })
   rewardPoints: number;
+
+  @Prop({ default: 0 })
+  returnSuccessCount: number;
 }
 
 export const CustomersSchema = SchemaFactory.createForClass(Customers);

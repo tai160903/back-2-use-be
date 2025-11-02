@@ -30,6 +30,7 @@ import { subscriptionPurchasedTemplate } from 'src/infrastructure/mailer/templat
 import { subscriptionExpiredTemplate } from 'src/infrastructure/mailer/templates/subscription-expired.template';
 import { subscriptionActivatedTemplate } from 'src/infrastructure/mailer/templates/subscription-activated.template';
 import { subscriptionExpiringSoonTemplate } from 'src/infrastructure/mailer/templates/subscription-expiring-soon.template';
+import { Customers } from '../users/schemas/customer.schema';
 
 @Injectable()
 export class BusinessesService {
@@ -38,18 +39,19 @@ export class BusinessesService {
     @InjectModel(Businesses.name) private businessesModel: Model<Businesses>,
     @InjectModel(BusinessForm.name)
     private businessFormModel: Model<BusinessForm>,
-    @InjectModel(Subscriptions.name)
-    private subscriptionModel: Model<Subscriptions>,
     @InjectModel(BusinessSubscriptions.name)
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
-    @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
+    @InjectModel(Customers.name) private customersModel: Model<Customers>,
+    @InjectModel(Subscriptions.name)
+    private subscriptionModel: Model<Subscriptions>,
     @InjectModel(Users.name) private usersModel: Model<Users>,
-    private readonly cloudinaryService: CloudinaryService,
-    private readonly notificationsService: NotificationsService,
+    @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly cloudinaryService: CloudinaryService,
     private mailerService: MailerService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async buySubscription(
@@ -81,7 +83,7 @@ export class BusinessesService {
         throw new HttpException('Trial already used', HttpStatus.BAD_REQUEST);
     }
 
-    if (wallet.balance < subscription.price)
+    if (wallet.availableBalance < subscription.price)
       throw new HttpException(
         'Insufficient wallet balance',
         HttpStatus.BAD_REQUEST,
@@ -118,8 +120,8 @@ export class BusinessesService {
         isTrialUsed: !!subscription.isTrial,
       });
 
-      wallet.balance -= subscription.price;
-      if (wallet.balance < 0)
+      wallet.availableBalance -= subscription.price;
+      if (wallet.availableBalance < 0)
         throw new HttpException(
           'Insufficient wallet balance',
           HttpStatus.BAD_REQUEST,
@@ -235,6 +237,7 @@ export class BusinessesService {
   }
 
   async createForm(
+    userId: string,
     dto: CreateBusinessFormDto,
     files?: {
       businessLogo?: Express.Multer.File[];
@@ -242,8 +245,29 @@ export class BusinessesService {
       businessLicenseFile?: Express.Multer.File[];
     },
   ): Promise<APIResponseDto> {
+    console.log(userId);
+    console.log(dto);
     const MAX_FILE_SIZE_MB = 5;
     try {
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!customer) {
+        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      }
+
+      const business = await this.businessesModel.findOne({
+        customerId: new Types.ObjectId(customer._id),
+      });
+
+      if (business) {
+        throw new HttpException(
+          'Business already exists',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       // require files
       if (
         !files ||
@@ -336,6 +360,7 @@ export class BusinessesService {
       );
 
       const businessFormData = {
+        customerId: customer._id,
         ...dto,
         status: 'pending',
         businessLogoUrl: String(logoRes.secure_url),
@@ -343,19 +368,50 @@ export class BusinessesService {
         businessLicenseUrl: String(licenseRes.secure_url),
       };
 
-      const business = new this.businessFormModel(businessFormData);
-      await business.save();
+      const BusinessForm = new this.businessFormModel(businessFormData);
+      await BusinessForm.save();
       return {
         statusCode: 201,
         message: 'Business form created successfully',
-        data: business,
+        data: BusinessForm,
       };
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to create business form';
-      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        error.message || 'Error creating business form',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getHistoryBusinessForm(
+    userId: string,
+    status: string,
+    limit: number,
+    page: number,
+  ): Promise<APIResponseDto> {
+    try {
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!customer) {
+        throw new HttpException('Customer not found', HttpStatus.BAD_REQUEST);
+      }
+      const businessForms = await this.businessFormModel
+        .find({ customerId: new Types.ObjectId(customer._id), status: status })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
+
+      return {
+        statusCode: 200,
+        message: 'Business form history fetched successfully',
+        data: businessForms,
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error creating business form',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 

@@ -5,9 +5,6 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BusinessForm } from '../../businesses/schemas/business-form.schema';
-
-import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { Businesses } from '../../businesses/schemas/businesses.schema';
 import { Users } from '../../users/schemas/users.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
@@ -23,6 +20,7 @@ import { BusinessSubscriptions } from 'src/modules/businesses/schemas/business-s
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Wallets } from 'src/modules/wallets/schemas/wallets.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
+import { Customers } from 'src/modules/users/schemas/customer.schema';
 
 @Injectable()
 export class AdminBusinessFormService {
@@ -31,6 +29,7 @@ export class AdminBusinessFormService {
     private businessFormModel: Model<BusinessForm>,
     @InjectModel(Users.name) private userModel: Model<Users>,
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
+    @InjectModel(Customers.name) private customerModel: Model<Customers>,
     @InjectModel(Subscriptions.name)
     private subscriptionModel: Model<Subscriptions>,
     @InjectModel(BusinessSubscriptions.name)
@@ -57,34 +56,27 @@ export class AdminBusinessFormService {
         );
       }
 
-      businessForm.status = BusinessFormStatusEnum.APPROVED;
-      await businessForm.save();
-      const userEmail = businessForm.businessMail;
-      const baseUsername = businessForm.businessName
-        .toLowerCase()
-        .replace(/\s+/g, '')
-        .replace(/[^a-z0-9]/g, '');
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const generatedUsername = `${baseUsername}${randomSuffix}`;
-
-      const randomPassword = crypto.randomBytes(8).toString('hex');
-      const salt = await bcrypt.genSalt();
-      const hashedPassword = await bcrypt.hash(randomPassword, salt);
-
-      let user = await this.userModel.findOne({ email: userEmail });
-
-      if (!user) {
-        user = new this.userModel({
-          username: generatedUsername,
-          email: userEmail,
-          password: hashedPassword,
-          isActive: true,
-          role: RolesEnum.BUSINESS,
-        });
-        await user.save();
-      } else {
+      const customer = await this.customerModel.findById(
+        businessForm.customerId,
+      );
+      if (!customer) {
         throw new HttpException(
-          'User with this email already exists',
+          'Customer not found for this business form',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const user = await this.userModel.findById(customer.userId);
+      if (!user) {
+        throw new HttpException(
+          'User not found for this business form',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (user.role !== RolesEnum.CUSTOMER) {
+        throw new HttpException(
+          'Only customers can be approved as businesses',
           HttpStatus.BAD_REQUEST,
         );
       }
@@ -107,70 +99,69 @@ export class AdminBusinessFormService {
           businessForm.businessAddress,
         );
 
-      let business = await this.businessModel.findOne({ userId: user._id });
-      if (!business) {
-        business = new this.businessModel({
-          userId: user._id,
-          businessFormId: businessForm._id,
-          status: BusinessStatusEnum.ACTIVE,
-          businessName: businessForm.businessName,
-          businessAddress: businessForm.businessAddress,
-          businessPhone: businessForm.businessPhone,
-          taxCode: businessForm.taxCode,
-          businessType: businessForm.businessType,
-          businessLogoUrl: businessForm.businessLogoUrl,
-          foodSafetyCertUrl: businessForm.foodSafetyCertUrl,
-          businessLicenseUrl: businessForm.businessLicenseUrl,
-          openTime: businessForm.openTime,
-          closeTime: businessForm.closeTime,
-          location:
-            longitude && latitude
-              ? {
-                  type: 'Point',
-                  coordinates: [longitude, latitude],
-                }
-              : undefined,
-        });
-        await business.save();
-      }
+      console.log(latitude, longitude);
 
-      const startDate = new Date();
-      const endDate = new Date(startDate.getTime());
-      endDate.setDate(endDate.getDate() + subscriptionTrial.durationInDays);
+      const business = new this.businessModel({
+        userId: user._id,
+        businessFormId: businessForm._id,
+        status: BusinessStatusEnum.ACTIVE,
+        businessName: businessForm.businessName,
+        businessAddress: businessForm.businessAddress,
+        businessPhone: businessForm.businessPhone,
+        taxCode: businessForm.taxCode,
+        businessType: businessForm.businessType,
+        businessLogoUrl: businessForm.businessLogoUrl,
+        foodSafetyCertUrl: businessForm.foodSafetyCertUrl,
+        businessLicenseUrl: businessForm.businessLicenseUrl,
+        openTime: businessForm.openTime,
+        closeTime: businessForm.closeTime,
+        location:
+          longitude && latitude
+            ? {
+                type: 'Point',
+                coordinates: [longitude, latitude],
+              }
+            : undefined,
+      });
+      await business.save();
 
       const businessSubscription = new this.businessSubscriptionModel({
         businessId: business._id,
         subscriptionId: subscriptionTrial._id,
-        startDate: startDate,
-        endDate: endDate,
-        isActive: true,
-        isTrialUsed: true,
       });
       await businessSubscription.save();
-      await this.walletModel.create({
+
+      const existingBusinessWallet = await this.walletModel.findOne({
         userId: user._id,
-        balance: 0,
+        type: 'business',
       });
+
+      if (!existingBusinessWallet) {
+        await this.walletModel.create({
+          userId: user._id,
+          type: 'business',
+          availableBalance: 0,
+          holdingBalance: 0,
+        });
+      }
+
+      // Update user role to BUSINESS
+      await user.save();
+
+      businessForm.status = BusinessFormStatusEnum.APPROVED;
+      await businessForm.save();
 
       let mailResult;
       try {
         mailResult = await this.mailerService.sendMail({
           to: [
             {
-              name: businessForm.businessName,
-              address: businessForm.businessMail,
+              name: user.username,
+              address: user.email,
             },
           ],
-          subject: 'Business Approved',
-          html: businessApprovedTemplate(
-            businessForm.businessName,
-            userEmail,
-            generatedUsername,
-            randomPassword,
-            subscriptionTrial.durationInDays,
-            businessSubscription.startDate,
-            businessSubscription.endDate,
-          ),
+          subject: 'Business Approved - Welcome to Back 2 Use!',
+          html: businessApprovedTemplate(user.username),
         });
       } catch (error) {
         throw new HttpException(
@@ -178,6 +169,7 @@ export class AdminBusinessFormService {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+
       if (!mailResult) {
         throw new HttpException(
           'Failed to send approval email',
@@ -185,20 +177,18 @@ export class AdminBusinessFormService {
         );
       }
 
-      const { password: _, ...userData } = user.toObject();
       return {
         statusCode: 200,
         message: 'Business approved and email sent.',
         data: {
           businessForm,
-          user: userData,
           business,
         },
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Internal server error',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        (error as Error).message || 'Internal server error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -218,6 +208,12 @@ export class AdminBusinessFormService {
         message: 'Business form not found',
       };
     }
+    // Load customer and user to personalize email with username
+    const customer = await this.customerModel.findById(businessForm.customerId);
+    let user: Users | null = null;
+    if (customer) {
+      user = await this.userModel.findById(customer.userId);
+    }
     businessForm.status = BusinessFormStatusEnum.REJECTED;
     businessForm.rejectNote = note;
     await businessForm.save();
@@ -226,12 +222,15 @@ export class AdminBusinessFormService {
       const mailResult = await this.mailerService.sendMail({
         to: [
           {
-            name: businessForm.businessName,
-            address: businessForm.businessMail,
+            name: user?.username || businessForm.businessName,
+            address: user?.email || businessForm.businessMail,
           },
         ],
         subject: 'Business Rejected',
-        html: businessRejectedTemplate(businessForm.businessName, note),
+        html: businessRejectedTemplate(
+          user?.username || businessForm.businessName,
+          note,
+        ),
       });
       if (!mailResult) {
         throw new Error('Failed to send rejection email');
@@ -239,7 +238,7 @@ export class AdminBusinessFormService {
     } catch (error) {
       return {
         statusCode: 500,
-        message: `Business rejected but failed to send email: ${error.message}`,
+        message: `Business rejected but failed to send email: ${(error as Error).message || 'Unknown error'}`,
         data: businessForm,
       };
     }
