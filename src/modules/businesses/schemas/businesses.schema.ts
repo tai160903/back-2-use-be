@@ -63,6 +63,9 @@ export class Businesses {
     type: string;
     coordinates: number[];
   };
+
+  @Prop({ default: 0 })
+  ecoPoints: number;
 }
 
 export const BusinessesSchema = SchemaFactory.createForClass(Businesses);

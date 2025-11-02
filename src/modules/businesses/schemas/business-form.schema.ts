@@ -1,11 +1,14 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 import { BusinessFormStatusEnum } from '../../../common/constants/business-form-status.enum';
 
 export type BusinessFormDocument = HydratedDocument<BusinessForm>;
 
 @Schema({ timestamps: true })
 export class BusinessForm {
+  @Prop({ required: true, ref: 'User' })
+  customerId: Types.ObjectId;
+
   @Prop({ required: true })
   businessMail: string;
 

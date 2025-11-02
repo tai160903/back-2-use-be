@@ -12,13 +12,13 @@ export class BusinessSubscriptions {
   @Prop({ required: true, ref: 'Subscriptions' })
   subscriptionId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop()
   startDate: Date;
 
-  @Prop({ required: true })
+  @Prop()
   endDate: Date;
 
-  @Prop({ required: true })
+  @Prop({ required: true, default: false })
   isActive: boolean;
 
   @Prop({ required: true, default: false })

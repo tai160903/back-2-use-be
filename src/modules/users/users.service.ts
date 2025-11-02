@@ -106,6 +106,7 @@ export class UsersService {
 
       const wallet = await this.walletsModel.findOne({
         userId: new Types.ObjectId(userId),
+        type: user.role,
       });
 
       if (!wallet) {
@@ -160,13 +161,17 @@ export class UsersService {
       const data: {
         email: string;
         avatar: string;
-        wallet: { _id: Types.ObjectId; balance: number };
+        wallet: {
+          _id: Types.ObjectId;
+          availableBalance: number;
+          holdingBalance: number;
+        };
         fullName?: string;
         phone?: string;
         address?: string;
         yob?: Date | null;
         rewardPoints?: number;
-        legitPoints?: number;
+        rankingPoints?: number;
         businessName?: string;
         businessAddress?: string;
         businessPhone?: string;
@@ -179,7 +184,8 @@ export class UsersService {
         avatar: user.avatar || '',
         wallet: {
           _id: wallet._id,
-          balance: wallet.balance,
+          availableBalance: wallet.availableBalance,
+          holdingBalance: wallet.holdingBalance,
         },
       };
 
@@ -189,7 +195,7 @@ export class UsersService {
         data.address = customer?.address || '';
         data.yob = customer?.yob || null;
         data.rewardPoints = customer?.rewardPoints || 0;
-        data.legitPoints = customer?.legitPoints || 0;
+        data.rankingPoints = customer?.rankingPoints || 0;
       } else {
         data.businessName = business?.businessName || '';
         data.businessAddress = business?.businessAddress || '';

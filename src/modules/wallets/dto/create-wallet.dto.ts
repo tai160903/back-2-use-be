@@ -1,4 +1,6 @@
 export class CreateWalletDto {
   userId: string;
-  balance: number;
+  type: 'customer' | 'business';
+  availableBalance: number;
+  holdingBalance: number;
 }

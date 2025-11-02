@@ -284,7 +284,9 @@ export class AuthService {
       try {
         await this.walletsService.create({
           userId: user._id.toString(),
-          balance: 0,
+          type: 'customer',
+          availableBalance: 0,
+          holdingBalance: 0,
         });
       } catch (error: any) {
         throw new HttpException(
@@ -515,7 +517,9 @@ export class AuthService {
         await newUser.save();
         await this.walletsService.create({
           userId: newUser._id.toString(),
-          balance: 0,
+          type: 'customer',
+          availableBalance: 0,
+          holdingBalance: 0,
         });
         req.user = newUser;
 
