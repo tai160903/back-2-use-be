@@ -5,53 +5,46 @@ export type WalletTransactionsDocument = HydratedDocument<WalletTransactions>;
 
 @Schema({ timestamps: true })
 export class WalletTransactions {
-  @Prop({ required: true, ref: 'Wallets' })
-  walletId: Types.ObjectId; // Ví thực hiện giao dịch
+  @Prop({ type: Types.ObjectId, required: true, ref: 'Wallets' })
+  walletId: Types.ObjectId;
 
-  @Prop({ required: true, ref: 'Users' })
-  userId: Types.ObjectId; // Người thực hiện giao dịch
+  @Prop({ type: Types.ObjectId, required: true, ref: 'Users' })
+  relatedUserId: Types.ObjectId;
 
-  @Prop({ ref: 'Users' })
-  relatedUserId?: Types.ObjectId; // User liên quan (vd: bên nhận cọc, bên hoàn tiền)
-
-  @Prop({ required: true })
-  amount: number; // Số tiền
+  @Prop({ enum: ['customer', 'business'], required: true })
+  relatedUserType: string;
 
   @Prop({
     required: true,
     enum: [
-      'deposit',
-      'withdraw',
+      'topup',
+      'withdrawal',
       'borrow_deposit',
       'return_refund',
+      'subscription_payment',
       'subscription_fee',
+      'penalty',
     ],
   })
-  transactionType: string; // Loại giao dịch
+  transactionType: string;
 
-  @Prop({
-    required: true,
-    enum: ['in', 'out'],
-  })
-  direction: string; // 'in' = tiền vào ví, 'out' = tiền ra ví
+  @Prop({ required: true })
+  amount: number;
 
-  @Prop({
-    enum: ['processing', 'completed', 'failed'],
-    default: 'processing',
-  })
-  status: string; // Trạng thái giao dịch
+  @Prop({ required: true, enum: ['in', 'out'] })
+  direction: string;
 
   @Prop()
-  description?: string; // Mô tả thêm
-
-  @Prop({
-    enum: ['borrow', 'return', 'subscription', 'manual'],
-    default: 'manual',
-  })
-  referenceType?: string; // Giao dịch thuộc loại nào (mượn, trả, phí, thủ công)
+  referenceId: string;
 
   @Prop()
-  referenceId?: Types.ObjectId; // ID tham chiếu tới entity liên quan (borrowId, returnId...)
+  referenceType: string;
+
+  @Prop()
+  description: string;
+
+  @Prop({ required: true, enum: ['pending', 'completed', 'failed'] })
+  status: string;
 }
 
 export const WalletTransactionsSchema =

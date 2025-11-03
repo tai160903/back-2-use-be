@@ -31,6 +31,7 @@ import { subscriptionPurchasedTemplate } from 'src/infrastructure/mailer/templat
 import { subscriptionActivatedTemplate } from 'src/infrastructure/mailer/templates/subscription-activated.template';
 import { subscriptionExpiringSoonTemplate } from 'src/infrastructure/mailer/templates/subscription-expiring-soon.template';
 import { Customers } from '../users/schemas/customer.schema';
+import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 
 @Injectable()
 export class BusinessesService {
@@ -52,20 +53,19 @@ export class BusinessesService {
     private readonly cloudinaryService: CloudinaryService,
     private mailerService: MailerService,
     private readonly notificationsService: NotificationsService,
+    private readonly geocodingService: GeocodingService,
   ) {}
 
   async activateTrial(userId: string): Promise<APIResponseDto> {
     if (!userId)
       throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
 
-    // Find business by user
     const business = await this.businessesModel.findOne({
       userId: new Types.ObjectId(userId),
     });
     if (!business)
       throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
 
-    // Ensure there's no active subscription currently
     const hasActive = await this.businessSubscriptionModel.exists({
       businessId: business._id,
       isActive: true,
@@ -77,7 +77,6 @@ export class BusinessesService {
         HttpStatus.BAD_REQUEST,
       );
 
-    // Find the trial subscription definition
     const trialSub = await this.subscriptionModel.findOne({
       isTrial: true,
       isActive: true,
@@ -89,7 +88,6 @@ export class BusinessesService {
         HttpStatus.BAD_REQUEST,
       );
 
-    // Find the pending BusinessSubscriptions record created on approval
     const businessTrial = await this.businessSubscriptionModel.findOne({
       businessId: business._id,
       subscriptionId: trialSub._id,
@@ -113,7 +111,6 @@ export class BusinessesService {
     businessTrial.isTrialUsed = true;
     await businessTrial.save();
 
-    // Notify and email
     await this.notificationsService.create({
       userId,
       title: 'Trial Activated',
@@ -134,12 +131,10 @@ export class BusinessesService {
             endDate.toDateString(),
           ),
         });
-      } catch (emailError) {
-        // log only; do not fail activation on email errors
-        const errMsg =
-          emailError instanceof Error ? emailError.message : String(emailError);
-        this.logger.error(
-          `Failed to send trial activation email to ${user.email}: ${errMsg}`,
+      } catch (error) {
+        throw new HttpException(
+          (error as Error).message || 'Failed to send activation email',
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
     }
@@ -160,7 +155,10 @@ export class BusinessesService {
 
     const [business, wallet, subscription] = await Promise.all([
       this.businessesModel.findOne({ userId: new Types.ObjectId(userId) }),
-      this.walletsModel.findOne({ userId: new Types.ObjectId(userId) }),
+      this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+        type: 'business',
+      }),
       this.subscriptionModel.findById(subscriptionId),
     ]);
 
@@ -201,7 +199,6 @@ export class BusinessesService {
 
       let startDate = now;
       if (activeSub && activeSub.endDate > now) {
-        // Có gói đang chạy -> gói mới sẽ chờ đến khi gói hiện tại kết thúc
         startDate = activeSub.endDate;
       }
 
@@ -213,7 +210,7 @@ export class BusinessesService {
         subscriptionId: subscription._id,
         startDate,
         endDate,
-        isActive: startDate <= now, // chỉ active ngay nếu không có gói hiện tại
+        isActive: startDate <= now,
         isTrialUsed: !!subscription.isTrial,
       });
 
@@ -231,7 +228,8 @@ export class BusinessesService {
 
       const transaction = new this.walletTransactionsModel({
         walletId: wallet._id,
-        userId: new Types.ObjectId(userId),
+        relatedUserId: new Types.ObjectId(userId),
+        relatedUserType: 'business',
         amount: subscription.price,
         transactionType: 'subscription_fee',
         direction: 'out',
@@ -484,7 +482,7 @@ export class BusinessesService {
     status: string,
     limit: number,
     page: number,
-  ): Promise<APIResponseDto> {
+  ): Promise<APIPaginatedResponseDto<BusinessForm[]>> {
     try {
       const customer = await this.customersModel.findOne({
         userId: new Types.ObjectId(userId),
@@ -492,16 +490,26 @@ export class BusinessesService {
       if (!customer) {
         throw new HttpException('Customer not found', HttpStatus.BAD_REQUEST);
       }
+      const query: Record<string, any> = {
+        customerId: new Types.ObjectId(customer._id),
+      };
+      if (status) query.status = status;
+
       const businessForms = await this.businessFormModel
-        .find({ customerId: new Types.ObjectId(customer._id), status: status })
+        .find(query)
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit);
+
+      const total = await this.businessFormModel.countDocuments(query);
 
       return {
         statusCode: 200,
         message: 'Business form history fetched successfully',
         data: businessForms,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
       };
     } catch (error) {
       const message =
@@ -799,6 +807,126 @@ export class BusinessesService {
     this.logger.log(
       `[${now.toISOString()}] Completed notifying expiring subscriptions.`,
     );
+  }
+
+  async getBusinessProfile(userId: string): Promise<APIResponseDto> {
+    try {
+      const business = await this.businessesModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .populate('userId', 'username email phone')
+        .populate('businessFormId');
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const [activeSubscription, wallet] = await Promise.all([
+        this.businessSubscriptionModel
+          .findOne({
+            businessId: business._id,
+            isActive: true,
+            endDate: { $gte: new Date() },
+          })
+          .populate('subscriptionId')
+          .sort({ endDate: -1 }),
+        this.walletsModel.findOne({
+          userId: new Types.ObjectId(userId),
+          type: 'business',
+        }),
+      ]);
+
+      if (!wallet) {
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business profile fetched successfully',
+        data: {
+          business,
+          activeSubscription: activeSubscription || 'No active subscription',
+          wallet,
+        },
+      };
+    } catch (error) {
+      const message =
+        (error as Error)?.message || 'Error fetching business profile';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async updateBusinessProfile(
+    userId: string,
+    updateDto: {
+      businessName?: string;
+      businessAddress?: string;
+      businessPhone?: string;
+      businessType?: string;
+      openTime?: string;
+      closeTime?: string;
+    },
+  ): Promise<APIResponseDto> {
+    try {
+      const business = await this.businessesModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Update only provided fields
+      if (updateDto.businessName !== undefined) {
+        business.businessName = updateDto.businessName;
+      }
+      if (updateDto.businessAddress !== undefined) {
+        business.businessAddress = updateDto.businessAddress;
+
+        // Update location coordinates when address changes
+        try {
+          const { latitude, longitude } =
+            await this.geocodingService.getCoordinates(
+              updateDto.businessAddress,
+            );
+
+          if (longitude && latitude) {
+            business.location = {
+              type: 'Point',
+              coordinates: [longitude, latitude],
+            };
+          }
+        } catch (geocodeError) {
+          this.logger.warn(
+            `Failed to geocode new address: ${(geocodeError as Error).message}`,
+          );
+          // Continue without updating location if geocoding fails
+        }
+      }
+      if (updateDto.businessPhone !== undefined) {
+        business.businessPhone = updateDto.businessPhone;
+      }
+      if (updateDto.businessType !== undefined) {
+        business.businessType = updateDto.businessType;
+      }
+      if (updateDto.openTime !== undefined) {
+        business.openTime = updateDto.openTime;
+      }
+      if (updateDto.closeTime !== undefined) {
+        business.closeTime = updateDto.closeTime;
+      }
+
+      await business.save();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business profile updated successfully',
+        data: business,
+      };
+    } catch (error) {
+      const message =
+        (error as Error)?.message || 'Error updating business profile';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   // Get all businesses
