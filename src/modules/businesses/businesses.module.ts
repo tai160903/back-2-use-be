@@ -30,6 +30,7 @@ import {
 import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
 import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
 import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscription.guard';
+import { GeocodingModule } from 'src/infrastructure/geocoding/geocoding.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscripti
     CloudinaryModule,
     MailerModule,
     NotificationsModule,
+    GeocodingModule,
   ],
   controllers: [BusinessesController],
   providers: [BusinessesService, BusinessSubscriptionGuard],

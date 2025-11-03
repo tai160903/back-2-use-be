@@ -9,6 +9,7 @@ import {
   Req,
   Query,
   Request,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { BusinessesService } from './businesses.service';
@@ -30,6 +31,7 @@ import { GetNearbyBusinessesDto } from './dto/get-nearby-businesses.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Businesses } from './schemas/businesses.schema';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
+import { UpdateBusinessDto } from './dto/update-business.dto';
 
 import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
 
@@ -39,13 +41,48 @@ import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
 export class BusinessesController {
   constructor(private readonly businessesService: BusinessesService) {}
 
-  @ApiOperation({ summary: 'Get business form detail by id' })
-  @ApiParam({ name: 'id', required: true, type: String, example: '652f1a...' })
+  @Get()
+  @ApiOperation({ summary: 'Get all businesses' })
+  async getAllBusinesses(
+    @Query() query: GetAllBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    return this.businessesService.getAllBusinesses(query);
+  }
+
+  @Get('profile')
+  @ApiOperation({ summary: 'Get business profile' })
   @ApiBearerAuth('access-token')
-  @UseGuards(RoleCheckGuard.withRoles(['business']))
-  @Get('form/detail/:id')
-  async getFormDetail(@Param('id') id: string) {
-    return this.businessesService.getFormDetail(id);
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async getBusinessProfile(@Req() req: AuthenticatedRequest) {
+    return this.businessesService.getBusinessProfile(req.user._id);
+  }
+
+  @Patch('profile')
+  @ApiOperation({ summary: 'Update business profile' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async updateBusinessProfile(
+    @Req() req: AuthenticatedRequest,
+    @Body() updateDto: UpdateBusinessDto,
+  ) {
+    return this.businessesService.updateBusinessProfile(
+      req.user._id,
+      updateDto,
+    );
+  }
+
+  @Get('nearby')
+  @ApiOperation({ summary: 'Get nearby businesses' })
+  async getNearbyBusinesses(
+    @Query() query: GetNearbyBusinessesDto,
+  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
+    return this.businessesService.findNearby(
+      query.latitude,
+      query.longitude,
+      query.radius,
+      query.page,
+      query.limit,
+    );
   }
 
   @Post('form')
@@ -107,54 +144,13 @@ export class BusinessesController {
     return this.businessesService.createForm(req.user._id, dto, files);
   }
 
-  @Post('buy-subscription')
-  @ApiOperation({ summary: 'Buy a subscription for business' })
+  @Get('form/detail/:id')
+  @ApiOperation({ summary: 'Get business form detail by id' })
+  @ApiParam({ name: 'id', required: true, type: String, example: '652f1a...' })
   @ApiBearerAuth('access-token')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: {
-        subscriptionId: { type: 'string', example: '64f0c2e5b4d1c2a5e6f7g8h9' },
-      },
-      required: ['subscriptionId'],
-    },
-  })
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
-  async buySubscription(
-    @Req() req: AuthenticatedRequest,
-    @Body('subscriptionId') subscriptionId: string,
-  ) {
-    return this.businessesService.buySubscription(req.user._id, subscriptionId);
-  }
-
-  @Post('activate-trial')
-  @ApiOperation({ summary: 'Activate pending trial subscription' })
-  @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
-  async activateTrial(@Req() req: AuthenticatedRequest) {
-    return this.businessesService.activateTrial(req.user._id);
-  }
-
-  //Get all businesses
-  @Get()
-  async getAllBusinesses(
-    @Query() query: GetAllBusinessesDto,
-  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
-    return this.businessesService.getAllBusinesses(query);
-  }
-
-  //Get nearby businesses
-  @Get('nearby')
-  async getNearbyBusinesses(
-    @Query() query: GetNearbyBusinessesDto,
-  ): Promise<APIPaginatedResponseDto<Businesses[]>> {
-    return this.businessesService.findNearby(
-      query.latitude,
-      query.longitude,
-      query.radius,
-      query.page,
-      query.limit,
-    );
+  @UseGuards(RoleCheckGuard.withRoles(['business']))
+  async getFormDetail(@Param('id') id: string) {
+    return this.businessesService.getFormDetail(id);
   }
 
   @Get('history-business-form')
@@ -194,5 +190,34 @@ export class BusinessesController {
       limit,
       page,
     );
+  }
+
+  // Subscription Endpoints
+  @Post('activate-trial')
+  @ApiOperation({ summary: 'Activate pending trial subscription' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async activateTrial(@Req() req: AuthenticatedRequest) {
+    return this.businessesService.activateTrial(req.user._id);
+  }
+
+  @Post('buy-subscription')
+  @ApiOperation({ summary: 'Buy a subscription for business' })
+  @ApiBearerAuth('access-token')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        subscriptionId: { type: 'string', example: '64f0c2e5b4d1c2a5e6f7g8h9' },
+      },
+      required: ['subscriptionId'],
+    },
+  })
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async buySubscription(
+    @Req() req: AuthenticatedRequest,
+    @Body('subscriptionId') subscriptionId: string,
+  ) {
+    return this.businessesService.buySubscription(req.user._id, subscriptionId);
   }
 }

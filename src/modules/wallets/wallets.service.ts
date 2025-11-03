@@ -172,12 +172,13 @@ export class WalletsService {
 
       const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
-        userId: new Types.ObjectId(performingUserId as string),
+        relatedUserId: new Types.ObjectId(performingUserId as string),
+        relatedUserType: wallet.type,
         amount,
-        transactionType: 'deposit',
+        transactionType: 'topup',
         direction: 'in',
-        status: 'processing',
-        referenceType: 'manual',
+        status: 'pending',
+        referenceType: 'vnpay',
         description: `VNPay Top-up #${Date.now()}`,
       });
 
@@ -192,7 +193,7 @@ export class WalletsService {
       };
     } catch (error) {
       throw new HttpException(
-        error?.message || 'Error during deposit',
+        (error as Error)?.message || 'Error during deposit',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -222,11 +223,12 @@ export class WalletsService {
       wallet.availableBalance -= amount;
       await wallet.save();
 
-      const transaction = await this.transactionsModel.create({
+      await this.transactionsModel.create({
         walletId: wallet._id,
-        userId: new Types.ObjectId(userId),
+        relatedUserId: new Types.ObjectId(userId),
+        relatedUserType: wallet.type,
         amount,
-        transactionType: 'withdraw',
+        transactionType: 'withdrawal',
         direction: 'out',
         status: 'completed',
         referenceType: 'manual',
@@ -239,10 +241,8 @@ export class WalletsService {
         data: wallet,
       };
     } catch (error) {
-      throw new HttpException(
-        error?.message || 'Error during withdrawal',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = (error as Error)?.message || 'Error during withdrawal';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -99,8 +99,6 @@ export class AdminBusinessFormService {
           businessForm.businessAddress,
         );
 
-      console.log(latitude, longitude);
-
       const business = new this.businessModel({
         userId: user._id,
         businessFormId: businessForm._id,
