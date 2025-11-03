@@ -29,6 +29,7 @@ import {
 } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
 import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
+import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscription.guard';
 
 @Module({
   imports: [
@@ -51,7 +52,7 @@ import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
     NotificationsModule,
   ],
   controllers: [BusinessesController],
-  providers: [BusinessesService],
+  providers: [BusinessesService, BusinessSubscriptionGuard],
   exports: [BusinessesService],
 })
 export class BusinessesModule {}
