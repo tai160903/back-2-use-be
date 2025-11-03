@@ -29,6 +29,7 @@ import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { GetNearbyBusinessesDto } from './dto/get-nearby-businesses.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Businesses } from './schemas/businesses.schema';
+import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 
 import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
 
@@ -101,7 +102,7 @@ export class BusinessesController {
       foodSafetyCertUrl?: Express.Multer.File[];
       businessLicenseFile?: Express.Multer.File[];
     },
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.businessesService.createForm(req.user._id, dto, files);
   }
@@ -120,10 +121,18 @@ export class BusinessesController {
   })
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
   async buySubscription(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Body('subscriptionId') subscriptionId: string,
   ) {
     return this.businessesService.buySubscription(req.user._id, subscriptionId);
+  }
+
+  @Post('activate-trial')
+  @ApiOperation({ summary: 'Activate pending trial subscription' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async activateTrial(@Req() req: AuthenticatedRequest) {
+    return this.businessesService.activateTrial(req.user._id);
   }
 
   //Get all businesses
@@ -174,7 +183,7 @@ export class BusinessesController {
   })
   @UseGuards(AuthGuard('jwt'))
   async getHistoryBusinessForm(
-    @Req() req: any,
+    @Req() req: AuthenticatedRequest,
     @Query('status') status: string,
     @Query('limit') limit: number,
     @Query('page') page: number,

@@ -173,35 +173,6 @@ export class AuthService {
       );
     }
 
-    if (user.role === RolesEnum.BUSINESS) {
-      const business = await this.businessModel.findOne({
-        userId: new Types.ObjectId(user._id),
-      });
-      if (!business) {
-        throw new HttpException('Business not found', HttpStatus.UNAUTHORIZED);
-      }
-
-      const activeSubscription = await this.businessSubscriptionModel
-        .findOne({
-          businessId: new Types.ObjectId(business._id),
-          isActive: true,
-        })
-        .sort({ endDate: -1 });
-      if (!activeSubscription) {
-        throw new HttpException(
-          'Business subscription is not active',
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
-
-      if (activeSubscription.endDate < new Date()) {
-        throw new HttpException(
-          'Business subscription has expired',
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
-    }
-
     const payload = { _id: user._id, role: user.role };
     let accessToken: string;
     let refreshToken: string;

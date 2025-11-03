@@ -27,7 +27,7 @@ import { RolesEnum } from 'src/common/constants/roles.enum';
 import { aggregatePaginate } from 'src/common/utils/aggregate-pagination.util';
 import { MailerService } from 'src/infrastructure/mailer/mailer.service';
 import { subscriptionPurchasedTemplate } from 'src/infrastructure/mailer/templates/subscription-purchased.template';
-import { subscriptionExpiredTemplate } from 'src/infrastructure/mailer/templates/subscription-expired.template';
+// import { subscriptionExpiredTemplate } from 'src/infrastructure/mailer/templates/subscription-expired.template';
 import { subscriptionActivatedTemplate } from 'src/infrastructure/mailer/templates/subscription-activated.template';
 import { subscriptionExpiringSoonTemplate } from 'src/infrastructure/mailer/templates/subscription-expiring-soon.template';
 import { Customers } from '../users/schemas/customer.schema';
@@ -53,6 +53,103 @@ export class BusinessesService {
     private mailerService: MailerService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  async activateTrial(userId: string): Promise<APIResponseDto> {
+    if (!userId)
+      throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+
+    // Find business by user
+    const business = await this.businessesModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    if (!business)
+      throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+
+    // Ensure there's no active subscription currently
+    const hasActive = await this.businessSubscriptionModel.exists({
+      businessId: business._id,
+      isActive: true,
+      endDate: { $gt: new Date() },
+    });
+    if (hasActive)
+      throw new HttpException(
+        'You already have an active subscription',
+        HttpStatus.BAD_REQUEST,
+      );
+
+    // Find the trial subscription definition
+    const trialSub = await this.subscriptionModel.findOne({
+      isTrial: true,
+      isActive: true,
+      isDeleted: { $ne: true },
+    });
+    if (!trialSub)
+      throw new HttpException(
+        'No active trial subscription is configured',
+        HttpStatus.BAD_REQUEST,
+      );
+
+    // Find the pending BusinessSubscriptions record created on approval
+    const businessTrial = await this.businessSubscriptionModel.findOne({
+      businessId: business._id,
+      subscriptionId: trialSub._id,
+      isActive: false,
+      isTrialUsed: false,
+    });
+
+    if (!businessTrial)
+      throw new HttpException(
+        'No pending trial to activate or trial already used',
+        HttpStatus.BAD_REQUEST,
+      );
+
+    const now = new Date();
+    const endDate = new Date(now);
+    endDate.setDate(endDate.getDate() + trialSub.durationInDays);
+
+    businessTrial.startDate = now;
+    businessTrial.endDate = endDate;
+    businessTrial.isActive = true;
+    businessTrial.isTrialUsed = true;
+    await businessTrial.save();
+
+    // Notify and email
+    await this.notificationsService.create({
+      userId,
+      title: 'Trial Activated',
+      message: `Your ${trialSub.name} trial has been activated from ${now.toDateString()} to ${endDate.toDateString()}.`,
+      type: 'system',
+    });
+
+    const user = await this.usersModel.findById(userId);
+    if (user?.email) {
+      try {
+        await this.mailerService.sendMail({
+          to: [{ address: user.email, name: business.businessName }],
+          subject: 'Subscription Activated',
+          html: subscriptionActivatedTemplate(
+            business.businessName,
+            trialSub.name,
+            now.toDateString(),
+            endDate.toDateString(),
+          ),
+        });
+      } catch (emailError) {
+        // log only; do not fail activation on email errors
+        const errMsg =
+          emailError instanceof Error ? emailError.message : String(emailError);
+        this.logger.error(
+          `Failed to send trial activation email to ${user.email}: ${errMsg}`,
+        );
+      }
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Trial activated successfully',
+      data: businessTrial,
+    };
+  }
 
   async buySubscription(
     userId: string,
@@ -376,10 +473,9 @@ export class BusinessesService {
         data: BusinessForm,
       };
     } catch (error) {
-      throw new HttpException(
-        error.message || 'Error creating business form',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message =
+        (error as Error)?.message || 'Error creating business form';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -408,10 +504,9 @@ export class BusinessesService {
         data: businessForms,
       };
     } catch (error) {
-      throw new HttpException(
-        error.message || 'Error creating business form',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message =
+        (error as Error)?.message || 'Error creating business form';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
