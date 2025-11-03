@@ -145,7 +145,7 @@ export class AdminBusinessFormService {
         });
       }
 
-      // Update user role to BUSINESS
+      user.role = RolesEnum.BUSINESS;
       await user.save();
 
       businessForm.status = BusinessFormStatusEnum.APPROVED;
@@ -208,7 +208,6 @@ export class AdminBusinessFormService {
         message: 'Business form not found',
       };
     }
-    // Load customer and user to personalize email with username
     const customer = await this.customerModel.findById(businessForm.customerId);
     let user: Users | null = null;
     if (customer) {
