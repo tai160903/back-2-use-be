@@ -104,82 +104,34 @@ export class UsersService {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
+      if (user.role !== RolesEnum.CUSTOMER) {
+        throw new HttpException(
+          'Only customers can access this endpoint',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
       const wallet = await this.walletsModel.findOne({
         userId: new Types.ObjectId(userId),
-        type: user.role,
+        type: RolesEnum.CUSTOMER,
       });
 
       if (!wallet) {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
 
-      let customer: CustomersDocument | null = null;
-      let business: BusinessDocument | null = null;
-      let businessSubscriptions: BusinessSubscriptionsDocument[] | null = null;
-      if (user.role === RolesEnum.CUSTOMER) {
-        customer = await this.customersModel.findOne({
-          userId: new Types.ObjectId(userId),
-        });
-        if (!customer) {
-          throw new HttpException(
-            'Customer profile not found',
-            HttpStatus.NOT_FOUND,
-          );
-        }
-      } else {
-        business = await this.businessesModel.findOne({
-          userId: new Types.ObjectId(userId),
-        });
-        if (!business) {
-          throw new HttpException(
-            'Business profile not found',
-            HttpStatus.NOT_FOUND,
-          );
-        }
-        // Fetch current active subscription and any future scheduled subscriptions
-        const now = new Date();
-        businessSubscriptions = await this.businessSubscriptionsModel
-          .find({
-            businessId: business._id,
-            $or: [
-              // Current active: within time window and active
-              {
-                isActive: true,
-                startDate: { $lte: now },
-                endDate: { $gte: now },
-              },
-              // Future: starts in the future (regardless of isActive flag)
-              {
-                startDate: { $gt: now },
-              },
-            ],
-          })
-          .sort({ startDate: 1 })
-          .populate('subscriptionId');
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!customer) {
+        throw new HttpException(
+          'Customer profile not found',
+          HttpStatus.NOT_FOUND,
+        );
       }
 
-      const data: {
-        email: string;
-        avatar: string;
-        wallet: {
-          _id: Types.ObjectId;
-          availableBalance: number;
-          holdingBalance: number;
-        };
-        fullName?: string;
-        phone?: string;
-        address?: string;
-        yob?: Date | null;
-        rewardPoints?: number;
-        rankingPoints?: number;
-        businessName?: string;
-        businessAddress?: string;
-        businessPhone?: string;
-        taxCode?: string;
-        businessType?: string;
-        businessLogo?: string;
-        businessSubscriptions?: BusinessSubscriptionsDocument[];
-      } = {
+      const data = {
         email: user.email,
         avatar: user.avatar || '',
         wallet: {
@@ -187,24 +139,13 @@ export class UsersService {
           availableBalance: wallet.availableBalance,
           holdingBalance: wallet.holdingBalance,
         },
+        fullName: customer.fullName || '',
+        phone: customer.phone || '',
+        address: customer.address || '',
+        yob: customer.yob || null,
+        rewardPoints: customer.rewardPoints || 0,
+        rankingPoints: customer.rankingPoints || 0,
       };
-
-      if (user.role === RolesEnum.CUSTOMER) {
-        data.fullName = customer?.fullName || '';
-        data.phone = customer?.phone || '';
-        data.address = customer?.address || '';
-        data.yob = customer?.yob || null;
-        data.rewardPoints = customer?.rewardPoints || 0;
-        data.rankingPoints = customer?.rankingPoints || 0;
-      } else {
-        data.businessName = business?.businessName || '';
-        data.businessAddress = business?.businessAddress || '';
-        data.businessPhone = business?.businessPhone || '';
-        data.taxCode = business?.taxCode || '';
-        data.businessType = business?.businessType || '';
-        data.businessLogo = business?.businessLogoUrl || '';
-        data.businessSubscriptions = businessSubscriptions || [];
-      }
 
       return {
         statusCode: HttpStatus.OK,
@@ -287,7 +228,6 @@ export class UsersService {
     }
   }
 
-  // Get user block history
   async getUserBlockHistory(
     userId: string,
     query: GetUserBlockHistoryQueryDto,
