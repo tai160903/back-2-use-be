@@ -209,6 +209,7 @@ export class BusinessesController {
       type: 'object',
       properties: {
         subscriptionId: { type: 'string', example: '64f0c2e5b4d1c2a5e6f7g8h9' },
+        autoRenew: { type: 'boolean', example: false, default: false },
       },
       required: ['subscriptionId'],
     },
@@ -217,7 +218,42 @@ export class BusinessesController {
   async buySubscription(
     @Req() req: AuthenticatedRequest,
     @Body('subscriptionId') subscriptionId: string,
+    @Body('autoRenew') autoRenew?: boolean,
   ) {
-    return this.businessesService.buySubscription(req.user._id, subscriptionId);
+    return this.businessesService.buySubscription(
+      req.user._id,
+      subscriptionId,
+      autoRenew || false,
+    );
+  }
+
+  @Patch('subscription/:id/auto-renew')
+  @ApiOperation({ summary: 'Toggle auto-renewal for a subscription' })
+  @ApiBearerAuth('access-token')
+  @ApiParam({
+    name: 'id',
+    description: 'Business Subscription ID',
+    example: '64f0c2e5b4d1c2a5e6f7g8h9',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        autoRenew: { type: 'boolean', example: true },
+      },
+      required: ['autoRenew'],
+    },
+  })
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async toggleAutoRenewal(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') subscriptionId: string,
+    @Body('autoRenew') autoRenew: boolean,
+  ) {
+    return this.businessesService.toggleAutoRenewal(
+      req.user._id,
+      subscriptionId,
+      autoRenew,
+    );
   }
 }

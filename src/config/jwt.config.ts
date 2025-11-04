@@ -10,4 +10,3 @@ export default registerAs('jwt', () => ({
     signOptions: { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' },
   },
 }));
-  

@@ -29,6 +29,18 @@ export class BusinessSubscriptions {
 
   @Prop()
   expiringNotifiedAt: Date;
+
+  @Prop({ default: false })
+  autoRenew: boolean;
+
+  @Prop({ required: false })
+  lastAutoRenewalAt?: Date;
+
+  @Prop({ required: false })
+  autoRenewalFailedAt?: Date;
+
+  @Prop({ required: false })
+  autoRenewalFailureReason?: string;
 }
 
 export const BusinessSubscriptionsSchema = SchemaFactory.createForClass(

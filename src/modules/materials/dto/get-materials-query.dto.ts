@@ -3,7 +3,6 @@ import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MaterialStatus } from 'src/common/constants/material-status.enum';
 
-
 export class GetMaterialsQueryDto {
   @ApiPropertyOptional({
     enum: MaterialStatus,
