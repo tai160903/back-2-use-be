@@ -31,7 +31,7 @@ import { autoRenewalSuccessTemplate } from 'src/infrastructure/mailer/templates/
 import { autoRenewalFailedTemplate } from 'src/infrastructure/mailer/templates/auto-renewal-failed.template';
 import { Customers } from '../users/schemas/customer.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
-import moment from 'moment-timezone';
+import * as moment from 'moment-timezone';
 
 @Injectable()
 export class BusinessesService {
@@ -167,13 +167,12 @@ export class BusinessesService {
     if (!subscription || subscription.isDeleted)
       throw new HttpException('Subscription not found', HttpStatus.NOT_FOUND);
 
+    // Không cho phép mua gói trial (đã có API claim riêng)
     if (subscription.isTrial) {
-      const usedTrial = await this.businessSubscriptionModel.findOne({
-        businessId: business._id,
-        isTrialUsed: true,
-      });
-      if (usedTrial)
-        throw new HttpException('Trial already used', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'Cannot purchase trial subscription. Please use the claim trial API instead.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (wallet.availableBalance < subscription.price)
@@ -182,23 +181,51 @@ export class BusinessesService {
         HttpStatus.BAD_REQUEST,
       );
 
-    const activeSub = await this.businessSubscriptionModel
-      .findOne({
-        businessId: business._id,
-        isActive: true,
-      })
-      .sort({ endDate: -1 });
+    const now = moment().tz('Asia/Ho_Chi_Minh').toDate();
+
+    // Kiểm tra gói hiện tại
+    const activeSub = await this.businessSubscriptionModel.findOne({
+      businessId: business._id,
+      isActive: true,
+      endDate: { $gt: now },
+    });
+
+    if (activeSub) {
+      const daysRemaining = Math.ceil(
+        (activeSub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
+      // Chỉ cho phép mua khi còn ≤3 ngày
+      if (daysRemaining > 3) {
+        throw new HttpException(
+          `You can only purchase a new subscription when your current subscription has 3 days or less remaining. Current subscription expires in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''}.`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    // Kiểm tra không có gói đang chờ (chỉ cho mua 1 gói tại một thời điểm)
+    const pendingSub = await this.businessSubscriptionModel.findOne({
+      businessId: business._id,
+      isActive: false,
+      endDate: { $gt: now },
+    });
+
+    if (pendingSub) {
+      throw new HttpException(
+        'You already have a pending subscription. Only one subscription purchase is allowed at a time.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
 
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
-      const now = moment().tz('Asia/Ho_Chi_Minh').toDate();
-
-      let startDate: Date = now;
-      if (activeSub && activeSub.endDate > now) {
-        startDate = activeSub.endDate;
-      }
+      // Nếu có gói hiện tại (còn ≤3 ngày), gói mới bắt đầu sau khi gói hiện tại hết
+      // Nếu không có gói hiện tại (đã hết), gói mới bắt đầu ngay
+      const startDate: Date =
+        activeSub && activeSub.endDate > now ? activeSub.endDate : now;
 
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + subscription.durationInDays);
@@ -208,8 +235,8 @@ export class BusinessesService {
         subscriptionId: subscription._id,
         startDate,
         endDate,
-        isActive: startDate <= now,
-        isTrialUsed: !!subscription.isTrial,
+        isActive: startDate <= now, // Active ngay nếu startDate = now
+        isTrialUsed: false, // Không phải trial vì đã block trial ở trên
         autoRenew: autoRenew,
       });
 
@@ -244,7 +271,9 @@ export class BusinessesService {
       await this.notificationsService.create({
         userId,
         title: 'Subscription Purchased',
-        message: `You have successfully purchased the ${subscription.name} subscription.${activeSub ? ' It will activate after your current plan ends.' : ''}`,
+        message: activeSub
+          ? `You have successfully purchased the ${subscription.name} subscription. It will activate after your current plan expires on ${activeSub.endDate.toDateString()}.`
+          : `You have successfully purchased the ${subscription.name} subscription.`,
         type: 'system',
       });
 
@@ -263,7 +292,7 @@ export class BusinessesService {
               subscription.name,
               businessSub.startDate.toDateString(),
               businessSub.endDate.toDateString(),
-              !!activeSub,
+              !!activeSub, // Will activate later if there's an active sub
             ),
           });
           this.logger.log(`Successfully sent purchase email to ${user.email}`);
@@ -285,13 +314,16 @@ export class BusinessesService {
       return {
         statusCode: HttpStatus.CREATED,
         message: activeSub
-          ? 'Subscription scheduled to activate after current plan expires'
+          ? `Subscription purchased successfully. It will activate on ${businessSub.startDate.toDateString()}.`
           : 'Subscription activated successfully',
         data: businessSub,
       };
-    } catch (err) {
+    } catch (error) {
       await session.abortTransaction();
-      throw err;
+      throw new HttpException(
+        (error as Error).message || 'Failed to buy subscription',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     } finally {
       await session.endSession();
     }
