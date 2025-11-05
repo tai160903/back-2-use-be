@@ -21,9 +21,12 @@ import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.
 import { UpdateMaterialDto } from 'src/modules/materials/dto/update-material.dto';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
-import { UpdateMaterialStatusDto } from 'src/modules/materials/dto/update-material-status.dto';
+import { ReviewMaterialRequestDto } from 'src/modules/materials/dto/review-material-request.dto';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import { AdminCreateMaterialDto } from '../dto/admin-material/admin-create-material.dto';
+import { MaterialRequests } from 'src/modules/materials/schemas/material-requests.schema';
+import { GetMaterialRequestsQueryDto } from 'src/modules/materials/dto/get-material-request.dtp';
 
 @ApiTags('Material (Admin)')
 @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.ADMIN]))
@@ -35,10 +38,11 @@ export class AdminMaterialController {
   // POST /admin/materials
   @Post()
   async create(
-    @Body() createMaterialDto: CreateMaterialDto,
+    @Body() createMaterialDto: AdminCreateMaterialDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.materialService.adminCreate(createMaterialDto, req.user);
+    const adminId = req.user?._id;
+    return this.materialService.adminCreate(createMaterialDto, adminId);
   }
 
   // GET /admin/materials
@@ -49,25 +53,16 @@ export class AdminMaterialController {
     return this.materialService.get(query);
   }
 
-  // PATCH /admin/materials/:id/review
-  @Patch(':id/review')
-  @ApiParam({ name: 'id', description: 'Material ID' })
-  async reviewMaterial(
-    @Param('id') id: string,
-    @Body() dto: UpdateMaterialStatusDto,
-  ): Promise<APIResponseDto<Material>> {
-    return this.materialService.reviewMaterial(id, dto);
+  // GET /admin/materials/material-requests
+  @Get('material-requests')
+  async getAllRequests(
+    @Query() query: GetMaterialRequestsQueryDto,
+  ): Promise<APIPaginatedResponseDto<MaterialRequests[]>> {
+    return this.materialService.getAllMaterialRequests(query);
   }
 
-  // GET /admin/materials/:id
-  @Get(':id')
-  @ApiParam({ name: 'id', description: 'Material ID' })
-  async getById(@Param('id') id: string): Promise<APIResponseDto<Material>> {
-    return this.materialService.getById(id);
-  }
-
-  // PUT /admin/materials/:id
-  @Put(':id')
+  // PATCH /admin/materials/:id
+  @Patch(':id')
   @ApiParam({ name: 'id', description: 'Material ID' })
   async update(
     @Param('id') id: string,
@@ -76,10 +71,13 @@ export class AdminMaterialController {
     return this.materialService.update(id, updateMaterialDto);
   }
 
-  // DELETE /admin/materials/:id
-  @Delete(':id')
-  @ApiParam({ name: 'id', description: 'Material ID' })
-  async delete(@Param('id') id: string): Promise<APIResponseDto<null>> {
-    return this.materialService.delete(id);
+  // PATCH /admin/materials/:id/review
+  @Patch(':id/review')
+  @ApiParam({ name: 'id', description: 'Material Request ID' })
+  async reviewMaterialRequest(
+    @Param('id') id: string,
+    @Body() dto: ReviewMaterialRequestDto,
+  ): Promise<APIResponseDto<MaterialRequests>> {
+    return this.materialService.reviewMaterialRequest(id, dto);
   }
 }

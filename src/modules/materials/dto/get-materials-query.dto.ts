@@ -1,16 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
-import { Type } from 'class-transformer';
-import { MaterialStatus } from 'src/common/constants/material-status.enum';
+import { IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class GetMaterialsQueryDto {
   @ApiPropertyOptional({
-    enum: MaterialStatus,
-    description: 'Filter materials by status (pending, approved, rejected)',
+    example: true,
+    description:
+      'Filter materials by active state (true = active, false = inactive)',
   })
   @IsOptional()
-  @IsEnum(MaterialStatus)
-  status?: MaterialStatus;
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isActive?: boolean;
 
   @ApiPropertyOptional({
     example: 1,

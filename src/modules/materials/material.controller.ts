@@ -20,10 +20,11 @@ import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-reques
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
-import { GetApprovedMaterialsQueryDto } from './dto/get-approved-materials.dto';
+import { GetActiveMaterialsQueryDto } from './dto/get-approved-materials.dto';
 import { GetMyMaterialsQueryDto } from './dto/get-my-materials.dto';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import { MaterialRequests } from './schemas/material-requests.schema';
 
 @ApiTags('Material (Business)')
 @Controller('materials')
@@ -32,26 +33,30 @@ import { RolesEnum } from 'src/common/constants/roles.enum';
 export class MaterialController {
   constructor(private readonly materialService: MaterialService) {}
 
-  // POST /materials
-  @Post()
+  // GET /materials
+  @Get()
+  async getActiveMaterials(@Query() query: GetActiveMaterialsQueryDto) {
+    return this.materialService.getActiveMaterials(query);
+  }
+
+  // POST /materials/material-requests
+  @Post('material-requests')
   async create(
     @Body() CreateMaterialDto: CreateMaterialDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.materialService.create(CreateMaterialDto, req.user);
+    const userId = req.user?._id;
+    return this.materialService.createMaterialRequest(
+      CreateMaterialDto,
+      userId,
+    );
   }
 
-  // GET /materials/approved
-  @Get('approved')
-  async getApprovedMaterials(@Query() query: GetApprovedMaterialsQueryDto) {
-    return this.materialService.getApprovedMaterials(query);
-  }
-
-  @Get('my')
-  async getOwnMaterials(
+  @Get('my-request')
+  async getOwnMaterialRequests(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetMyMaterialsQueryDto,
-  ): Promise<APIPaginatedResponseDto<Material[]>> {
-    return this.materialService.getMyMaterials(req.user._id, query);
+  ): Promise<APIPaginatedResponseDto<MaterialRequests[]>> {
+    return this.materialService.getMyMaterialRequests(req.user._id, query);
   }
 }
