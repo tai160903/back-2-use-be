@@ -1,4 +1,27 @@
-export function businessApprovedTemplate(username: string) {
+export function businessApprovedTemplate(
+  username: string,
+  transferAmount?: number,
+) {
+  const transferBlock =
+    transferAmount && transferAmount > 0
+      ? `
+          <div
+            style="
+              background: #eff6ff;
+              border-left: 4px solid #3b82f6;
+              padding: 12px 16px;
+              margin: 16px 0;
+              border-radius: 4px;
+            "
+          >
+            <p style="margin: 0; color: #1e40af; font-weight: 600">💼 Wallet Update</p>
+            <p style="margin: 6px 0 0; color: #1e3a8a">
+              Your customer wallet balance of <strong>${transferAmount.toLocaleString()}</strong> has been
+              transferred to your <strong>business wallet</strong> so you can start trading immediately.
+            </p>
+          </div>
+        `
+      : '';
   return `
  <!DOCTYPE html>
 <html>
@@ -65,6 +88,27 @@ export function businessApprovedTemplate(username: string) {
             <p style="margin: 6px 0 0; color: #047857">
               You have been gifted a <strong>free trial subscription</strong> to
               get started with all premium features!
+            </p>
+          </div>
+
+          ${transferBlock}
+
+          <div
+            style="
+              background: #f8fafc;
+              border-left: 4px solid #94a3b8;
+              padding: 12px 16px;
+              margin: 16px 0;
+              border-radius: 4px;
+            "
+          >
+            <p style="margin: 0; color: #0f172a; font-weight: 600">
+              👁️ Customer Profile Access
+            </p>
+            <p style="margin: 6px 0 0; color: #334155">
+              You can still view your previous <strong>customer profile</strong> and
+              <strong>history</strong>, but you can no longer use or edit customer features.
+              For transactions and settings, please use your <strong>business dashboard</strong>.
             </p>
           </div>
 

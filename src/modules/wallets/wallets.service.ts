@@ -25,10 +25,10 @@ export class WalletsService {
         userId: userId,
       });
       if (existingWallet) {
-        return {
-          statusCode: 400,
-          message: 'Wallet already exists for this user',
-        };
+        throw new HttpException(
+          'Wallet already exists for this user',
+          HttpStatus.BAD_REQUEST,
+        );
       }
       const wallet = await this.walletsModel.create({
         userId: new Types.ObjectId(createWalletDto.userId),
@@ -37,16 +37,16 @@ export class WalletsService {
         holdingBalance: createWalletDto.holdingBalance,
       });
       return {
-        statusCode: 201,
+        statusCode: HttpStatus.CREATED,
         message: 'Wallet created successfully',
         data: wallet,
       };
     } catch (error) {
-      return {
-        statusCode: 500,
-        message: 'Error creating wallet',
-        data: error.message,
-      };
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const message = (error as Error)?.message || 'Error creating wallet';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -54,22 +54,19 @@ export class WalletsService {
     try {
       const wallet = await this.walletsModel.findById(id);
       if (!wallet) {
-        return {
-          statusCode: 404,
-          message: 'Wallet not found',
-        };
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
       return {
-        statusCode: 200,
+        statusCode: HttpStatus.OK,
         message: 'Wallet retrieved successfully',
         data: wallet,
       };
     } catch (error) {
-      return {
-        statusCode: 500,
-        message: 'Error retrieving wallet',
-        data: error.message,
-      };
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const message = (error as Error)?.message || 'Error retrieving wallet';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -80,26 +77,23 @@ export class WalletsService {
     try {
       const wallet = await this.walletsModel.findById(id);
       if (!wallet) {
-        return {
-          statusCode: 404,
-          message: 'Wallet not found',
-        };
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
       if (updateWalletDto.availableBalance !== undefined) {
         wallet.availableBalance = updateWalletDto.availableBalance;
       }
       await wallet.save();
       return {
-        statusCode: 200,
+        statusCode: HttpStatus.OK,
         message: 'Wallet updated successfully',
         data: wallet,
       };
     } catch (error) {
-      return {
-        statusCode: 500,
-        message: 'Error updating wallet',
-        data: error.message,
-      };
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      const message = (error as Error)?.message || 'Error updating wallet';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -112,23 +106,20 @@ export class WalletsService {
   ) {
     try {
       if (!amount || typeof amount !== 'number' || amount <= 0) {
-        return {
-          statusCode: 400,
-          message: 'Deposit amount must be greater than 0',
-        };
+        throw new HttpException(
+          'Deposit amount must be greater than 0',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const walletRes = await this.findOne(walletId);
-      if (walletRes.statusCode !== 200 || !walletRes.data) {
-        return walletRes;
-      }
-
       const wallet = walletRes.data as WalletsDocument;
+
       if (userId && wallet.userId?.toString() !== userId?.toString()) {
-        return {
-          statusCode: 403,
-          message: 'You do not have permission to operate on this wallet',
-        };
+        throw new HttpException(
+          'You do not have permission to operate on this wallet',
+          HttpStatus.FORBIDDEN,
+        );
       }
       // const transactionId = `${walletId}-${Date.now()}-${randomBytes(3).toString('hex')}`;
       const orderInfo = `Payment_${walletId}`;
@@ -164,10 +155,10 @@ export class WalletsService {
       // determine performing user id (from param or authenticated request)
       const performingUserId = userId ?? (req as any)?.user?._id ?? null;
       if (!performingUserId) {
-        return {
-          statusCode: 401,
-          message: 'Unauthorized: user id not provided',
-        };
+        throw new HttpException(
+          'Unauthorized: user id not provided',
+          HttpStatus.UNAUTHORIZED,
+        );
       }
 
       const transaction = await this.transactionsModel.create({
@@ -192,6 +183,9 @@ export class WalletsService {
         url: paymentUrl,
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       throw new HttpException(
         (error as Error)?.message || 'Error during deposit',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -200,24 +194,32 @@ export class WalletsService {
   }
 
   // Withdraw money
-  async withdraw(walletId: string, amount: number, userId?: string) {
+  async withdraw(
+    walletId: string,
+    amount: number,
+    userId?: string,
+  ): Promise<APIResponseDto> {
     try {
-      const walletRes = await this.findOne(walletId);
-      if (walletRes.statusCode !== 200 || !walletRes.data) {
-        return walletRes;
+      const wallet = await this.walletsModel.findOne({
+        _id: walletId,
+      });
+
+      if (!wallet) {
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
-      const wallet = walletRes.data as WalletsDocument;
+
       if (userId && wallet.userId?.toString() !== userId?.toString()) {
-        return {
-          statusCode: 403,
-          message: 'You do not have permission to operate on this wallet',
-        };
+        throw new HttpException(
+          'You do not have permission to operate on this wallet',
+          HttpStatus.FORBIDDEN,
+        );
       }
+
       if (wallet.availableBalance < amount) {
-        return {
-          statusCode: 400,
-          message: 'Insufficient balance to withdraw',
-        };
+        throw new HttpException(
+          'Insufficient balance to withdraw',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       wallet.availableBalance -= amount;
@@ -236,11 +238,14 @@ export class WalletsService {
       });
 
       return {
-        statusCode: 200,
+        statusCode: HttpStatus.OK,
         message: 'Withdrawal successful',
         data: wallet,
       };
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       const message = (error as Error)?.message || 'Error during withdrawal';
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
