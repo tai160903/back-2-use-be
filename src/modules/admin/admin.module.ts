@@ -44,6 +44,10 @@ import {
   VoucherCodes,
   VoucherCodesSchema,
 } from '../voucher-codes/schema/voucher-codes.schema';
+import {
+  MaterialRequests,
+  MaterialRequestSchema,
+} from '../materials/schemas/material-requests.schema';
 
 @Module({
   imports: [
@@ -51,6 +55,7 @@ import {
       { name: BusinessForm.name, schema: BusinessFormSchema },
       { name: Customers.name, schema: CustomersSchema },
       { name: Material.name, schema: MaterialSchema },
+      { name: MaterialRequests.name, schema: MaterialRequestSchema },
       { name: Users.name, schema: UsersSchema },
       { name: Businesses.name, schema: BusinessesSchema },
       { name: UserBlockHistory.name, schema: UserBlockHistorySchema },

@@ -3,22 +3,15 @@ import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateMaterialDto {
-  @ApiProperty({ required: true, example: 'Plastic' })
-  @IsNotEmpty()
+  @ApiProperty({ example: 'Glass Bottle', description: 'Tên vật liệu' })
   @IsString()
+  @IsNotEmpty()
   materialName: string;
 
-  @ApiProperty({ required: true, example: 100 })
-  @IsNotEmpty()
-  @IsNumber()
-  @Min(1)
-  maximumReuse: number;
-
   @ApiProperty({
-    required: true,
-    example: 'Durable and lightweight plastic material',
+    example: 'Tái sử dụng được nhiều lần, thân thiện với môi trường',
   })
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   description: string;
 }

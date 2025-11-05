@@ -3,26 +3,33 @@ import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 import { MaterialRequestStatus } from 'src/common/constants/material-request-status.enum';
 
-export class GetMyMaterialsQueryDto {
+export class GetMaterialRequestsQueryDto {
   @ApiPropertyOptional({
-    enum: MaterialRequestStatus,
-    description: 'Filter by status (PENDING, APPROVED, REJECTED)',
+    example: MaterialRequestStatus.PENDING,
+    enum: MaterialRequestStatus, 
+    description: "Filter by status ('pending' | 'approved' | 'rejected')",
   })
   @IsOptional()
   @IsEnum(MaterialRequestStatus)
   status?: MaterialRequestStatus;
 
-  @ApiPropertyOptional({ example: 1, description: 'Page number' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Page number for pagination',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page: number = 1;
 
-  @ApiPropertyOptional({ example: 10, description: 'Items per page' })
+  @ApiPropertyOptional({
+    example: 10,
+    description: 'Number of items per page',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  limit?: number = 10;
+  limit: number = 10;
 }

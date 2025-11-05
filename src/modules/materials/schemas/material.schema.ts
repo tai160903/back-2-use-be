@@ -10,27 +10,21 @@ export class Material {
   materialName: string;
 
   @Prop({ required: true })
-  maximumReuse: number;
+  reuseLimit: number;
+
+  @Prop({ required: true })
+  depositPercent: number;
 
   @Prop({ required: true })
   description: string;
 
-  @Prop({ type: String, enum: MaterialStatus, default: MaterialStatus.PENDING })
-  status: MaterialStatus;
+  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true })
+  // createdBy: Types.ObjectId;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true })
-  createdBy: Types.ObjectId;
-
-  @Prop({ required: false })
-  rejectReason?: string;
+  @Prop({ type: Boolean, default: true })
+  isActive: boolean;
 }
 
 export const MaterialSchema = SchemaFactory.createForClass(Material);
 
-MaterialSchema.index(
-  { materialName: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { status: MaterialStatus.APPROVED },
-  },
-);
+MaterialSchema.index({ materialName: 1 }, { unique: true });

@@ -7,11 +7,18 @@ export async function paginate<T>(
   limit: number,
   select?: string,
   sort: Record<string, 1 | -1> = { createdAt: -1 },
+  populate?:
+    | { path: string; select?: string }
+    | { path: string; select?: string }[],
 ) {
   const query = model.find(filter as any);
 
   if (select) {
     query.select(select);
+  }
+
+  if (populate) {
+    query.populate(populate);
   }
 
   const [data, total] = await Promise.all([
