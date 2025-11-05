@@ -79,10 +79,7 @@ export class UsersController {
       },
     },
   })
-  @UseGuards(
-    AuthGuard('jwt'),
-    RoleCheckGuard.withRoles(['customer', 'business']),
-  )
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['customer']))
   async updateAvatar(
     @Request() req: any,
     @UploadedFile() file: Express.Multer.File,

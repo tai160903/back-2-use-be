@@ -104,13 +104,6 @@ export class UsersService {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
-      if (user.role !== RolesEnum.CUSTOMER) {
-        throw new HttpException(
-          'Only customers can access this endpoint',
-          HttpStatus.FORBIDDEN,
-        );
-      }
-
       const wallet = await this.walletsModel.findOne({
         userId: new Types.ObjectId(userId),
         type: RolesEnum.CUSTOMER,

@@ -1,7 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
-// import { CreateAdminDto } from './dto/create-admin.dto';
-// import { UpdateAdminDto } from './dto/update-admin.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BusinessForm } from '../../businesses/schemas/business-form.schema';
@@ -19,6 +17,7 @@ import { Subscriptions } from 'src/modules/subscriptions/schemas/subscriptions.s
 import { BusinessSubscriptions } from 'src/modules/businesses/schemas/business-subscriptions.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { Wallets } from 'src/modules/wallets/schemas/wallets.schema';
+import { WalletTransactions } from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 import { Customers } from 'src/modules/users/schemas/customer.schema';
 
@@ -35,6 +34,8 @@ export class AdminBusinessFormService {
     @InjectModel(BusinessSubscriptions.name)
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
     @InjectModel(Wallets.name) private walletModel: Model<Wallets>,
+    @InjectModel(WalletTransactions.name)
+    private walletTransactionsModel: Model<WalletTransactions>,
     private mailerService: MailerService,
     private readonly geocodingService: GeocodingService,
   ) {}
@@ -78,6 +79,17 @@ export class AdminBusinessFormService {
         throw new HttpException(
           'Only customers can be approved as businesses',
           HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const hasPending = await this.walletTransactionsModel.exists({
+        relatedUserId: user._id,
+        status: 'pending',
+      });
+      if (hasPending) {
+        throw new HttpException(
+          'User has pending wallet transactions. Please try approval later.',
+          HttpStatus.CONFLICT,
         );
       }
 
@@ -129,18 +141,68 @@ export class AdminBusinessFormService {
       });
       await businessSubscription.save();
 
-      const existingBusinessWallet = await this.walletModel.findOne({
+      let existingBusinessWallet = await this.walletModel.findOne({
         userId: user._id,
         type: 'business',
       });
 
       if (!existingBusinessWallet) {
-        await this.walletModel.create({
+        existingBusinessWallet = await this.walletModel.create({
           userId: user._id,
           type: 'business',
           availableBalance: 0,
           holdingBalance: 0,
         });
+      }
+
+      const customerWallet = await this.walletModel.findOne({
+        userId: user._id,
+        type: 'customer',
+      });
+
+      if (customerWallet && customerWallet.holdingBalance > 0) {
+        throw new HttpException(
+          'Customer wallet has funds on hold. Complete or cancel active operations before approval.',
+          HttpStatus.CONFLICT,
+        );
+      }
+
+      let transferAmount = 0;
+      if (customerWallet && customerWallet.availableBalance > 0) {
+        transferAmount = customerWallet.availableBalance;
+
+        customerWallet.availableBalance = 0;
+        existingBusinessWallet.availableBalance += transferAmount;
+
+        await Promise.all([
+          customerWallet.save(),
+          existingBusinessWallet.save(),
+          this.walletTransactionsModel.create({
+            walletId: customerWallet._id,
+            relatedUserId: user._id,
+            relatedUserType: 'business',
+            transactionType: 'withdrawal',
+            amount: transferAmount,
+            direction: 'out',
+            referenceId: String(business._id),
+            referenceType: 'business_approval',
+            description: 'Balance transferred to business wallet on approval',
+            status: 'completed',
+          }),
+          this.walletTransactionsModel.create({
+            walletId: existingBusinessWallet._id,
+            relatedUserId: user._id,
+            relatedUserType: 'customer',
+            transactionType: 'topup',
+            amount: transferAmount,
+            direction: 'in',
+            referenceId: String(business._id),
+            referenceType: 'business_approval',
+            description:
+              'Balance received from customer wallet on business approval',
+            status: 'completed',
+          }),
+        ]);
       }
 
       user.role = RolesEnum.BUSINESS;
@@ -159,7 +221,10 @@ export class AdminBusinessFormService {
             },
           ],
           subject: 'Business Approved - Welcome to Back 2 Use!',
-          html: businessApprovedTemplate(user.username),
+          html: businessApprovedTemplate(
+            user.username,
+            transferAmount > 0 ? transferAmount : undefined,
+          ),
         });
       } catch (error) {
         throw new HttpException(
@@ -181,6 +246,7 @@ export class AdminBusinessFormService {
         data: {
           businessForm,
           business,
+          transferAmount,
         },
       };
     } catch (error) {
