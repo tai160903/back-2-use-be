@@ -11,6 +11,7 @@ import {
   TransactionFilterGroup,
 } from './dto/get-wallet-transactions-query.dto';
 import { paginate } from 'src/common/utils/pagination.util';
+import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 
 @Injectable()
 export class WalletTransactionsService {
@@ -71,6 +72,26 @@ export class WalletTransactionsService {
       total,
       currentPage,
       totalPages,
+    };
+  }
+
+  // Get detail transaction by id
+  async getTransactionById(
+    id: string,
+  ): Promise<APIResponseDto<WalletTransactions>> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException('Invalid transaction ID', HttpStatus.BAD_REQUEST);
+    }
+
+    const transaction = await this.walletTransactionsModel.findById(id);
+    if (!transaction) {
+      throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get transaction detail successfully',
+      data: transaction,
     };
   }
 }
