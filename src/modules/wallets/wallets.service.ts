@@ -225,7 +225,7 @@ export class WalletsService {
       wallet.availableBalance -= amount;
       await wallet.save();
 
-      await this.transactionsModel.create({
+      const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
         relatedUserId: new Types.ObjectId(userId),
         relatedUserType: wallet.type,
@@ -240,7 +240,11 @@ export class WalletsService {
       return {
         statusCode: HttpStatus.OK,
         message: 'Withdrawal successful',
-        data: wallet,
+        data: {
+          wallet,
+          transactionId: transaction._id,
+          transaction,
+        },
       };
     } catch (error) {
       if (error instanceof HttpException) {
