@@ -115,6 +115,7 @@ export class AdminBusinessFormService {
         userId: user._id,
         businessFormId: businessForm._id,
         status: BusinessStatusEnum.ACTIVE,
+        businessMail: businessForm.businessMail,
         businessName: businessForm.businessName,
         businessAddress: businessForm.businessAddress,
         businessPhone: businessForm.businessPhone,
@@ -180,7 +181,7 @@ export class AdminBusinessFormService {
           this.walletTransactionsModel.create({
             walletId: customerWallet._id,
             relatedUserId: user._id,
-            relatedUserType: 'business',
+            relatedUserType: 'customer',
             transactionType: 'withdrawal',
             amount: transferAmount,
             direction: 'out',
@@ -192,7 +193,7 @@ export class AdminBusinessFormService {
           this.walletTransactionsModel.create({
             walletId: existingBusinessWallet._id,
             relatedUserId: user._id,
-            relatedUserType: 'customer',
+            relatedUserType: 'business',
             transactionType: 'topup',
             amount: transferAmount,
             direction: 'in',
@@ -322,7 +323,11 @@ export class AdminBusinessFormService {
       const query: any = {};
       if (status) query.status = status;
       const [forms, total] = await Promise.all([
-        this.businessFormModel.find(query).skip(skip).limit(limit),
+        this.businessFormModel
+          .find(query)
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 }),
         this.businessFormModel.countDocuments(query),
       ]);
       return {
