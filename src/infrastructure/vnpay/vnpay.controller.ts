@@ -135,7 +135,9 @@ export class VnpayController {
           );
         }
 
-        return res.redirect('http://192.168.0.199:8081/payment-success');
+        return res.redirect(
+          `http://192.168.0.199:8081/payment-success/?txnRef=${transaction?._id.toString()}`,
+        );
       }
 
       const transaction = await this.transactionsModel.findById(vnp_TxnRef);
