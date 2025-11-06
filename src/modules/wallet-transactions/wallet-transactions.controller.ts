@@ -11,6 +11,7 @@ import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.
 import { WalletTransactions } from './schema/wallet-transactions.schema';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { GetWalletTransactionsQueryDto } from './dto/get-wallet-transactions-query.dto';
+import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 
 @ApiTags('Wallet Transactions')
 @Controller('wallet-transactions')
@@ -21,6 +22,7 @@ export class WalletTransactionsController {
     private readonly walletTransactionsService: WalletTransactionsService,
   ) {}
 
+  // GET /wallet-transactions/my
   @Get('my')
   @ApiOperation({
     summary: 'Get wallet transactions of the authenticated user',
@@ -34,5 +36,14 @@ export class WalletTransactionsController {
       userId,
       query,
     );
+  }
+
+  // GET /wallet-transactions/:id
+  @Get(':id')
+  @ApiOperation({ summary: 'Get wallet transaction detail by ID' })
+  async getTransactionDetail(
+    @Param('id') id: string,
+  ): Promise<APIResponseDto<WalletTransactions>> {
+    return this.walletTransactionsService.getTransactionById(id);
   }
 }
