@@ -12,6 +12,9 @@ export class Businesses {
   @Prop({ unique: true, ref: 'Users', required: true })
   userId: Types.ObjectId;
 
+  @Prop({ required: true, trim: true })
+  businessMail: string;
+
   @Prop({ required: true, trim: true, minlength: 3, maxlength: 100 })
   businessName: string;
 

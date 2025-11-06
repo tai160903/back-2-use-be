@@ -487,7 +487,7 @@ export class BusinessesService {
         );
       }
 
-      const existingForm = await this.usersModel.findOne({
+      const existingForm = await this.businessFormModel.findOne({
         email: dto.businessMail,
       });
 

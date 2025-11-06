@@ -44,6 +44,10 @@ import {
   VoucherCodes,
   VoucherCodesSchema,
 } from '../voucher-codes/schema/voucher-codes.schema';
+import {
+  WalletTransactions,
+  WalletTransactionsSchema,
+} from '../wallet-transactions/schema/wallet-transactions.schema';
 
 @Module({
   imports: [
@@ -57,6 +61,7 @@ import {
       { name: Subscriptions.name, schema: SubscriptionsSchema },
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
       { name: Wallets.name, schema: WalletsSchema },
+      { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Vouchers.name, schema: VouchersSchema },
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
     ]),
