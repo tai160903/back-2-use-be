@@ -10,13 +10,28 @@ export enum TransactionDirection {
 export enum TransactionFilterGroup {
   PERSONAL = 'personal',
   DEPOSIT_REFUND = 'deposit_refund',
+  PENALTY = 'penalty',
+}
+
+export enum WalletType {
+  CUSTOMER = 'customer',
+  BUSINESS = 'business',
 }
 
 export class GetWalletTransactionsQueryDto {
   @ApiPropertyOptional({
+    enum: WalletType,
+    description: 'Filter by wallet type (customer or business)',
+    example: 'customer',
+  })
+  @IsOptional()
+  @IsEnum(WalletType)
+  walletType?: WalletType;
+
+  @ApiPropertyOptional({
     enum: TransactionFilterGroup,
     description:
-      'Filter by transaction group: "personal" (deposit, withdraw, subscription_fee) or "deposit_refund" (borrow_deposit, return_refund)',
+      'Group: personal (top_up, withdraw, subscription_fee), deposit_refund (borrow_deposit, return_refund), penalty',
     example: 'personal',
   })
   @IsOptional()
@@ -25,8 +40,7 @@ export class GetWalletTransactionsQueryDto {
 
   @ApiPropertyOptional({
     enum: TransactionDirection,
-    description:
-      'Filter by transaction direction (in = money in, out = money out)',
+    description: 'Transaction direction (in = money in, out = money out)',
     example: 'in',
   })
   @IsOptional()

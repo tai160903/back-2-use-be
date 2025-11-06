@@ -166,10 +166,10 @@ export class WalletsService {
         relatedUserId: new Types.ObjectId(performingUserId as string),
         relatedUserType: wallet.type,
         amount,
-        transactionType: 'topup',
+        transactionType: 'top_up',
         direction: 'in',
-        status: 'pending',
-        referenceType: 'vnpay',
+        status: 'processing',
+        referenceType: 'manual',
         description: `VNPay Top-up #${Date.now()}`,
       });
 
@@ -225,12 +225,12 @@ export class WalletsService {
       wallet.availableBalance -= amount;
       await wallet.save();
 
-      await this.transactionsModel.create({
+      const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
         relatedUserId: new Types.ObjectId(userId),
         relatedUserType: wallet.type,
         amount,
-        transactionType: 'withdrawal',
+        transactionType: 'withdraw',
         direction: 'out',
         status: 'completed',
         referenceType: 'manual',
@@ -240,7 +240,11 @@ export class WalletsService {
       return {
         statusCode: HttpStatus.OK,
         message: 'Withdrawal successful',
-        data: wallet,
+        data: {
+          wallet,
+          transactionId: transaction._id,
+          transaction,
+        },
       };
     } catch (error) {
       if (error instanceof HttpException) {

@@ -69,7 +69,9 @@ export class VnpayController {
           );
         }
 
-        return res.redirect(`${process.env.CLIENT_RETURN_URL}/payment-success`);
+        return res.redirect(
+          `${process.env.CLIENT_RETURN_URL}/payment-success?txnRef=${transaction._id.toString()}`,
+        );
       }
 
       transaction.status = 'failed';

@@ -11,6 +11,7 @@ import {
   TransactionFilterGroup,
 } from './dto/get-wallet-transactions-query.dto';
 import { paginate } from 'src/common/utils/pagination.util';
+import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 
 @Injectable()
 export class WalletTransactionsService {
@@ -24,26 +25,36 @@ export class WalletTransactionsService {
     userId: string,
     query: GetWalletTransactionsQueryDto,
   ): Promise<APIPaginatedResponseDto<WalletTransactions[]>> {
-    const { direction, typeGroup, page = 1, limit = 10 } = query;
+    const { direction, typeGroup, page = 1, limit = 10, walletType } = query;
 
     if (!Types.ObjectId.isValid(userId)) {
       throw new Error('Invalid user ID');
     }
 
     const filter: any = {
-      userId: new Types.ObjectId(userId),
+      relatedUserId: new Types.ObjectId(userId),
     };
+
+    if (walletType) {
+      filter.relatedUserType = walletType;
+    }
 
     if (direction) {
       filter.direction = direction;
     }
 
-    if (typeGroup === TransactionFilterGroup.PERSONAL) {
-      filter.transactionType = {
-        $in: ['deposit', 'withdraw', 'subscription_fee'],
-      };
-    } else if (typeGroup === TransactionFilterGroup.DEPOSIT_REFUND) {
-      filter.transactionType = { $in: ['borrow_deposit', 'return_refund'] };
+    switch (typeGroup) {
+      case TransactionFilterGroup.PERSONAL:
+        filter.transactionType = {
+          $in: ['top_up', 'withdraw', 'subscription_fee'],
+        };
+        break;
+      case TransactionFilterGroup.DEPOSIT_REFUND:
+        filter.transactionType = { $in: ['borrow_deposit', 'return_refund'] };
+        break;
+      case TransactionFilterGroup.PENALTY:
+        filter.transactionType = 'penalty';
+        break;
     }
 
     const { data, total, currentPage, totalPages } =
@@ -56,11 +67,31 @@ export class WalletTransactionsService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Get wallet transactions successfully',
+      message: `Get ${walletType}'s wallet transactions successfully`,
       data,
       total,
       currentPage,
       totalPages,
+    };
+  }
+
+  // Get detail transaction by id
+  async getTransactionById(
+    id: string,
+  ): Promise<APIResponseDto<WalletTransactions>> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new HttpException('Invalid transaction ID', HttpStatus.BAD_REQUEST);
+    }
+
+    const transaction = await this.walletTransactionsModel.findById(id);
+    if (!transaction) {
+      throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get transaction detail successfully',
+      data: transaction,
     };
   }
 }

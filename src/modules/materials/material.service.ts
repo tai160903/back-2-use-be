@@ -1,6 +1,11 @@
-import { Injectable, HttpStatus, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpStatus,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Material, MaterialDocument } from './schemas/material.schema';
 import { GetMaterialsQueryDto } from './dto/get-materials-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
@@ -9,58 +14,90 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { GetMyMaterialsQueryDto } from './dto/get-my-materials.dto';
 import { paginate } from 'src/common/utils/pagination.util';
 import { MaterialStatus } from 'src/common/constants/material-status.enum';
+import {
+  MaterialRequestDocument,
+  MaterialRequests,
+} from './schemas/material-requests.schema';
+import {
+  BusinessDocument,
+  Businesses,
+} from '../businesses/schemas/businesses.schema';
 
 @Injectable()
 export class MaterialService {
   constructor(
     @InjectModel(Material.name)
     private readonly materialModel: Model<MaterialDocument>,
+
+    @InjectModel(MaterialRequests.name)
+    private readonly materialRequestModel: Model<MaterialRequestDocument>,
+
+    @InjectModel(Businesses.name)
+    private readonly businessModel: Model<BusinessDocument>,
   ) {}
 
-  // Business create material
-  async create(
+  // Business create material request
+  async createMaterialRequest(
     createMaterialDto: CreateMaterialDto,
-    userPayload: { _id: string },
-  ): Promise<APIResponseDto<Material>> {
-    const existingMaterial = await this.materialModel.findOne({
-      materialName: createMaterialDto.materialName,
-      status: MaterialStatus.APPROVED,
-    });
+    userId: string,
+  ): Promise<APIResponseDto<MaterialRequests>> {
+    const { materialName, description } = createMaterialDto;
 
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    if (!business) {
+      throw new NotFoundException('Business not found for this user.');
+    }
+
+    const existingMaterial = await this.materialModel.findOne({
+      materialName: { $regex: new RegExp(`^${materialName}$`, 'i') },
+      isActive: true,
+    });
     if (existingMaterial) {
       throw new ConflictException(
-        `Material name '${createMaterialDto.materialName}' already exists`,
+        `Material '${materialName}' already exists and has been approved.`,
       );
     }
 
-    const newMaterial = new this.materialModel({
-      ...createMaterialDto,
-      status: MaterialStatus.PENDING,
-      createdBy: userPayload._id,
+    const existingPendingRequest = await this.materialRequestModel.findOne({
+      businessId: business._id,
+      requestedMaterialName: { $regex: new RegExp(`^${materialName}$`, 'i') },
+      status: 'pending',
     });
+    if (existingPendingRequest) {
+      throw new ConflictException(
+        `You already have a pending request for '${materialName}'.`,
+      );
+    }
 
-    const savedMaterial = await newMaterial.save();
+    const newRequest = await this.materialRequestModel.create({
+      businessId: business._id,
+      requestedMaterialName: materialName.trim(),
+      description: description?.trim() || '',
+      status: 'pending',
+    });
 
     return {
       statusCode: HttpStatus.CREATED,
-      message: `Create material '${createMaterialDto.materialName}' successfully`,
-      data: savedMaterial,
+      message: `Material request '${materialName}' submitted successfully, awaiting admin approval.`,
+      data: newRequest,
     };
   }
 
-  // Business get approved materials
-  async getApprovedMaterials(
+  // Business get active materials
+  async getActiveMaterials(
     query: GetMaterialsQueryDto,
   ): Promise<APIPaginatedResponseDto<Material[]>> {
     const { page = 1, limit = 10 } = query;
-    const filter = { status: MaterialStatus.APPROVED };
+    const filter = { isActive: true };
 
     const { data, total, currentPage, totalPages } =
       await paginate<MaterialDocument>(this.materialModel, filter, page, limit);
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Get approved materials successfully',
+      message: 'Get active materials successfully',
       data,
       total,
       currentPage,
@@ -68,26 +105,44 @@ export class MaterialService {
     };
   }
 
-  // Business get pending + rejected materials
-  async getMyMaterials(
+  // Business get all their material requests
+  async getMyMaterialRequests(
     userId: string,
     query: GetMyMaterialsQueryDto,
-  ): Promise<APIPaginatedResponseDto<Material[]>> {
+  ): Promise<APIPaginatedResponseDto<MaterialRequests[]>> {
     const { status, page = 1, limit = 10 } = query;
 
-    const filter: any = {
-      createdBy: userId,
-      status: status || {
-        $in: [MaterialStatus.PENDING, MaterialStatus.REJECTED],
-      },
-    };
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    if (!business) {
+      throw new NotFoundException('Business not found for this user.');
+    }
+
+    const filter: any = { businessId: business._id };
+    if (status) {
+      filter.status = status;
+    }
 
     const { data, total, currentPage, totalPages } =
-      await paginate<MaterialDocument>(this.materialModel, filter, page, limit);
+      await paginate<MaterialRequestDocument>(
+        this.materialRequestModel,
+        filter,
+        page,
+        limit,
+        undefined,
+        undefined,
+        [
+          {
+            path: 'approvedMaterialId',
+            select: 'materialName depositPercent reuseLimit',
+          },
+        ],
+      );
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Get your materials successfully',
+      message: 'Fetched your material requests successfully',
       data,
       total,
       currentPage,

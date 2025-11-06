@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class GetApprovedMaterialsQueryDto {
+export class GetActiveMaterialsQueryDto {
   @ApiPropertyOptional({
     example: 1,
     description: 'Page number for pagination',

@@ -6,24 +6,23 @@ export type WalletTransactionsDocument = HydratedDocument<WalletTransactions>;
 @Schema({ timestamps: true })
 export class WalletTransactions {
   @Prop({ type: Types.ObjectId, required: true, ref: 'Wallets' })
-  walletId: Types.ObjectId;
+  walletId: Types.ObjectId; // Ví thực hiện giao dịch
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'Users' })
-  relatedUserId: Types.ObjectId;
+  relatedUserId: Types.ObjectId; // Chủ sở hữu ví (customer / business)
 
   @Prop({ enum: ['customer', 'business'], required: true })
-  relatedUserType: string;
+  relatedUserType: string; // Phân biệt loại user của ví
 
   @Prop({
     required: true,
     enum: [
-      'topup',
-      'withdrawal',
-      'borrow_deposit',
-      'return_refund',
-      'subscription_payment',
-      'subscription_fee',
-      'penalty',
+      'top_up', // Nạp tiền vào ví
+      'withdraw', // Rút tiền ra
+      'borrow_deposit', // Đặt cọc khi mượn
+      'return_refund', // Hoàn cọc khi trả
+      'subscription_fee', // Trừ phí gói dịch vụ
+      'penalty', // Phạt (mất, trễ, hư, ...)
     ],
   })
   transactionType: string;
@@ -32,18 +31,31 @@ export class WalletTransactions {
   amount: number;
 
   @Prop({ required: true, enum: ['in', 'out'] })
-  direction: string;
+  direction: string; // Hướng dòng tiền (vào ví / ra khỏi ví)
+
+  @Prop({ type: Types.ObjectId })
+  referenceId?: Types.ObjectId; // ID tham chiếu (BorrowTransaction, Subscription, ...)
+
+  @Prop({
+    enum: ['borrow', 'subscription', 'system', 'manual'],
+    default: 'manual',
+  })
+  referenceType?: string; // Loại đối tượng tham chiếu
+
+  @Prop({
+    enum: ['available', 'holding'],
+    default: 'available',
+  })
+  fromBalanceType?: string; // Lấy tiền từ loại số dư nào
 
   @Prop()
-  referenceId: string;
+  description?: string;
 
-  @Prop()
-  referenceType: string;
-
-  @Prop()
-  description: string;
-
-  @Prop({ required: true, enum: ['pending', 'completed', 'failed'] })
+  @Prop({
+    required: true,
+    enum: ['processing', 'completed', 'failed'],
+    default: 'processing',
+  })
   status: string;
 }
 
