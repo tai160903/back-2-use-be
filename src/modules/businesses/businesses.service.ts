@@ -822,6 +822,32 @@ export class BusinessesService {
     }
   }
 
+  async getBusinessDetail(businessId: string): Promise<APIResponseDto> {
+    try {
+      if (!Types.ObjectId.isValid(businessId)) {
+        throw new HttpException('Invalid business ID', HttpStatus.BAD_REQUEST);
+      }
+
+      const business = await this.businessesModel.findById(businessId);
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business detail fetched successfully',
+        data: {
+          business,
+        },
+      };
+    } catch (error) {
+      const message =
+        (error as Error)?.message || 'Error fetching business detail';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
   async getAllBusinesses(
     query: GetAllBusinessesDto,
   ): Promise<APIPaginatedResponseDto<Businesses[]>> {

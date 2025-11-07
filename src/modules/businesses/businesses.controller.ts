@@ -85,6 +85,17 @@ export class BusinessesController {
     );
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get business detail by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'Business ID',
+    example: '64f0c2e5b4d1c2a5e6f7g8h9',
+  })
+  async getBusinessDetail(@Param('id') id: string) {
+    return this.businessesService.getBusinessDetail(id);
+  }
+
   @Post('form')
   @ApiOperation({ summary: 'Register Business' })
   @ApiBearerAuth('access-token')
