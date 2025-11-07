@@ -178,7 +178,7 @@ export class BusinessesService {
       );
 
       const businessFormData = {
-        customerId: customer._id,
+        customerId: new Types.ObjectId(customer._id),
         ...dto,
         status: 'pending',
         businessLogoUrl: String(logoRes.secure_url),

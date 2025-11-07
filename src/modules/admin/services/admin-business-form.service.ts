@@ -20,6 +20,7 @@ import { Wallets } from 'src/modules/wallets/schemas/wallets.schema';
 import { WalletTransactions } from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 import { Customers } from 'src/modules/users/schemas/customer.schema';
+import { TransactionType } from 'src/common/constants/transaction-type.enum';
 
 @Injectable()
 export class AdminBusinessFormService {
@@ -67,6 +68,8 @@ export class AdminBusinessFormService {
         );
       }
 
+      // console.log('Admin - customer', customer);
+
       const user = await this.userModel.findById(customer.userId);
       if (!user) {
         throw new HttpException(
@@ -74,6 +77,8 @@ export class AdminBusinessFormService {
           HttpStatus.NOT_FOUND,
         );
       }
+
+      // console.log('Admin - user', user);
 
       if (user.role !== RolesEnum.CUSTOMER) {
         throw new HttpException(
@@ -182,7 +187,7 @@ export class AdminBusinessFormService {
             walletId: customerWallet._id,
             relatedUserId: user._id,
             relatedUserType: 'customer',
-            transactionType: 'withdrawal',
+            transactionType: TransactionType.WITHDRAWAL,
             amount: transferAmount,
             direction: 'out',
             referenceId: String(business._id),
@@ -195,7 +200,7 @@ export class AdminBusinessFormService {
             walletId: existingBusinessWallet._id,
             relatedUserId: user._id,
             relatedUserType: 'business',
-            transactionType: 'topup',
+            transactionType: TransactionType.TOP_UP,
             amount: transferAmount,
             fromBalanceType: 'available',
             direction: 'in',
