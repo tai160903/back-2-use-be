@@ -721,7 +721,7 @@ export class BusinessesService {
         this.businessSubscriptionModel
           .findOne({
             businessId: business._id,
-            isActive: true,
+            status: 'active',
             endDate: { $gte: new Date() },
           })
           .populate('subscriptionId')
