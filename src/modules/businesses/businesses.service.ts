@@ -441,12 +441,15 @@ export class BusinessesService {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + subscription.durationInDays);
 
+      console.log(startDate);
+      console.log(startDate <= now);
+
       const businessSub = new this.businessSubscriptionModel({
         businessId: business._id,
         subscriptionId: subscription._id,
         startDate,
         endDate,
-        status: startDate <= now ? 'active' : 'pending',
+        status: startDate <= now ? 'pending' : 'active',
         isTrialUsed: false,
         autoRenew: autoRenew,
       });
@@ -458,10 +461,8 @@ export class BusinessesService {
           HttpStatus.BAD_REQUEST,
         );
 
-      await Promise.all([
-        wallet.save({ session }),
-        businessSub.save({ session }),
-      ]);
+      await wallet.save({ session });
+      await businessSub.save({ session });
 
       const transaction = new this.walletTransactionsModel({
         walletId: wallet._id,
@@ -530,7 +531,9 @@ export class BusinessesService {
         data: businessSub,
       };
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       throw new HttpException(
         (error as Error).message || 'Failed to buy subscription',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -696,7 +699,9 @@ export class BusinessesService {
         data: businessSub,
       };
     } catch (error) {
-      await session.abortTransaction();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       throw new HttpException(
         (error as Error).message || 'Failed to cancel subscription',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -710,8 +715,8 @@ export class BusinessesService {
     try {
       const business = await this.businessesModel
         .findOne({ userId: new Types.ObjectId(userId) })
-        .populate('userId', 'username email phone')
-        .populate('businessFormId');
+        .populate('userId', 'username email phone');
+      // .populate('businessFormId');
 
       if (!business) {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
@@ -719,9 +724,9 @@ export class BusinessesService {
 
       const [activeSubscription, wallet] = await Promise.all([
         this.businessSubscriptionModel
-          .findOne({
-            businessId: business._id,
-            status: 'active',
+          .find({
+            businessId: new Types.ObjectId(business._id),
+            status: ['active', 'pending'],
             endDate: { $gte: new Date() },
           })
           .populate('subscriptionId')
@@ -731,7 +736,6 @@ export class BusinessesService {
           type: 'business',
         }),
       ]);
-
       if (!wallet) {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
@@ -1381,7 +1385,9 @@ export class BusinessesService {
             }
           }
         } catch (err) {
-          await session.abortTransaction();
+          if (session.inTransaction()) {
+            await session.abortTransaction();
+          }
           throw err;
         } finally {
           await session.endSession();
