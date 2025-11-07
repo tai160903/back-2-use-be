@@ -12,6 +12,7 @@ import {
 } from './dto/get-wallet-transactions-query.dto';
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
+import { TransactionType } from 'src/common/constants/transaction-type.enum';
 
 @Injectable()
 export class WalletTransactionsService {
@@ -46,14 +47,20 @@ export class WalletTransactionsService {
     switch (typeGroup) {
       case TransactionFilterGroup.PERSONAL:
         filter.transactionType = {
-          $in: ['top_up', 'withdraw', 'subscription_fee'],
+          $in: [
+            TransactionType.TOP_UP,
+            TransactionType.WITHDRAWAL,
+            TransactionType.SUBSCRIPTION_FEE,
+          ],
         };
         break;
       case TransactionFilterGroup.DEPOSIT_REFUND:
-        filter.transactionType = { $in: ['borrow_deposit', 'return_refund'] };
+        filter.transactionType = {
+          $in: [TransactionType.BORROW_DEPOSIT, TransactionType.RETURN_REFUND],
+        };
         break;
       case TransactionFilterGroup.PENALTY:
-        filter.transactionType = 'penalty';
+        filter.transactionType = TransactionType.PENALTY;
         break;
     }
 

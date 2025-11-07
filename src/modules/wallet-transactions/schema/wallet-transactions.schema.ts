@@ -1,52 +1,46 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { TransactionType } from 'src/common/constants/transaction-type.enum';
 
 export type WalletTransactionsDocument = HydratedDocument<WalletTransactions>;
 
 @Schema({ timestamps: true })
 export class WalletTransactions {
   @Prop({ type: Types.ObjectId, required: true, ref: 'Wallets' })
-  walletId: Types.ObjectId; // Ví thực hiện giao dịch
+  walletId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, required: true, ref: 'Users' })
-  relatedUserId: Types.ObjectId; // Chủ sở hữu ví (customer / business)
+  relatedUserId: Types.ObjectId;
 
   @Prop({ enum: ['customer', 'business'], required: true })
-  relatedUserType: string; // Phân biệt loại user của ví
+  relatedUserType: string;
 
   @Prop({
     required: true,
-    enum: [
-      'top_up', // Nạp tiền vào ví
-      'withdrawal', // Rút tiền ra
-      'borrow_deposit', // Đặt cọc khi mượn
-      'return_refund', // Hoàn cọc khi trả
-      'subscription_fee', // Trừ phí gói dịch vụ
-      'penalty', // Phạt (mất, trễ, hư, ...)
-    ],
+    enum: Object.values(TransactionType),
   })
-  transactionType: string;
+  transactionType: TransactionType;
 
   @Prop({ required: true })
   amount: number;
 
   @Prop({ required: true, enum: ['in', 'out'] })
-  direction: string; // Hướng dòng tiền (vào ví / ra khỏi ví)
+  direction: string;
 
   @Prop({ type: Types.ObjectId })
-  referenceId?: Types.ObjectId; // ID tham chiếu (BorrowTransaction, Subscription, ...)
+  referenceId?: Types.ObjectId;
 
   @Prop({
     enum: ['borrow', 'subscription', 'system', 'manual'],
     default: 'manual',
   })
-  referenceType?: string; // Loại đối tượng tham chiếu
+  referenceType?: string;
 
   @Prop({
     enum: ['available', 'holding'],
     default: 'available',
   })
-  fromBalanceType?: string; // Lấy tiền từ loại số dư nào
+  fromBalanceType?: string;
 
   @Prop()
   description?: string;
