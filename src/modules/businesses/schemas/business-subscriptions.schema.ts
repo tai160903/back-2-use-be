@@ -18,8 +18,11 @@ export class BusinessSubscriptions {
   @Prop()
   endDate: Date;
 
-  @Prop({ required: true, default: false })
-  isActive: boolean;
+  @Prop({
+    enum: ['pending', 'active', 'expired', 'canceled', 'failed_renew'],
+    default: 'pending',
+  })
+  status: string;
 
   @Prop({ required: true, default: false })
   isTrialUsed: boolean;
