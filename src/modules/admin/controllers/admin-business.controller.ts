@@ -41,7 +41,7 @@ export class AdminBusinessController {
     return this.businessService.getAllBusinesses(query);
   }
 
-  // GET admin/business
+  // GET admin/business/:id
   @Get(':id')
   @ApiParam({ name: 'id', description: 'Business ID' })
   async getBusinessById(

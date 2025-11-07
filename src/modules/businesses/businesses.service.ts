@@ -201,6 +201,8 @@ export class BusinessesService {
   }
 
   async getFormDetail(id: string): Promise<APIResponseDto> {
+    console.log('bnsId', id);
+
     try {
       const form = await this.businessesModel.findOne({
         businessFormId: new Types.ObjectId(id),
