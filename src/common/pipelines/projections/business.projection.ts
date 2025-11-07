@@ -11,7 +11,7 @@ export const BusinessProjectionStage = {
     openTime: 1,
     closeTime: 1,
     distance: 1,
-    // username: '$user.username',
+    // ecoPoints: 1,
     role: '$user.role',
     isActive: '$user.isActive',
     isBlocked: '$user.isBlocked',

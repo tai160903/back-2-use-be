@@ -17,7 +17,7 @@ export class WalletTransactions {
   @Prop({
     required: true,
     enum: [
-      'topup', // Nạp tiền vào ví
+      'top_up', // Nạp tiền vào ví
       'withdrawal', // Rút tiền ra
       'borrow_deposit', // Đặt cọc khi mượn
       'return_refund', // Hoàn cọc khi trả
