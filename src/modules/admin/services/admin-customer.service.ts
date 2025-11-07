@@ -132,9 +132,11 @@ export class AdminCustomerService {
       throw new BadRequestException(`Invalid User ID '${id}'`);
     }
 
-    const user = await this.userModel
-      .findOne({ _id: id, role: RolesEnum.CUSTOMER })
-      .select(this.projection);
+    const user = await this.userModel.findOne({
+      _id: id,
+      role: RolesEnum.CUSTOMER,
+    });
+    // .select(this.projection);
 
     const customer = await this.customerModel.findOne({
       userId: new Types.ObjectId(id),

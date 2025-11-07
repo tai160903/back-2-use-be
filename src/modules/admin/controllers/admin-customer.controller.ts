@@ -48,7 +48,7 @@ export class AdminCustomerController {
 
   // PATCH admin/customers/:id/block-status
   @Patch(':id/block-status')
-  @ApiParam({ name: 'id', description: 'Customer ID' })
+  @ApiParam({ name: 'id', description: 'User ID' })
   async updateBlockStatus(
     @Req() req,
     @Param('id') id: string,
