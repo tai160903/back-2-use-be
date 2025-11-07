@@ -8,6 +8,7 @@ import { Wallets, WalletsDocument } from './schemas/wallets.schema';
 import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { Request } from 'express';
 import { WalletTransactions } from '../wallet-transactions/schema/wallet-transactions.schema';
+import { TransactionType } from 'src/common/constants/transaction-type.enum';
 
 @Injectable()
 export class WalletsService {
@@ -166,7 +167,7 @@ export class WalletsService {
         relatedUserId: new Types.ObjectId(performingUserId as string),
         relatedUserType: wallet.type,
         amount,
-        transactionType: 'top_up',
+        transactionType: TransactionType.TOP_UP,
         direction: 'in',
         status: 'processing',
         referenceType: 'manual',
@@ -230,7 +231,7 @@ export class WalletsService {
         relatedUserId: new Types.ObjectId(userId),
         relatedUserType: wallet.type,
         amount,
-        transactionType: 'withdraw',
+        transactionType: TransactionType.WITHDRAWAL,
         direction: 'out',
         status: 'completed',
         referenceType: 'manual',
