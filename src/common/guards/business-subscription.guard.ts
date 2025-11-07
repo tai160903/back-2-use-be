@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { Businesses } from '../../modules/businesses/schemas/businesses.schema';
@@ -49,8 +49,12 @@ export class BusinessSubscriptionGuard implements CanActivate {
       throw new ForbiddenException('Unauthorized');
     }
 
+    console.log(user);
+
     // Find business by user
-    const business = await this.businessModel.findOne({ userId: user._id });
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(user._id),
+    });
     if (!business) {
       throw new ForbiddenException('No business found for this account');
     }
