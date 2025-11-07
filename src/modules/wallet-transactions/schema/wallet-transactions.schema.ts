@@ -18,7 +18,7 @@ export class WalletTransactions {
     required: true,
     enum: [
       'top_up', // Nạp tiền vào ví
-      'withdraw', // Rút tiền ra
+      'withdrawal', // Rút tiền ra
       'borrow_deposit', // Đặt cọc khi mượn
       'return_refund', // Hoàn cọc khi trả
       'subscription_fee', // Trừ phí gói dịch vụ
