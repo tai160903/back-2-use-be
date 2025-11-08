@@ -6,6 +6,7 @@ import { Users } from '../users/schemas/users.schema';
 import { Model, Types } from 'mongoose';
 import { Businesses } from '../businesses/schemas/businesses.schema';
 import { Product } from './schemas/product.schema';
+import { ProductSize } from '../product-sizes/schemas/product-size.schema';
 import * as QRCode from 'qrcode';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -18,6 +19,7 @@ export class ProductsService {
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
     @InjectModel(ProductGroup.name)
     private productGroupModel: Model<ProductGroup>,
+    @InjectModel(ProductSize.name) private productSizeModel: Model<ProductSize>,
     @InjectModel(Product.name) private productModel: Model<Product>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
