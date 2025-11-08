@@ -7,6 +7,7 @@ import { Users } from '../users/schemas/users.schema';
 import { Businesses } from '../businesses/schemas/businesses.schema';
 import { ProductGroup } from '../product-groups/schemas/product-group.schema';
 import { Material } from '../materials/schemas/material.schema';
+import { UpdateProductSizeDto } from './dto/update-product-size.dto';
 
 @Injectable()
 export class ProductSizesService {
@@ -92,34 +93,204 @@ export class ProductSizesService {
         data: newProductSize,
       };
     } catch (error) {
-      // Giữ nguyên các HttpException đã ném trước đó
-      if (error instanceof HttpException) {
-        throw error;
+      throw new HttpException(
+        (error as Error).message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getProductSizes(
+    userId: string,
+    productGroupId: string,
+    page: number = 1,
+    limit: number = 10,
+  ) {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
-      // Bị lỗi duplicate key từ Mongo (code 11000) do unique index / race condition
-      let isDuplicateKey = false;
-      if (typeof error === 'object' && error !== null) {
-        const errObj = error as { code?: number; message?: string };
-        if (errObj.code === 11000) {
-          isDuplicateKey = true;
-        } else if (
-          typeof errObj.message === 'string' &&
-          errObj.message.includes('duplicate key')
-        ) {
-          isDuplicateKey = true;
-        }
+      const business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
       }
 
-      if (isDuplicateKey) {
-        // Map lỗi duplicate trong DB thành 400 cho thống nhất với logic kiểm tra thủ công
+      if (!Types.ObjectId.isValid(productGroupId)) {
         throw new HttpException(
-          'Product size already exists',
+          'Invalid productGroupId',
           HttpStatus.BAD_REQUEST,
         );
       }
 
-      // Các lỗi khác: 500
+      const productGroup = await this.productGroupModel.findById(
+        new Types.ObjectId(productGroupId),
+      );
+      if (!productGroup) {
+        throw new HttpException(
+          'Product group not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const query: Record<string, unknown> = {
+        businessId: business._id,
+        productGroupId: productGroup._id,
+      };
+
+      const skip = (page - 1) * limit;
+      const [sizes, total] = await Promise.all([
+        this.productSizeModel
+          .find(query)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        this.productSizeModel.countDocuments(query),
+      ]);
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Product sizes fetched successfully',
+        data: sizes,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getProductSizeDetail(userId: string, sizeId: string) {
+    try {
+      if (!Types.ObjectId.isValid(sizeId)) {
+        throw new HttpException('Invalid sizeId', HttpStatus.BAD_REQUEST);
+      }
+
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      const business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const size = await this.productSizeModel.findById(sizeId);
+      if (!size) {
+        throw new HttpException('Product size not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (size.businessId.toString() !== business._id.toString()) {
+        throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Product size detail fetched successfully',
+        data: size,
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Internal Server Error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async updateProductSize(
+    userId: string,
+    sizeId: string,
+    updateDto: UpdateProductSizeDto,
+  ) {
+    try {
+      const user = await this.userModel.findById(userId);
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      const business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const size = await this.productSizeModel.findById(sizeId);
+      if (!size) {
+        throw new HttpException('Product size not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (updateDto.sizeName && updateDto.sizeName.trim()) {
+        const trimmed = updateDto.sizeName.trim();
+        const lower = trimmed.toLowerCase();
+        const display = lower.charAt(0).toUpperCase() + lower.slice(1);
+        updateDto.sizeName = display;
+
+        const existing = await this.productSizeModel.findOne({
+          _id: { $ne: new Types.ObjectId(sizeId) },
+          businessId: business._id,
+          productGroupId: size.productGroupId,
+          sizeName: { $regex: `^${display}$`, $options: 'i' },
+        });
+        if (existing) {
+          throw new HttpException(
+            'Product size already exists',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      const productGroup = await this.productGroupModel.findById(
+        size.productGroupId,
+      );
+      if (!productGroup) {
+        throw new HttpException(
+          'Product group not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      const material = await this.materialModel.findOne({
+        _id: new Types.ObjectId(productGroup.materialId),
+        isActive: true,
+      });
+
+      if (!material) {
+        throw new HttpException('Material not found', HttpStatus.NOT_FOUND);
+      }
+
+      let newDeposit: number | undefined = undefined;
+      if (typeof updateDto.basePrice === 'number') {
+        newDeposit = updateDto.basePrice * material.depositPercent * 0.01;
+      }
+
+      const updated = await this.productSizeModel.findByIdAndUpdate(
+        sizeId,
+        {
+          $set: {
+            ...updateDto,
+            ...(newDeposit !== undefined ? { depositValue: newDeposit } : {}),
+          },
+        },
+        { new: true },
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Product size updated successfully',
+        data: updated,
+      };
+    } catch (error) {
       throw new HttpException(
         (error as Error).message || 'Internal Server Error',
         HttpStatus.INTERNAL_SERVER_ERROR,

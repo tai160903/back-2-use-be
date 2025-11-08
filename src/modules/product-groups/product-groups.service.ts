@@ -37,6 +37,7 @@ export class ProductGroupsService {
 
     const productGroups = await this.productGroupModel
       .find({ businessId: business._id, isDeleted: false })
+      .populate('materialId')
       .sort({ createdAt: -1 })
       .limit(limit)
       .skip((page - 1) * limit)
@@ -110,6 +111,7 @@ export class ProductGroupsService {
 
       const createdProductGroup = await this.productGroupModel.create({
         ...createProductGroupDto,
+        materialId: new Types.ObjectId(createProductGroupDto.materialId),
         businessId: business._id,
         imageUrl,
       });

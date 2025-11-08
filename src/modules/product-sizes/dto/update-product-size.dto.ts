@@ -1,4 +1,8 @@
-import { PartialType } from '@nestjs/swagger';
+/* eslint-disable linebreak-style */
+import { OmitType, PartialType } from '@nestjs/swagger';
 import { CreateProductSizeDto } from './create-product-size.dto';
 
-export class UpdateProductSizeDto extends PartialType(CreateProductSizeDto) {}
+// Disallow productGroupId from being updated
+export class UpdateProductSizeDto extends PartialType(
+  OmitType(CreateProductSizeDto, ['productGroupId'] as const),
+) {}

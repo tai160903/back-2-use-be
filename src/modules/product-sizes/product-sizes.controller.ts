@@ -1,10 +1,28 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  Query,
+  Param,
+  Patch,
+} from '@nestjs/common';
 import { ProductSizesService } from './product-sizes.service';
 import { CreateProductSizeDto } from './dto/create-product-size.dto';
+import { UpdateProductSizeDto } from './dto/update-product-size.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscription.guard';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiBody } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiQuery,
+  ApiParam,
+} from '@nestjs/swagger';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 
 @ApiTags('Product Sizes')
@@ -56,6 +74,79 @@ export class ProductSizesController {
     return this.productSizesService.createProductSize(
       createProductSizeDto,
       req.user._id,
+    );
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get product sizes of a group' })
+  @ApiQuery({
+    name: 'productGroupId',
+    required: true,
+    description: 'Product Group ID',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles(['business']),
+    BusinessSubscriptionGuard,
+  )
+  getAll(
+    @Query('productGroupId') productGroupId: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const p = Number(page) || 1;
+    const l = Number(limit) || 10;
+    return this.productSizesService.getProductSizes(
+      req.user._id,
+      productGroupId,
+      p,
+      l,
+    );
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get product size detail' })
+  @ApiParam({ name: 'id', description: 'Product Size ID' })
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles(['business']),
+    BusinessSubscriptionGuard,
+  )
+  getDetail(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
+    return this.productSizesService.getProductSizeDetail(req.user._id, id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update product size' })
+  @ApiParam({ name: 'id', description: 'Product Size ID' })
+  @ApiBody({
+    description: 'Fields to update (partial allowed)',
+    schema: {
+      type: 'object',
+      properties: {
+        sizeName: { type: 'string', example: 'Large' },
+        basePrice: { type: 'number', example: 60000 },
+        description: { type: 'string', example: '750ml bottle' },
+      },
+    },
+  })
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles(['business']),
+    BusinessSubscriptionGuard,
+  )
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateProductSizeDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.productSizesService.updateProductSize(
+      req.user._id,
+      id,
+      updateDto,
     );
   }
 }
