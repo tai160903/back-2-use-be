@@ -25,4 +25,27 @@ export class CloudinaryService {
       streamifier.createReadStream(file.buffer).pipe(uploadStream);
     });
   }
+
+  uploadQRCode(
+    buffer: Buffer,
+    serialNumber: string,
+  ): Promise<CloudinaryResponse> {
+    return new Promise<CloudinaryResponse>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'qrcodes',
+          public_id: serialNumber,
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          if (!result)
+            return reject(new Error('No result returned from Cloudinary'));
+          resolve(result);
+        },
+      );
+
+      streamifier.createReadStream(buffer).pipe(uploadStream);
+    });
+  }
 }

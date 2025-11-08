@@ -32,6 +32,8 @@ import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
 import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscription.guard';
 import { GeocodingModule } from 'src/infrastructure/geocoding/geocoding.module';
 
+import { Product, ProductSchema } from '../products/schemas/product.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -47,6 +49,7 @@ import { GeocodingModule } from 'src/infrastructure/geocoding/geocoding.module';
       { name: Users.name, schema: UsersSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Wallets.name, schema: WalletsSchema },
+      { name: Product.name, schema: ProductSchema },
     ]),
     CloudinaryModule,
     MailerModule,
