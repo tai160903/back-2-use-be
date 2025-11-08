@@ -49,9 +49,6 @@ export class BusinessSubscriptionGuard implements CanActivate {
       throw new ForbiddenException('Unauthorized');
     }
 
-    console.log(user);
-
-    // Find business by user
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(user._id),
     });
@@ -59,11 +56,10 @@ export class BusinessSubscriptionGuard implements CanActivate {
       throw new ForbiddenException('No business found for this account');
     }
 
-    // Check any active (and not expired) subscription
     const now = new Date();
     const hasActive = await this.businessSubscriptionModel.exists({
-      businessId: business._id,
-      isActive: true,
+      businessId: new Types.ObjectId(business._id),
+      status: 'active',
       $and: [
         { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
         { $or: [{ endDate: null }, { endDate: { $gte: now } }] },
