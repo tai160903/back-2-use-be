@@ -68,8 +68,6 @@ export class AdminBusinessFormService {
         );
       }
 
-      // console.log('Admin - customer', customer);
-
       const user = await this.userModel.findById(customer.userId);
       if (!user) {
         throw new HttpException(
@@ -77,8 +75,6 @@ export class AdminBusinessFormService {
           HttpStatus.NOT_FOUND,
         );
       }
-
-      // console.log('Admin - user', user);
 
       if (user.role !== RolesEnum.CUSTOMER) {
         throw new HttpException(
@@ -94,7 +90,7 @@ export class AdminBusinessFormService {
       if (hasPending) {
         throw new HttpException(
           'User has pending wallet transactions. Please try approval later.',
-          HttpStatus.CONFLICT,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -169,7 +165,7 @@ export class AdminBusinessFormService {
       if (customerWallet && customerWallet.holdingBalance > 0) {
         throw new HttpException(
           'Customer wallet has funds on hold. Complete or cancel active operations before approval.',
-          HttpStatus.CONFLICT,
+          HttpStatus.BAD_REQUEST,
         );
       }
 

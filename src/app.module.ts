@@ -17,12 +17,13 @@ import { AdminModule } from './modules/admin/admin.module';
 import vnpayConfig from './config/vnpay.config';
 import { MailerModule } from './infrastructure/mailer/mailer.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
-import { WalletTransactions } from './modules/wallet-transactions/schema/wallet-transactions.schema';
 import { WalletTransactionsModule } from './modules/wallet-transactions/wallet-transactions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { VouchersModule } from './modules/vouchers/vouchers.module';
 import { ProductsModule } from './modules/products/products.module';
+import { ProductGroupsModule } from './modules/product-groups/product-groups.module';
+import { ProductSizesModule } from './modules/product-sizes/product-sizes.module';
 
 @Module({
   imports: [
@@ -46,6 +47,8 @@ import { ProductsModule } from './modules/products/products.module';
     NotificationsModule,
     VouchersModule,
     ProductsModule,
+    ProductGroupsModule,
+    ProductSizesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -100,15 +100,11 @@ export class AuthService {
         otpExpires,
       });
 
-      console.log('createdUser', createdUser);
-
       await createdUser.save();
 
       const customer = new this.customersModel({
         userId: createdUser._id,
       });
-
-      console.log('customer', customer);
 
       await customer.save();
 
