@@ -1,15 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type ProductDocument = HydratedDocument<Product>;
 
 @Schema({ timestamps: true })
 export class Product {
-  @Prop({ ref: 'ProductGroup', required: true })
-  productGroupId: string;
+  @Prop({ ref: 'Businesses', type: Types.ObjectId, required: true })
+  businessId: Types.ObjectId;
 
-  @Prop({ ref: 'ProductSize', required: true })
-  productSizeId: string;
+  @Prop({ ref: 'ProductGroup', type: Types.ObjectId, required: true })
+  productGroupId: Types.ObjectId;
+
+  @Prop({ ref: 'ProductSize', type: Types.ObjectId, required: true })
+  productSizeId: Types.ObjectId;
 
   @Prop({ required: true, trim: true })
   qrCode: string;
@@ -17,10 +20,13 @@ export class Product {
   @Prop({ required: true, trim: true })
   serialNumber: string;
 
-  @Prop({ required: true, enum: ['available', 'non-available'] })
+  @Prop({
+    enum: ['available', 'non-available'],
+    default: 'available',
+  })
   status: string;
 
-  @Prop()
+  @Prop({ default: 0 })
   reuseCount: number;
 
   @Prop()
@@ -28,6 +34,9 @@ export class Product {
 
   @Prop()
   lastConditionImage: string;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

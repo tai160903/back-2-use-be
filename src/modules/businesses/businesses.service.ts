@@ -34,6 +34,8 @@ import { Customers } from '../users/schemas/customer.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 import * as moment from 'moment-timezone';
 
+import { Product } from '../products/schemas/product.schema';
+
 @Injectable()
 export class BusinessesService {
   private readonly logger = new Logger(BusinessesService.name);
@@ -51,6 +53,7 @@ export class BusinessesService {
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
+    @InjectModel(Product.name) private productModel: Model<Product>,
     @InjectConnection() private readonly connection: Connection,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailerService: MailerService,
@@ -840,11 +843,21 @@ export class BusinessesService {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
       }
 
+      const products = await this.productModel
+        .find({
+          businessId: business._id,
+          status: 'available',
+          isDeleted: false,
+        })
+        .populate('productSizeId', 'name description')
+        .populate('productGroupId', 'name description image');
+
       return {
         statusCode: HttpStatus.OK,
         message: 'Business detail fetched successfully',
         data: {
           business,
+          products,
         },
       };
     } catch (error) {
