@@ -19,6 +19,12 @@ export class ProductSize {
 
   @Prop({ type: Number, required: true })
   depositValue: number;
+
+  @Prop()
+  description: string;
+
+  @Prop({ type: Boolean, default: false })
+  isDeleted: boolean;
 }
 
 export const ProductSizeSchema = SchemaFactory.createForClass(ProductSize);

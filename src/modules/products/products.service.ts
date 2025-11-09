@@ -146,8 +146,8 @@ export class ProductsService {
       const [products, total] = await Promise.all([
         this.productModel
           .find(filter)
-          .populate('productGroupId', 'name description')
-          .populate('productSizeId', 'name')
+          .populate('productGroupId')
+          .populate('productSizeId')
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 }),
