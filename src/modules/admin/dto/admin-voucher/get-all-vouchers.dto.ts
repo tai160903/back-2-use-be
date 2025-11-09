@@ -1,12 +1,21 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsNumber, Min, IsEnum, IsInt } from 'class-validator';
+import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
+import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
 export class GetAllVouchersQueryDto {
   @ApiPropertyOptional({
+    enum: VoucherType,
+    description: 'Filter by voucher type (system, business, leaderboard)',
+  })
+  @IsOptional()
+  @IsEnum(VoucherType)
+  voucherType?: VoucherType;
+
+  @ApiPropertyOptional({
     enum: VouchersStatus,
-    description: 'Filter by status',
+    description: 'Filter by voucher status',
   })
   @IsOptional()
   @IsEnum(VouchersStatus)
@@ -20,7 +29,7 @@ export class GetAllVouchersQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?: number = 1;
+  page: number = 1;
 
   @ApiPropertyOptional({
     example: 10,
@@ -30,5 +39,5 @@ export class GetAllVouchersQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  limit?: number = 10;
+  limit: number = 10;
 }

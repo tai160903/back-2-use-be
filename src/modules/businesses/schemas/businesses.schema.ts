@@ -69,6 +69,9 @@ export class Businesses {
 
   @Prop({ default: 0 })
   ecoPoints: number;
+
+  @Prop({ trim: true })
+  ecoRankLabel?: string; 
 }
 
 export const BusinessesSchema = SchemaFactory.createForClass(Businesses);

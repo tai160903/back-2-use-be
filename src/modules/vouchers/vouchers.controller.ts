@@ -25,21 +25,21 @@ import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.
 export class VouchersController {
   constructor(private readonly voucherService: VouchersService) {}
 
-  @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.CUSTOMER]))
-  @Post('customer/redeem')
-  async redeemVoucher(
-    @Body() redeemVoucherDto: RedeemVoucherDto,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<APIResponseDto<VoucherCodes>> {
-    const userId = req.user?._id;
-    return this.voucherService.redeemVoucher(userId, redeemVoucherDto);
-  }
+  // @ApiBearerAuth('access-token')
+  // @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.CUSTOMER]))
+  // @Post('customer/redeem')
+  // async redeemVoucher(
+  //   @Body() redeemVoucherDto: RedeemVoucherDto,
+  //   @Req() req: AuthenticatedRequest,
+  // ): Promise<APIResponseDto<VoucherCodes>> {
+  //   const userId = req.user?._id;
+  //   return this.voucherService.redeemVoucher(userId, redeemVoucherDto);
+  // }
 
-  @Get('active')
-  async getAllActiveVouchers(
-    @Query() query: GetAllActiveVouchersQueryDto,
-  ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-    return this.voucherService.getAllActiveVouchers(query);
-  }
+  // @Get('active')
+  // async getAllActiveVouchers(
+  //   @Query() query: GetAllActiveVouchersQueryDto,
+  // ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
+  //   return this.voucherService.getAllActiveVouchers(query);
+  // }
 }
