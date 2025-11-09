@@ -52,6 +52,12 @@ import {
   WalletTransactions,
   WalletTransactionsSchema,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
+import {
+  EcoRewardPolicy,
+  EcoRewardPolicySchema,
+} from '../eco-reward-policies/schemas/eco-reward-policy.schema';
+import { AdminEcoRewardPoliciesController } from './controllers/admin-eco-policy.controller';
+import { AdminEcoRewardPoliciesService } from './services/admin-eco-policy.service';
 
 @Module({
   imports: [
@@ -69,6 +75,7 @@ import {
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Vouchers.name, schema: VouchersSchema },
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
+      { name: EcoRewardPolicy.name, schema: EcoRewardPolicySchema },
     ]),
     BusinessesModule,
     MailerModule,
@@ -80,6 +87,7 @@ import {
     AdminCustomerController,
     AdminBusinessController,
     AdminVoucherController,
+    AdminEcoRewardPoliciesController,
   ],
   providers: [
     AdminBusinessFormService,
@@ -87,6 +95,7 @@ import {
     AdminCustomerService,
     AdminBusinessService,
     AdminVoucherService,
+    AdminEcoRewardPoliciesService,
   ],
 })
 export class AdminModule {}

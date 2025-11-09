@@ -6,49 +6,33 @@ export type VoucherCodesDocument = VoucherCodes & Document;
 
 @Schema({ timestamps: true })
 export class VoucherCodes {
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Vouchers',
-    required: true,
-  })
+  @Prop({ type: Types.ObjectId, ref: 'Vouchers', required: true, index: true })
   voucherId: Types.ObjectId;
 
-  // Mã code thực tế
-  @Prop({ required: true, unique: true, maxlength: 255 })
-  code: string;
+  @Prop({ type: Types.ObjectId, ref: 'Customers', required: true, index: true })
+  redeemedBy: Types.ObjectId;
 
-  // User đã redeem
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', default: null })
-  redeemedBy?: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Businesses' })
+  usedByBusinessId?: Types.ObjectId;
 
-  // Thời điểm redeem
-  @Prop({ type: Date, default: null })
-  redeemedAt?: Date;
+  @Prop({ required: true, unique: true })
+  fullCode: string;
 
-  // Business đã quét mã (ai xác nhận sử dụng)
-  @Prop({
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Businesses',
-    default: null,
-  })
-  usedBy?: Types.ObjectId;
-
-  // Thời điểm được sử dụng
-  @Prop({ type: Date, default: null })
-  usedAt?: Date;
-
-  // Trạng thái mã
   @Prop({
     type: String,
     enum: VoucherCodeStatus,
     default: VoucherCodeStatus.REDEEMED,
   })
   status: VoucherCodeStatus;
+
+  @Prop({ default: Date.now })
+  redeemedAt: Date;
+
+  @Prop()
+  usedAt?: Date;
+
+  @Prop()
+  expiresAt?: Date;
 }
 
 export const VoucherCodesSchema = SchemaFactory.createForClass(VoucherCodes);
-
-VoucherCodesSchema.index({ voucherId: 1 });
-VoucherCodesSchema.index({ redeemedBy: 1 });
-VoucherCodesSchema.index({ usedBy: 1 });
-VoucherCodesSchema.index({ status: 1 });
