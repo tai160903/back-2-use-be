@@ -140,7 +140,7 @@ export class ProductsController {
     return this.productsService.createProducts(createProductDto, req.user._id);
   }
 
-  @Get()
+  @Get(':productGroupId')
   @ApiOperation({
     summary: 'Get all products for business',
     description:
@@ -154,28 +154,10 @@ export class ProductsController {
     enum: ['available', 'non-available'],
   })
   @ApiQuery({
-    name: 'productGroupId',
-    required: false,
-    type: String,
-    example: '67305e0a8a2a4b228c2f1a12',
-  })
-  @ApiQuery({
     name: 'search',
     required: false,
     type: String,
     description: 'Search by serial number',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Products retrieved successfully',
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Business not found',
   })
   @UseGuards(
     AuthGuard('jwt'),
@@ -183,10 +165,15 @@ export class ProductsController {
     RoleCheckGuard.withRoles([RolesEnum.BUSINESS]),
   )
   getAllProducts(
+    @Param('productGroupId') productGroupId: string,
     @Query() query: QueryProductDto,
     @Request() req: { user: { _id: string } },
   ) {
-    return this.productsService.getAllProducts(req.user._id, query);
+    return this.productsService.getAllProducts(
+      req.user._id,
+      productGroupId,
+      query,
+    );
   }
 
   @Get('scan/:serialNumber')
@@ -335,4 +322,78 @@ export class ProductsController {
   // deleteProduct(@Param('id') id: string) {
   //   return this.productsService.softDeleteProduct(id);
   // }
+
+  @Get('customer/:productGroupId')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Get products for a specific product group',
+    description: 'Fetch paginated products for a given product group ID',
+  })
+  @ApiParam({
+    name: 'productGroupId',
+    description: 'ID of the product group',
+    example: '67305e0a8a2a4b228c2f1a12',
+  })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiResponse({
+    status: 200,
+    description: 'Products fetched successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        statusCode: { type: 'number', example: 200 },
+        message: { type: 'string', example: 'Products fetched successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            products: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  _id: { type: 'string', example: '67305e0a8a2a4b228c2f1a13' },
+                  serialNumber: {
+                    type: 'string',
+                    example: 'BOT-1731090000000-01234-0',
+                  },
+                  qrCode: {
+                    type: 'string',
+                    example: 'https://example.com/qrcode.png',
+                  },
+                  status: { type: 'string', example: 'available' },
+                  reuseCount: { type: 'number', example: 0 },
+                  createdAt: {
+                    type: 'string',
+                    example: '2025-11-08T14:28:19.000Z',
+                  },
+                  updatedAt: {
+                    type: 'string',
+                    example: '2025-11-08T14:28:19.000Z',
+                  },
+                },
+              },
+            },
+            total: { type: 'number', example: 100 },
+            currentPage: { type: 'number', example: 1 },
+            totalPages: { type: 'number', example: 10 },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'Product group not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  @UseGuards(AuthGuard('jwt'))
+  getProductsForCustomer(
+    @Param('productGroupId') productGroupId: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.productsService.getProductsForCustomer(
+      productGroupId,
+      page,
+      limit,
+    );
+  }
 }

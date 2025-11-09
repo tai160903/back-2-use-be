@@ -11,6 +11,7 @@ import * as QRCode from 'qrcode';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 
 @Injectable()
 export class ProductsService {
@@ -87,6 +88,7 @@ export class ProductsService {
           const uploadResult = await this.cloudinaryService.uploadQRCode(
             qrCodeBuffer,
             serialNumber,
+            'products/qrcodes',
           );
 
           return {
@@ -115,7 +117,11 @@ export class ProductsService {
     }
   }
 
-  async getAllProducts(userId: string, query: QueryProductDto) {
+  async getAllProducts(
+    userId: string,
+    productGroupId: string,
+    query: QueryProductDto,
+  ) {
     try {
       const business = await this.businessModel.findOne({
         userId: new Types.ObjectId(userId),
@@ -129,14 +135,13 @@ export class ProductsService {
       const limit = query.limit || 10;
       const skip = (page - 1) * limit;
 
-      const filter: any = { isDeleted: false };
+      const filter: Record<string, any> = {
+        isDeleted: false,
+        productGroupId: new Types.ObjectId(productGroupId),
+      };
 
       if (query.status) {
         filter.status = query.status;
-      }
-
-      if (query.productGroupId) {
-        filter.productGroupId = new Types.ObjectId(query.productGroupId);
       }
 
       if (query.search) {
@@ -295,6 +300,46 @@ export class ProductsService {
       }
       throw new HttpException(
         (error as Error).message || 'Failed to delete product',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getProductsForCustomer(
+    productGroupId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<APIResponseDto> {
+    try {
+      const skip = (page - 1) * limit;
+
+      const products = await this.productModel
+        .find({
+          status: 'available',
+          productGroupId: new Types.ObjectId(productGroupId),
+        })
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 });
+
+      const total = await this.productModel.countDocuments({
+        status: 'available',
+        productGroupId: new Types.ObjectId(productGroupId),
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Products fetched successfully',
+        data: {
+          products,
+          total,
+          currentPage: page,
+          totalPages: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to fetch products',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
