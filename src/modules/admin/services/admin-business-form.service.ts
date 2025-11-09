@@ -94,19 +94,6 @@ export class AdminBusinessFormService {
         );
       }
 
-      const subscriptionTrial = await this.subscriptionModel.findOne({
-        price: 0,
-        isTrial: true,
-        isActive: true,
-      });
-
-      if (!subscriptionTrial) {
-        throw new HttpException(
-          'No active trial subscription found. Please create one before approving businesses.',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
-
       const { latitude, longitude } =
         await this.geocodingService.getCoordinates(
           businessForm.businessAddress,
@@ -136,12 +123,6 @@ export class AdminBusinessFormService {
             : undefined,
       });
       await business.save();
-
-      const businessSubscription = new this.businessSubscriptionModel({
-        businessId: business._id,
-        subscriptionId: subscriptionTrial._id,
-      });
-      await businessSubscription.save();
 
       let existingBusinessWallet = await this.walletModel.findOne({
         userId: user._id,

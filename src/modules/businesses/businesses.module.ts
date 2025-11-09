@@ -33,6 +33,10 @@ import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscripti
 import { GeocodingModule } from 'src/infrastructure/geocoding/geocoding.module';
 
 import { Product, ProductSchema } from '../products/schemas/product.schema';
+import {
+  ProductGroup,
+  ProductGroupSchema,
+} from '../product-groups/schemas/product-group.schema';
 
 @Module({
   imports: [
@@ -50,6 +54,7 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Wallets.name, schema: WalletsSchema },
       { name: Product.name, schema: ProductSchema },
+      { name: ProductGroup.name, schema: ProductGroupSchema },
     ]),
     CloudinaryModule,
     MailerModule,

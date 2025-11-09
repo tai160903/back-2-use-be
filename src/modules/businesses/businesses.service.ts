@@ -35,6 +35,7 @@ import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service
 import * as moment from 'moment-timezone';
 
 import { Product } from '../products/schemas/product.schema';
+import { ProductGroup } from '../product-groups/schemas/product-group.schema';
 
 @Injectable()
 export class BusinessesService {
@@ -54,6 +55,8 @@ export class BusinessesService {
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(ProductGroup.name)
+    private productGroupModel: Model<ProductGroup>,
     @InjectConnection() private readonly connection: Connection,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailerService: MailerService,
@@ -287,17 +290,6 @@ export class BusinessesService {
     if (!business)
       throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
 
-    const hasActive = await this.businessSubscriptionModel.exists({
-      businessId: business._id,
-      status: 'active',
-      endDate: { $gt: new Date() },
-    });
-    if (hasActive)
-      throw new HttpException(
-        'You already have an active subscription',
-        HttpStatus.BAD_REQUEST,
-      );
-
     const trialSub = await this.subscriptionModel.findOne({
       isTrial: true,
       isActive: true,
@@ -309,17 +301,26 @@ export class BusinessesService {
         HttpStatus.BAD_REQUEST,
       );
 
-    const businessTrial = await this.businessSubscriptionModel.findOne({
+    let businessTrial = await this.businessSubscriptionModel.findOne({
       businessId: business._id,
       subscriptionId: trialSub._id,
-      isTrialUsed: false,
     });
 
-    if (!businessTrial)
+    if (!businessTrial) {
+      businessTrial = new this.businessSubscriptionModel({
+        businessId: business._id,
+        subscriptionId: trialSub._id,
+        isTrialUsed: false,
+      });
+      await businessTrial.save();
+    }
+
+    if (businessTrial.isTrialUsed) {
       throw new HttpException(
-        'No pending trial to activate or trial already used',
+        'Trial subscription has already been used',
         HttpStatus.BAD_REQUEST,
       );
+    }
 
     const now = new Date();
     const endDate = new Date(now);
@@ -843,21 +844,19 @@ export class BusinessesService {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
       }
 
-      const products = await this.productModel
+      const productGroups = await this.productGroupModel
         .find({
-          businessId: business._id,
-          status: 'available',
+          businessId: new Types.ObjectId(business._id),
           isDeleted: false,
         })
-        .populate('productSizeId', 'name description')
-        .populate('productGroupId', 'name description image');
+        .populate('materialId');
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Business detail fetched successfully',
         data: {
           business,
-          products,
+          productGroups,
         },
       };
     } catch (error) {
@@ -904,6 +903,47 @@ export class BusinessesService {
       currentPage: result.currentPage,
       totalPages: result.totalPages,
     };
+  }
+
+  async getSubscriptionPurchaseHistory(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<APIPaginatedResponseDto<any[]>> {
+    try {
+      const business = await this.businessesModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const businessSubscriptions = await this.businessSubscriptionModel
+        .find({ businessId: business._id })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('subscriptionId');
+
+      const total = await this.businessSubscriptionModel.countDocuments({
+        businessId: business._id,
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Subscription purchase history fetched successfully',
+        data: businessSubscriptions,
+        total,
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Error fetching subscription history',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async findNearby(

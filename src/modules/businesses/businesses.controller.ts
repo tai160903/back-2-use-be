@@ -227,6 +227,26 @@ export class BusinessesController {
     );
   }
 
+  @Get('subscriptions/history')
+  @ApiOperation({ summary: 'Get subscription purchase history' })
+  @ApiBearerAuth('access-token')
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  async getSubscriptionPurchaseHistory(
+    @Req() req: AuthenticatedRequest,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    const p = Number(page) || 1;
+    const l = Number(limit) || 10;
+    return this.businessesService.getSubscriptionPurchaseHistory(
+      req.user._id,
+      p,
+      l,
+    );
+  }
+
   @Patch('subscription/:id/auto-renew')
   @ApiOperation({ summary: 'Toggle auto-renewal for a subscription' })
   @ApiBearerAuth('access-token')
