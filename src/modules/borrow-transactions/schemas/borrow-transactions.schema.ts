@@ -38,6 +38,8 @@ export class BorrowTransaction {
     ],
   })
   status: string;
+  @Prop()
+  qrCode: string;
 }
 
 export const BorrowTransactionSchema =

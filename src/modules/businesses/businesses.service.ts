@@ -445,9 +445,6 @@ export class BusinessesService {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + subscription.durationInDays);
 
-      console.log(startDate);
-      console.log(startDate <= now);
-
       const businessSub = new this.businessSubscriptionModel({
         businessId: business._id,
         subscriptionId: subscription._id,

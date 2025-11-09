@@ -29,11 +29,12 @@ export class CloudinaryService {
   uploadQRCode(
     buffer: Buffer,
     serialNumber: string,
+    folder: string,
   ): Promise<CloudinaryResponse> {
     return new Promise<CloudinaryResponse>((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'qrcodes',
+          folder,
           public_id: serialNumber,
           resource_type: 'image',
         },
