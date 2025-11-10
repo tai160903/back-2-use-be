@@ -319,6 +319,8 @@ export class ProductsService {
           productGroupId: new Types.ObjectId(productGroupId),
         })
         .skip(skip)
+        .populate('productSizeId')
+        .populate('productGroupId')
         .limit(limit)
         .sort({ createdAt: -1 });
 
