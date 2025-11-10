@@ -34,6 +34,13 @@ export class CreateBorrowTransactionDto {
   @IsNumber()
   @Min(0)
   depositValue: number;
+
+  @ApiProperty({
+    description: 'Type of borrow transaction',
+    example: 'online or at_store',
+    enum: ['at_store', 'online'],
+  })
+  @IsNotEmpty()
   @IsEnum(['at_store', 'online'])
   type: string;
 }
