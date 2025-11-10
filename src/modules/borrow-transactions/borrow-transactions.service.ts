@@ -15,6 +15,7 @@ import {
   WalletTransactionsDocument,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { TransactionType } from 'src/common/constants/transaction-type.enum';
+import { Product } from '../products/schemas/product.schema';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -27,50 +28,184 @@ export class BorrowTransactionsService {
     @InjectModel(Wallets.name) private readonly walletsModel: Model<Wallets>,
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
+    @InjectModel(Product.name) private readonly productModel: Model<Product>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
+  // async createBorrowTransaction(
+  //   createBorrowTransactionDto: CreateBorrowTransactionDto,
+  //   userId: string,
+  // ): Promise<APIResponseDto> {
+  //   const session = await this.borrowTransactionModel.db.startSession();
+  //   session.startTransaction();
+  //   try {
+  //     const user = await this.userModel.findById(userId).session(session);
+
+  //     if (!user) {
+  //       throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
+  //     }
+
+  //     const customer = await this.customerModel
+  //       .findOne({ userId: new Types.ObjectId(userId) })
+  //       .session(session);
+
+  //     if (!customer) {
+  //       throw new HttpException('Customer not found', HttpStatus.BAD_REQUEST);
+  //     }
+
+  //     const borrowDate = new Date();
+  //     const dueDate = new Date(borrowDate);
+  //     dueDate.setDate(
+  //       borrowDate.getDate() + createBorrowTransactionDto.durationInDays,
+  //     );
+
+  //     const depositValue: number = createBorrowTransactionDto.depositValue;
+  //     const durationInDays: number = createBorrowTransactionDto.durationInDays;
+  //     if (
+  //       depositValue == null ||
+  //       durationInDays == null ||
+  //       Number.isNaN(Number(depositValue)) ||
+  //       Number.isNaN(Number(durationInDays)) ||
+  //       durationInDays <= 0
+  //     ) {
+  //       throw new HttpException(
+  //         'Invalid depositValue or durationInDays',
+  //         HttpStatus.BAD_REQUEST,
+  //       );
+  //     }
+  //     const depositAmount =
+  //       (Math.round(Number(depositValue) * 100) * Number(durationInDays)) / 100;
+
+  //     const customerWallet = await this.walletsModel
+  //       .findOne({ userId: user._id, type: 'customer' })
+  //       .session(session);
+
+  //     if (!customerWallet) {
+  //       throw new HttpException(
+  //         'Customer wallet not found',
+  //         HttpStatus.NOT_FOUND,
+  //       );
+  //     }
+
+  //     if (customerWallet.availableBalance < depositAmount) {
+  //       throw new HttpException(
+  //         'Insufficient wallet balance for deposit',
+  //         HttpStatus.BAD_REQUEST,
+  //       );
+  //     }
+
+  //     const newTransaction = await this.borrowTransactionModel.create([
+  //       {
+  //         productId: createBorrowTransactionDto.productId,
+  //         businessId: createBorrowTransactionDto.businessId,
+  //         borrowDate,
+  //         dueDate,
+  //         depositAmount,
+  //         customerId: customer._id,
+  //         status: 'borrowing',
+  //       },
+  //     ]);
+
+  //     const qrCodeData = await QRCode.toDataURL(
+  //       newTransaction[0]._id.toString(),
+  //     );
+
+  //     const uploadResult = await this.cloudinaryService.uploadQRCode(
+  //       Buffer.from(qrCodeData.split(',')[1], 'base64'),
+  //       newTransaction[0]._id.toString(),
+  //       'borrow-transactions/qrcodes',
+  //     );
+
+  //     newTransaction[0].qrCode = uploadResult.secure_url as string;
+
+  //     await this.borrowTransactionModel.updateOne(
+  //       { _id: newTransaction[0]._id },
+  //       { qrCode: uploadResult.secure_url },
+  //       { session },
+  //     );
+
+  //     customerWallet.availableBalance -= depositAmount;
+  //     customerWallet.holdingBalance += depositAmount;
+
+  //     const walletTx = new this.walletTransactionsModel({
+  //       walletId: customerWallet._id,
+  //       relatedUserId: user._id,
+  //       relatedUserType: 'customer',
+  //       amount: depositAmount,
+  //       transactionType: TransactionType.BORROW_DEPOSIT,
+  //       direction: 'out',
+  //       status: 'completed',
+  //       description: 'Deposit for borrow transaction',
+  //       referenceType: 'borrow',
+  //       referenceId: newTransaction[0]._id,
+  //       fromBalanceType: 'available',
+  //     });
+
+  //     await Promise.all([
+  //       // newTransaction[0].save({ session }),
+  //       customerWallet.save({ session }),
+  //       walletTx.save({ session }),
+  //     ]);
+
+  //     await session.commitTransaction();
+
+  //     return {
+  //       statusCode: HttpStatus.CREATED,
+  //       message: 'Borrow transaction created successfully',
+  //       data: newTransaction[0],
+  //     };
+  //   } catch (error) {
+  //     await session.abortTransaction();
+  //     throw new HttpException(
+  //       (error as Error).message || 'Failed to create borrow transaction',
+  //       HttpStatus.INTERNAL_SERVER_ERROR,
+  //     );
+  //   } finally {
+  //     await session.endSession();
+  //   }
+  // }
+
   async createBorrowTransaction(
-    createBorrowTransactionDto: CreateBorrowTransactionDto,
+    dto: CreateBorrowTransactionDto,
     userId: string,
   ): Promise<APIResponseDto> {
     const session = await this.borrowTransactionModel.db.startSession();
     session.startTransaction();
     try {
       const user = await this.userModel.findById(userId).session(session);
-
-      if (!user) {
+      if (!user)
         throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
-      }
 
       const customer = await this.customerModel
         .findOne({ userId: new Types.ObjectId(userId) })
         .session(session);
-
-      if (!customer) {
+      if (!customer)
         throw new HttpException('Customer not found', HttpStatus.BAD_REQUEST);
-      }
+
+      const product = await this.productModel
+        .findById(dto.productId)
+        .session(session);
+
+      if (!product)
+        throw new HttpException('Product not found', HttpStatus.BAD_REQUEST);
+
+      if (product.businessId?.toString() !== dto.businessId?.toString())
+        throw new HttpException(
+          'Product does not belong to the specified business',
+          HttpStatus.BAD_REQUEST,
+        );
+
+      if (product.status !== 'available')
+        throw new HttpException(
+          'Product is not available for borrowing',
+          HttpStatus.BAD_REQUEST,
+        );
 
       const borrowDate = new Date();
       const dueDate = new Date(borrowDate);
-      dueDate.setDate(
-        borrowDate.getDate() + createBorrowTransactionDto.durationInDays,
-      );
+      dueDate.setDate(borrowDate.getDate() + dto.durationInDays);
 
-      const depositValue: number = createBorrowTransactionDto.depositValue;
-      const durationInDays: number = createBorrowTransactionDto.durationInDays;
-      if (
-        depositValue == null ||
-        durationInDays == null ||
-        Number.isNaN(Number(depositValue)) ||
-        Number.isNaN(Number(durationInDays)) ||
-        durationInDays <= 0
-      ) {
-        throw new HttpException(
-          'Invalid depositValue or durationInDays',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
+      const { depositValue, durationInDays, type } = dto;
       const depositAmount =
         (Math.round(Number(depositValue) * 100) * Number(durationInDays)) / 100;
 
@@ -78,202 +213,81 @@ export class BorrowTransactionsService {
         .findOne({ userId: user._id, type: 'customer' })
         .session(session);
 
-      if (!customerWallet) {
+      if (!customerWallet)
         throw new HttpException(
           'Customer wallet not found',
           HttpStatus.NOT_FOUND,
         );
-      }
 
-      if (customerWallet.availableBalance < depositAmount) {
+      if (customerWallet.availableBalance < depositAmount)
         throw new HttpException(
-          'Insufficient wallet balance for deposit',
+          'Insufficient wallet balance',
           HttpStatus.BAD_REQUEST,
         );
-      }
 
-      const newTransaction = await this.borrowTransactionModel.create([
-        {
-          productId: createBorrowTransactionDto.productId,
-          businessId: createBorrowTransactionDto.businessId,
-          borrowDate,
-          dueDate,
-          depositAmount,
-          customerId: customer._id,
-          status: 'borrowing',
-        },
-      ]);
+      const status = type === 'online' ? 'pending_pickup' : 'borrowing';
 
-      const qrCodeData = await QRCode.toDataURL(
-        newTransaction[0]._id.toString(),
+      const [transaction] = await this.borrowTransactionModel.create(
+        [
+          {
+            productId: dto.productId,
+            businessId: dto.businessId,
+            borrowDate,
+            dueDate,
+            depositAmount,
+            customerId: customer._id,
+            status,
+          },
+        ],
+        { session },
       );
 
+      const qrCodeData = await QRCode.toDataURL(transaction._id.toString());
       const uploadResult = await this.cloudinaryService.uploadQRCode(
         Buffer.from(qrCodeData.split(',')[1], 'base64'),
-        newTransaction[0]._id.toString(),
+        transaction._id.toString(),
         'borrow-transactions/qrcodes',
       );
 
-      newTransaction[0].qrCode = uploadResult.secure_url as string;
+      transaction.qrCode = uploadResult.secure_url as string;
 
-      customerWallet.availableBalance -= depositAmount;
-      customerWallet.holdingBalance += depositAmount;
+      if (type === 'online') {
+        customerWallet.availableBalance -= depositAmount;
+        customerWallet.holdingBalance += depositAmount;
 
-      const walletTx = new this.walletTransactionsModel({
-        walletId: customerWallet._id,
-        relatedUserId: user._id,
-        relatedUserType: 'customer',
-        amount: depositAmount,
-        transactionType: TransactionType.BORROW_DEPOSIT,
-        direction: 'out',
-        status: 'completed',
-        description: 'Deposit for borrow transaction',
-        referenceType: 'borrow',
-        referenceId: newTransaction[0]._id,
-        fromBalanceType: 'available',
-      });
+        const walletTx = new this.walletTransactionsModel({
+          walletId: customerWallet._id,
+          relatedUserId: user._id,
+          relatedUserType: 'customer',
+          amount: depositAmount,
+          transactionType: TransactionType.BORROW_DEPOSIT,
+          direction: 'out',
+          status: 'completed',
+          description: 'Deposit for borrow transaction',
+          referenceType: 'borrow',
+          referenceId: transaction._id,
+          fromBalanceType: 'available',
+        });
+
+        await walletTx.save({ session });
+      }
 
       await Promise.all([
-        newTransaction[0].save({ session }),
+        transaction.save({ session }),
         customerWallet.save({ session }),
-        walletTx.save({ session }),
       ]);
 
       await session.commitTransaction();
 
       return {
         statusCode: HttpStatus.CREATED,
-        message: 'Borrow transaction created successfully',
-        data: newTransaction[0],
+        message: `Borrow transaction created successfully`,
+        data: transaction,
       };
     } catch (error) {
       await session.abortTransaction();
       throw new HttpException(
         (error as Error).message || 'Failed to create borrow transaction',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    } finally {
-      await session.endSession();
-    }
-  }
-
-  async createOnlineBorrowTransaction(
-    createBorrowTransactionDto: CreateBorrowTransactionDto,
-    userId: string,
-  ): Promise<APIResponseDto> {
-    const session = await this.borrowTransactionModel.db.startSession();
-    session.startTransaction();
-    try {
-      const user = await this.userModel.findById(userId).session(session);
-      if (!user) {
-        throw new HttpException('User not found', HttpStatus.BAD_REQUEST);
-      }
-
-      const customer = await this.customerModel
-        .findOne({ userId: new Types.ObjectId(userId) })
-        .session(session);
-      if (!customer) {
-        throw new HttpException('Customer not found', HttpStatus.BAD_REQUEST);
-      }
-
-      const customerWallet = await this.walletsModel
-        .findOne({ userId: user._id, type: 'customer' })
-        .session(session);
-      if (!customerWallet) {
-        throw new HttpException(
-          'Customer wallet not found',
-          HttpStatus.NOT_FOUND,
-        );
-      }
-
-      const borrowDate = new Date();
-      const dueDate = new Date(borrowDate);
-      dueDate.setDate(
-        borrowDate.getDate() + createBorrowTransactionDto.durationInDays,
-      );
-
-      const depositValue: number = createBorrowTransactionDto.depositValue;
-      const durationInDays: number = createBorrowTransactionDto.durationInDays;
-      if (
-        depositValue == null ||
-        durationInDays == null ||
-        Number.isNaN(Number(depositValue)) ||
-        Number.isNaN(Number(durationInDays)) ||
-        durationInDays <= 0
-      ) {
-        throw new HttpException(
-          'Invalid depositValue or durationInDays',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      const depositAmount =
-        (Math.round(Number(depositValue) * 100) * Number(durationInDays)) / 100;
-      if (customerWallet.availableBalance < depositAmount) {
-        throw new HttpException(
-          'Insufficient wallet balance for deposit',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-
-      const newTransaction = await this.borrowTransactionModel.create([
-        {
-          productId: createBorrowTransactionDto.productId,
-          businessId: createBorrowTransactionDto.businessId,
-          borrowDate,
-          dueDate,
-          depositAmount,
-          customerId: customer._id,
-          status: 'pending_pickup',
-        },
-      ]);
-
-      const qrCodeData = await QRCode.toDataURL(
-        newTransaction[0]._id.toString(),
-      );
-
-      const uploadResult = await this.cloudinaryService.uploadQRCode(
-        Buffer.from(qrCodeData.split(',')[1], 'base64'),
-        newTransaction[0]._id.toString(),
-        'borrow-transactions/qrcodes',
-      );
-
-      newTransaction[0].qrCode = uploadResult.secure_url as string;
-
-      customerWallet.availableBalance -= depositAmount;
-      customerWallet.holdingBalance += depositAmount;
-
-      const walletTx = new this.walletTransactionsModel({
-        walletId: customerWallet._id,
-        relatedUserId: user._id,
-        relatedUserType: 'customer',
-        amount: depositAmount,
-        transactionType: TransactionType.BORROW_DEPOSIT,
-        direction: 'out',
-        status: 'completed',
-        description: 'Deposit for online borrow transaction',
-        referenceType: 'borrow',
-        referenceId: newTransaction[0]._id,
-        fromBalanceType: 'available',
-      });
-
-      await Promise.all([
-        newTransaction[0].save({ session }),
-        customerWallet.save({ session }),
-        walletTx.save({ session }),
-      ]);
-
-      await session.commitTransaction();
-
-      return {
-        statusCode: HttpStatus.CREATED,
-        message: 'Online borrow transaction created successfully',
-        data: newTransaction[0],
-      };
-    } catch (error) {
-      await session.abortTransaction();
-      throw new HttpException(
-        (error as Error).message ||
-          'Failed to create online borrow transaction',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     } finally {

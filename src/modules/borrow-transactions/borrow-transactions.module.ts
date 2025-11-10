@@ -13,6 +13,7 @@ import {
   WalletTransactions,
   WalletTransactionsSchema,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
+import { Product, ProductSchema } from '../products/schemas/product.schema';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import {
       { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
       { name: Wallets.name, schema: WalletsSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
+      { name: Product.name, schema: ProductSchema },
     ]),
     UsersModule,
     CloudinaryModule,
