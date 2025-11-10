@@ -165,11 +165,14 @@ export class AdminVoucherService {
   async getAllVoucher(
     query: GetAllVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-    const { status, voucherType, page = 1, limit = 10 } = query;
+    const { status, voucherType, isDisabled, page = 1, limit = 10 } = query;
 
     const filter: Record<string, any> = {};
     if (status) filter.status = status;
     if (voucherType) filter.voucherType = voucherType;
+    if (typeof isDisabled === 'boolean') {
+      filter.isDisabled = isDisabled;
+    }
 
     const { data, total, currentPage, totalPages } =
       await paginate<VouchersDocument>(this.voucherModel, filter, page, limit);

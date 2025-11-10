@@ -26,7 +26,7 @@ export class AdminEcoRewardPoliciesService {
     private readonly policyModel: Model<EcoRewardPolicyDocument>,
   ) {}
 
-  // ✅ Admin create eco policy
+  //  Admin create eco policy
   async create(
     dto: CreateEcoRewardPolicyDto,
   ): Promise<APIResponseDto<EcoRewardPolicy>> {
@@ -56,7 +56,7 @@ export class AdminEcoRewardPoliciesService {
     };
   }
 
-  // ✅ Admin get all (with pagination + optional isActive filter)
+  //  Admin get all (with pagination + optional isActive filter)
   async getAll(
     query: GetEcoRewardPoliciesQueryDto,
   ): Promise<APIPaginatedResponseDto<EcoRewardPolicy[]>> {

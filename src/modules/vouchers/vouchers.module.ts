@@ -19,7 +19,7 @@ import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
     ]),
   ],
   controllers: [VouchersController],
-  providers: [VouchersService, VoucherCronService],
+  providers: [VouchersService],
   exports: [VouchersService],
 })
 export class VouchersModule {}
