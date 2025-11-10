@@ -48,28 +48,6 @@ export class BorrowTransactionsController {
     );
   }
 
-  @Post('online')
-  @ApiOperation({
-    summary: 'Create an online borrow transaction',
-    description:
-      'Creates a new online borrow transaction for a user with the provided details.',
-  })
-  @ApiBearerAuth('access-token')
-  @ApiBody({
-    type: CreateBorrowTransactionDto,
-    description: 'Details required to create an online borrow transaction.',
-  })
-  @UseGuards(AuthGuard('jwt'))
-  createOnline(
-    @Body() createBorrowTransactionDto: CreateBorrowTransactionDto,
-    @Request() req: { user: { _id: string } },
-  ) {
-    return this.borrowTransactionsService.createOnlineBorrowTransaction(
-      createBorrowTransactionDto,
-      req.user._id,
-    );
-  }
-
   @Patch('confirm')
   @ApiOperation({
     summary: 'Confirm a borrow transaction',

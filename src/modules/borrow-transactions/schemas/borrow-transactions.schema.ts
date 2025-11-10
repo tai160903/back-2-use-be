@@ -8,7 +8,7 @@ export class BorrowTransaction {
   @Prop({ required: true, ref: 'Customers', type: Types.ObjectId })
   customerId: Types.ObjectId;
 
-  @Prop({ required: true, ref: 'Products', type: Types.ObjectId })
+  @Prop({ required: true, ref: 'Product', type: Types.ObjectId })
   productId: Types.ObjectId;
 
   @Prop({ required: true, ref: 'Businesses', type: Types.ObjectId })

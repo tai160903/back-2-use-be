@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty, IsNumber, Min } from 'class-validator';
+import { IsEnum, IsMongoId, IsNotEmpty, IsNumber, Min } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateBorrowTransactionDto {
@@ -34,4 +34,6 @@ export class CreateBorrowTransactionDto {
   @IsNumber()
   @Min(0)
   depositValue: number;
+  @IsEnum(['at_store', 'online'])
+  type: string;
 }
