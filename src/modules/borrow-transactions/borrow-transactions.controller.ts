@@ -6,13 +6,14 @@ import {
   UseGuards,
   Get,
   Patch,
+  Param,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
-  ApiResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 import { CreateBorrowTransactionDto } from './dto/create-borrow-transaction.dto';
 import { BorrowTransactionsService } from './borrow-transactions.service';
@@ -48,17 +49,20 @@ export class BorrowTransactionsController {
     );
   }
 
-  @Patch('confirm')
+  @Patch('confirm/:id')
   @ApiOperation({
     summary: 'Confirm a borrow transaction',
     description: 'Confirms a borrow transaction by updating its status.',
   })
   @ApiBearerAuth('access-token')
+  @ApiParam({
+    name: 'id',
+    description: 'The ID of the borrow transaction to confirm.',
+    example: '6730a0f9e6b01a2e8f1c2d34',
+  })
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
-  confirm(@Body('transactionId') transactionId: string) {
-    return this.borrowTransactionsService.confirmBorrowTransaction(
-      transactionId,
-    );
+  confirm(@Param('id') id: string) {
+    return this.borrowTransactionsService.confirmBorrowTransaction(id);
   }
 
   @Get('customer-history')

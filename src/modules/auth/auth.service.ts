@@ -146,6 +146,26 @@ export class AuthService {
   }
   // Login
   async login(username: string, password: string): Promise<APIResponseDto> {
+    if (!username || !password) {
+      throw new HttpException(
+        'Username and password are required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (username.length < 6 || username.length > 20) {
+      throw new HttpException(
+        'Username must be between 6 and 20 characters',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    if (!username.match(/^(?![_.-])(?!.*[_.-]{2})[a-zA-Z0-9._-]+(?<![_.-])$/)) {
+      throw new HttpException(
+        'Use only letters, numbers, dots, hyphens, or underscores; cannot start/end with a special character or have two special characters in a row.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     username = username.toLowerCase().trim();
     password = password.trim();
 

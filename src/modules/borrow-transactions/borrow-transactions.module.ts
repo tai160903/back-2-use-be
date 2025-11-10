@@ -14,6 +14,14 @@ import {
   WalletTransactionsSchema,
 } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
+import {
+  ProductSize,
+  ProductSizeSchema,
+} from '../product-sizes/schemas/product-size.schema';
+import {
+  Businesses,
+  BusinessesSchema,
+} from '../businesses/schemas/businesses.schema';
 
 @Module({
   imports: [
@@ -22,6 +30,8 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
       { name: Wallets.name, schema: WalletsSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Product.name, schema: ProductSchema },
+      { name: ProductSize.name, schema: ProductSizeSchema },
+      { name: Businesses.name, schema: BusinessesSchema },
     ]),
     UsersModule,
     CloudinaryModule,
