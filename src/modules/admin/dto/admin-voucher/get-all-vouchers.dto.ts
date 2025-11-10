@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsOptional, IsEnum, IsInt, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsOptional, IsEnum, IsInt, Min, IsBoolean } from 'class-validator';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
@@ -20,6 +20,17 @@ export class GetAllVouchersQueryDto {
   @IsOptional()
   @IsEnum(VouchersStatus)
   status?: VouchersStatus;
+
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Filter by status true or false',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) =>
+    value === 'true' ? true : value === 'false' ? false : undefined,
+  )
+  isDisabled?: boolean;
 
   @ApiPropertyOptional({
     example: 1,

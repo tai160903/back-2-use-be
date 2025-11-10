@@ -18,21 +18,33 @@ export class BusinessVouchers {
   @Prop({ trim: true })
   customDescription?: string;
 
-  @Prop({ min: 0, max: 100 })
-  discountPercent?: number;
+  @Prop({ type: Number, min: 0, max: 100 })
+  discountPercent: number;
 
-  @Prop({ min: 0 })
-  rewardPointCost?: number;
+  @Prop({ required: true, trim: true })
+  baseCode: string;
 
-  @Prop()
-  startDate?: Date;
+  @Prop({ type: Number, min: 0 })
+  rewardPointCost: number;
 
-  @Prop()
-  endDate?: Date;
+  @Prop({ type: Number, min: 0 })
+  maxUsage?: number;
+
+  @Prop({ type: Date })
+  startDate: Date;
+
+  @Prop({ type: Date })
+  endDate: Date;
 
   @Prop({ enum: VouchersStatus, default: VouchersStatus.CLAIMED })
   status: VouchersStatus;
 
   @Prop({ default: false })
   isPublished: boolean;
+
+  @Prop({ type: Date, default: Date.now })
+  claimedAt: Date;
 }
+
+export const BusinessVouchersSchema =
+  SchemaFactory.createForClass(BusinessVouchers);

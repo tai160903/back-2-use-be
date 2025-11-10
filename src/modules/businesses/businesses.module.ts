@@ -37,6 +37,17 @@ import {
   ProductGroup,
   ProductGroupSchema,
 } from '../product-groups/schemas/product-group.schema';
+import {
+  BusinessVouchers,
+  BusinessVouchersSchema,
+} from './schemas/business-voucher.schema';
+import { BusinessVoucherController } from './controller/businesses-voucher.controller';
+import { BusinessVoucherService } from './services/businesses-voucher.service';
+import {
+  EcoRewardPolicy,
+  EcoRewardPolicySchema,
+} from '../eco-reward-policies/schemas/eco-reward-policy.schema';
+import { Vouchers, VouchersSchema } from '../vouchers/schema/vouchers.schema';
 
 @Module({
   imports: [
@@ -55,14 +66,21 @@ import {
       { name: Wallets.name, schema: WalletsSchema },
       { name: Product.name, schema: ProductSchema },
       { name: ProductGroup.name, schema: ProductGroupSchema },
+      { name: BusinessVouchers.name, schema: BusinessVouchersSchema },
+      { name: EcoRewardPolicy.name, schema: EcoRewardPolicySchema },
+      { name: Vouchers.name, schema: VouchersSchema },
     ]),
     CloudinaryModule,
     MailerModule,
     NotificationsModule,
     GeocodingModule,
   ],
-  controllers: [BusinessesController],
-  providers: [BusinessesService, BusinessSubscriptionGuard],
+  controllers: [BusinessesController, BusinessVoucherController],
+  providers: [
+    BusinessesService,
+    BusinessVoucherService,
+    BusinessSubscriptionGuard,
+  ],
   exports: [BusinessesService],
 })
 export class BusinessesModule {}
