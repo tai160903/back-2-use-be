@@ -42,6 +42,9 @@ export class BusinessVouchers {
   @Prop({ default: false })
   isPublished: boolean;
 
+  @Prop({ default: false })
+  isSetup: boolean;
+
   @Prop({ type: Date, default: Date.now })
   claimedAt: Date;
 }

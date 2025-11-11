@@ -18,7 +18,8 @@ export class GetVouchersQueryDto {
   voucherType?: VoucherTypeFilter;
 
   @ApiPropertyOptional({
-    description: 'Label tier của ecoRewardPolicy (VD: Bronze, Silver, Gold)',
+    description:
+      'Label tier của ecoRewardPolicy (VD: Bronze, Silver, Gold, Diamond) - chỉ dùng khi voucherType là business',
     example: 'Silver',
   })
   @IsOptional()
@@ -26,7 +27,8 @@ export class GetVouchersQueryDto {
   tierLabel?: string;
 
   @ApiPropertyOptional({
-    description: 'Ngưỡng điểm tối thiểu để lọc (VD: 500)',
+    description:
+      'Ngưỡng điểm tối thiểu để lọc (VD: 500) - chỉ dùng khi voucherType là business',
     example: 500,
   })
   @IsOptional()
