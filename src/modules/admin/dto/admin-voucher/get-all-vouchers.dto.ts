@@ -4,6 +4,13 @@ import { IsOptional, IsEnum, IsInt, Min, IsBoolean } from 'class-validator';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
+export enum AdminVoucherStatusFilter {
+  TEMPLATE = VouchersStatus.TEMPLATE,
+  INACTIVE = VouchersStatus.INACTIVE,
+  ACTIVE = VouchersStatus.ACTIVE,
+  EXPIRED = VouchersStatus.EXPIRED,
+}
+
 export class GetAllVouchersQueryDto {
   @ApiPropertyOptional({
     enum: VoucherType,
@@ -14,16 +21,17 @@ export class GetAllVouchersQueryDto {
   voucherType?: VoucherType;
 
   @ApiPropertyOptional({
-    enum: VouchersStatus,
-    description: 'Filter by voucher status',
+    enum: AdminVoucherStatusFilter,
+    description:
+      'Filter by voucher status (template, inactive, active, expired)',
   })
   @IsOptional()
-  @IsEnum(VouchersStatus)
-  status?: VouchersStatus;
+  @IsEnum(AdminVoucherStatusFilter)
+  status?: AdminVoucherStatusFilter;
 
   @ApiPropertyOptional({
     example: true,
-    description: 'Filter by status true or false',
+    description: 'Filter by disabled status (true or false)',
   })
   @IsOptional()
   @IsBoolean()

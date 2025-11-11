@@ -5,6 +5,7 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
@@ -32,6 +33,8 @@ import {
   GetVouchersQueryDto,
   VoucherTypeFilter,
 } from '../dto/get-vouchers-query.dto';
+import { GetAllClaimVouchersQueryDto } from '../dto/get-all-claim-voucher.dto';
+import { UpdateBusinessVoucherDto } from '../dto/update-business-voucher.dto';
 
 @Injectable()
 export class BusinessVoucherService {
@@ -106,7 +109,7 @@ export class BusinessVoucherService {
       );
     }
 
-    // 🧠 Lấy tất cả policies để xác định tier hiện tại
+    // Lấy tất cả policies để xác định tier hiện tại
     const allPolicies = await this.ecoRewardPolicyModel
       .find({ isActive: true })
       .sort({ threshold: 1 });
@@ -144,11 +147,108 @@ export class BusinessVoucherService {
       maxUsage: template.maxUsage,
       status: VouchersStatus.CLAIMED,
       isPublished: false,
+      isSetup: false,
     });
 
     return {
       statusCode: HttpStatus.CREATED,
       message: `Business '${business.businessName}' claimed voucher '${template.name}' successfully.`,
+      data: businessVoucher,
+    };
+  }
+
+  // Business custom voucher after claim
+  async setupClaimedVoucher(
+    userId: string,
+    businessVoucherId: string,
+    dto: UpdateBusinessVoucherDto,
+  ): Promise<APIResponseDto<BusinessVouchers>> {
+    const {
+      startDate,
+      endDate,
+      discountPercent,
+      rewardPointCost,
+      isPublished,
+    } = dto;
+
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new NotFoundException(`No business found for user '${userId}'.`);
+    }
+
+    const businessVoucher =
+      await this.businessVoucherModel.findById(businessVoucherId);
+
+    if (!businessVoucher) {
+      throw new NotFoundException(
+        `Business voucher '${businessVoucherId}' not found.`,
+      );
+    }
+
+    // Check ownership
+    if (businessVoucher.businessId.toString() !== business._id.toString()) {
+      throw new ForbiddenException(`You are not allowed to edit this voucher.`);
+    }
+
+    // Không cho setup nếu đã setup trước đó
+    if (businessVoucher.isSetup) {
+      throw new BadRequestException(`This voucher has already been set up.`);
+    }
+
+    // Không cho setup nếu đã publish
+    if (businessVoucher.isPublished) {
+      throw new BadRequestException(`Cannot setup a published voucher.`);
+    }
+
+    // --- Validate bắt buộc đủ field ---
+    if (!endDate) {
+      throw new BadRequestException(`endDate is required.`);
+    }
+
+    if (
+      typeof discountPercent !== 'number' ||
+      typeof rewardPointCost !== 'number'
+    ) {
+      throw new BadRequestException(
+        `discountPercent and rewardPointCost are required and must be numbers.`,
+      );
+    }
+
+    const now = new Date();
+    const start = startDate ? new Date(startDate) : now;
+    const end = new Date(endDate);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException(`Invalid date format.`);
+    }
+
+    if (end <= start) {
+      throw new BadRequestException(`endDate must be later than startDate.`);
+    }
+
+    // --- Determine new status ---
+    let status: VouchersStatus;
+    if (now < start) status = VouchersStatus.INACTIVE;
+    else if (now >= start && now <= end) status = VouchersStatus.ACTIVE;
+    else status = VouchersStatus.EXPIRED;
+
+    // --- Update and mark as setup ---
+    businessVoucher.discountPercent = discountPercent;
+    businessVoucher.rewardPointCost = rewardPointCost;
+    businessVoucher.startDate = start;
+    businessVoucher.endDate = end;
+    businessVoucher.status = status;
+    businessVoucher.isSetup = true;
+    businessVoucher.isPublished = !!isPublished;
+
+    await businessVoucher.save();
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Voucher '${businessVoucher.customName}' setup successfully.`,
       data: businessVoucher,
     };
   }
@@ -166,7 +266,7 @@ export class BusinessVoucherService {
       minThreshold,
     } = query;
 
-    // 🔹 Lấy business theo user
+    // Lấy business theo user
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(userId),
     });
@@ -175,19 +275,19 @@ export class BusinessVoucherService {
       throw new NotFoundException(`No business found for user '${userId}'.`);
     }
 
-    // 🔹 Các loại voucher được phép
+    // Các loại voucher được phép
     const allowedTypes = [VoucherType.SYSTEM, VoucherType.BUSINESS];
     const filter: any = {
       isDisabled: false,
       voucherType: voucherType ? { $in: [voucherType] } : { $in: allowedTypes },
     };
 
-    // 🔹 Nếu lọc system vouchers → chỉ lấy ACTIVE
+    // Nếu lọc system vouchers → chỉ lấy ACTIVE
     if (voucherType === VoucherTypeFilter.SYSTEM) {
       filter.status = VouchersStatus.ACTIVE;
     }
 
-    // 🔹 Nếu lọc business vouchers → chỉ lấy TEMPLATE
+    // Nếu lọc business vouchers → chỉ lấy TEMPLATE
     else if (voucherType === VoucherTypeFilter.BUSINESS) {
       filter.status = VouchersStatus.TEMPLATE;
 
@@ -238,7 +338,7 @@ export class BusinessVoucherService {
       };
     }
 
-    // 🔹 Nếu không truyền voucherType → lấy cả 2 loại
+    // Nếu không truyền voucherType → lấy cả 2 loại
     else {
       filter.$or = [
         { voucherType: VoucherType.SYSTEM, status: VouchersStatus.ACTIVE },
@@ -247,13 +347,63 @@ export class BusinessVoucherService {
       delete filter.voucherType;
     }
 
-    // 🔹 Mặc định paginate cho system hoặc combined
+    // Mặc định paginate cho system hoặc combined
     const { data, total, currentPage, totalPages } =
       await paginate<VouchersDocument>(this.voucherModel, filter, page, limit);
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Get business vouchers successfully',
+      data,
+      total,
+      currentPage,
+      totalPages,
+    };
+  }
+
+  // Business get all claimed voucher
+  async getMyClaimedVouchers(
+    userId: string,
+    query: GetAllClaimVouchersQueryDto,
+  ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
+    const { page = 1, limit = 10, status, isPublished } = query;
+
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new NotFoundException(`No business found for user '${userId}'.`);
+    }
+
+    const filter: Record<string, any> = {
+      businessId: business._id,
+    };
+
+    if (status) filter.status = status;
+    // if (typeof isSetup === 'boolean') filter.isSetup = isSetup;
+    if (typeof isPublished === 'boolean') filter.isPublished = isPublished;
+
+    const { data, total, currentPage, totalPages } =
+      await paginate<BusinessVoucherDocument>(
+        this.businessVoucherModel,
+        filter,
+        page,
+        limit,
+        undefined,
+        undefined,
+        {
+          path: 'templateVoucherId',
+          populate: {
+            path: 'ecoRewardPolicyId',
+            select: 'label threshold',
+          },
+        },
+      );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get my claimed vouchers successfully',
       data,
       total,
       currentPage,
