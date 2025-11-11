@@ -21,6 +21,7 @@ import { GetAllClaimVouchersQueryDto } from '../dto/get-all-claim-voucher.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { BusinessVouchers } from '../schemas/business-voucher.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { SetupBusinessVoucherDto } from '../dto/setup-business-voucher.dto';
 import { UpdateBusinessVoucherDto } from '../dto/update-business-voucher.dto';
 
 @Controller('business-vouchers')
@@ -48,10 +49,21 @@ export class BusinessVoucherController {
   async setupClaimedVoucher(
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() dto: UpdateBusinessVoucherDto,
+    @Body() dto: SetupBusinessVoucherDto,
   ) {
     const userId = req.user._id;
     return this.businessesVoucherService.setupClaimedVoucher(userId, id, dto);
+  }
+
+  // POST business-vouchers/:id
+  @Patch(':id')
+  async updateMyVoucher(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateBusinessVoucherDto,
+  ) {
+    const userId = req.user._id;
+    return this.businessesVoucherService.updateMyVoucher(userId, id, dto);
   }
 
   // GET business-vouchers
