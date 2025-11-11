@@ -226,6 +226,10 @@ export class BusinessVoucherService {
       throw new BadRequestException(`Invalid date format.`);
     }
 
+    if (startDate && start < now) {
+      throw new BadRequestException(`startDate cannot be in the past.`);
+    }
+
     if (end <= start) {
       throw new BadRequestException(`endDate must be later than startDate.`);
     }
@@ -287,7 +291,7 @@ export class BusinessVoucherService {
     // --- Only allow update if inactive ---
     if (businessVoucher.status !== VouchersStatus.INACTIVE) {
       throw new BadRequestException(
-        `Only inactive vouchers (not yet active or expired) can be updated. Current status: '${businessVoucher.status}'.`,
+        `Only inactive vouchers can be updated. Current status: '${businessVoucher.status}'.`,
       );
     }
 
@@ -309,23 +313,30 @@ export class BusinessVoucherService {
       }
     }
 
-    // --- Validate & recalculate status if dates change ---
-    if (dto.startDate || dto.endDate) {
-      const now = new Date();
-      const start = dto.startDate
-        ? new Date(dto.startDate)
-        : businessVoucher.startDate;
-      const end = dto.endDate ? new Date(dto.endDate) : businessVoucher.endDate;
+    // --- Validate time consistency ---
+    const now = new Date();
+    const start = dto.startDate
+      ? new Date(dto.startDate)
+      : businessVoucher.startDate;
+    const end = dto.endDate ? new Date(dto.endDate) : businessVoucher.endDate;
 
-      if (end <= start) {
-        throw new BadRequestException(`endDate must be later than startDate.`);
-      }
-
-      if (now < start) businessVoucher.status = VouchersStatus.INACTIVE;
-      else if (now >= start && now <= end)
-        businessVoucher.status = VouchersStatus.ACTIVE;
-      else businessVoucher.status = VouchersStatus.EXPIRED;
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException(`Invalid date format.`);
     }
+
+    if (dto.startDate && start < now) {
+      throw new BadRequestException(`startDate cannot be in the past.`);
+    }
+
+    if (end <= start) {
+      throw new BadRequestException(`endDate must be later than startDate.`);
+    }
+
+    // --- Recalculate status ---
+    if (now < start) businessVoucher.status = VouchersStatus.INACTIVE;
+    else if (now >= start && now <= end)
+      businessVoucher.status = VouchersStatus.ACTIVE;
+    else businessVoucher.status = VouchersStatus.EXPIRED;
 
     await businessVoucher.save();
 

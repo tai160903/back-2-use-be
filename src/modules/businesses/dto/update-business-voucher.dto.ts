@@ -41,15 +41,6 @@ export class UpdateBusinessVoucherDto {
   rewardPointCost?: number;
 
   @ApiPropertyOptional({
-    description: 'Maximum number of times this voucher can be used',
-    example: 50,
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  maxUsage?: number;
-
-  @ApiPropertyOptional({
     description: 'Voucher start date (ISO 8601)',
     example: '2025-12-01T00:00:00.000Z',
   })
