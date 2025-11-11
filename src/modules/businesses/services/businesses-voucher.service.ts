@@ -34,6 +34,7 @@ import {
   VoucherTypeFilter,
 } from '../dto/get-vouchers-query.dto';
 import { GetAllClaimVouchersQueryDto } from '../dto/get-all-claim-voucher.dto';
+import { SetupBusinessVoucherDto } from '../dto/setup-business-voucher.dto';
 import { UpdateBusinessVoucherDto } from '../dto/update-business-voucher.dto';
 
 @Injectable()
@@ -157,11 +158,11 @@ export class BusinessVoucherService {
     };
   }
 
-  // Business custom voucher after claim
+  // Business setup voucher after claim
   async setupClaimedVoucher(
     userId: string,
     businessVoucherId: string,
-    dto: UpdateBusinessVoucherDto,
+    dto: SetupBusinessVoucherDto,
   ): Promise<APIResponseDto<BusinessVouchers>> {
     const {
       startDate,
@@ -225,6 +226,10 @@ export class BusinessVoucherService {
       throw new BadRequestException(`Invalid date format.`);
     }
 
+    if (startDate && start < now) {
+      throw new BadRequestException(`startDate cannot be in the past.`);
+    }
+
     if (end <= start) {
       throw new BadRequestException(`endDate must be later than startDate.`);
     }
@@ -249,6 +254,95 @@ export class BusinessVoucherService {
     return {
       statusCode: HttpStatus.OK,
       message: `Voucher '${businessVoucher.customName}' setup successfully.`,
+      data: businessVoucher,
+    };
+  }
+
+  // Update voucher after setup
+  async updateMyVoucher(
+    userId: string,
+    voucherId: string,
+    dto: UpdateBusinessVoucherDto,
+  ): Promise<APIResponseDto<BusinessVouchers>> {
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new NotFoundException(`No business found for user '${userId}'.`);
+    }
+
+    const businessVoucher = await this.businessVoucherModel.findById(voucherId);
+
+    if (!businessVoucher) {
+      throw new NotFoundException(`Voucher '${voucherId}' not found.`);
+    }
+
+    // --- Check ownership ---
+    if (businessVoucher.businessId.toString() !== business._id.toString()) {
+      throw new ForbiddenException(`You are not allowed to edit this voucher.`);
+    }
+
+    // --- Check setup state ---
+    if (!businessVoucher.isSetup) {
+      throw new BadRequestException(`Voucher has not been set up yet.`);
+    }
+
+    // --- Only allow update if inactive ---
+    if (businessVoucher.status !== VouchersStatus.INACTIVE) {
+      throw new BadRequestException(
+        `Only inactive vouchers can be updated. Current status: '${businessVoucher.status}'.`,
+      );
+    }
+
+    // --- Allow updating allowed fields ---
+    const allowedFields = [
+      'customName',
+      'customDescription',
+      'discountPercent',
+      'rewardPointCost',
+      'maxUsage',
+      'startDate',
+      'endDate',
+      'isPublished',
+    ];
+
+    for (const field of allowedFields) {
+      if (dto[field] !== undefined) {
+        (businessVoucher as any)[field] = dto[field];
+      }
+    }
+
+    // --- Validate time consistency ---
+    const now = new Date();
+    const start = dto.startDate
+      ? new Date(dto.startDate)
+      : businessVoucher.startDate;
+    const end = dto.endDate ? new Date(dto.endDate) : businessVoucher.endDate;
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new BadRequestException(`Invalid date format.`);
+    }
+
+    if (dto.startDate && start < now) {
+      throw new BadRequestException(`startDate cannot be in the past.`);
+    }
+
+    if (end <= start) {
+      throw new BadRequestException(`endDate must be later than startDate.`);
+    }
+
+    // --- Recalculate status ---
+    if (now < start) businessVoucher.status = VouchersStatus.INACTIVE;
+    else if (now >= start && now <= end)
+      businessVoucher.status = VouchersStatus.ACTIVE;
+    else businessVoucher.status = VouchersStatus.EXPIRED;
+
+    await businessVoucher.save();
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Voucher '${businessVoucher.customName}' updated successfully.`,
       data: businessVoucher,
     };
   }

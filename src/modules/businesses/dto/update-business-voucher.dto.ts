@@ -2,38 +2,64 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsOptional,
+  IsString,
   IsNumber,
-  IsDateString,
   Min,
   Max,
+  IsDateString,
   IsBoolean,
 } from 'class-validator';
 
 export class UpdateBusinessVoucherDto {
-  @ApiPropertyOptional({ example: 20, description: 'Discount percent (0–100)' })
+  @ApiPropertyOptional({ description: 'Custom name of the voucher' })
+  @IsOptional()
+  @IsString()
+  customName?: string;
+
+  @ApiPropertyOptional({ description: 'Custom description of the voucher' })
+  @IsOptional()
+  @IsString()
+  customDescription?: string;
+
+  @ApiPropertyOptional({
+    description: 'Discount percentage (0 - 100)',
+    example: 15,
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   @Max(100)
   discountPercent?: number;
 
-  @ApiPropertyOptional({ example: 50, description: 'Reward point cost (≥0)' })
+  @ApiPropertyOptional({
+    description: 'Reward point cost to redeem the voucher',
+    example: 100,
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   rewardPointCost?: number;
 
-  @ApiPropertyOptional({ example: '2025-12-01T00:00:00Z' })
+  @ApiPropertyOptional({
+    description: 'Voucher start date (ISO 8601)',
+    example: '2025-12-01T00:00:00.000Z',
+  })
   @IsOptional()
   @IsDateString()
-  startDate?: Date;
+  startDate?: string;
 
-  @ApiPropertyOptional({ example: '2025-12-31T23:59:59Z' })
+  @ApiPropertyOptional({
+    description: 'Voucher end date (ISO 8601)',
+    example: '2025-12-31T23:59:59.000Z',
+  })
   @IsOptional()
   @IsDateString()
-  endDate?: Date;
+  endDate?: string;
 
-  @ApiPropertyOptional({ example: true, description: 'Publish this voucher' })
+  @ApiPropertyOptional({
+    description: 'Whether this voucher is visible to customers',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   isPublished?: boolean;
