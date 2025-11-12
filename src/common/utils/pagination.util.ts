@@ -1,5 +1,11 @@
 import { Model } from 'mongoose';
 
+type PopulateOption = {
+  path: string;
+  select?: string;
+  populate?: PopulateOption | PopulateOption[];
+};
+
 export async function paginate<T>(
   model: Model<T>,
   filter: any,
@@ -7,9 +13,7 @@ export async function paginate<T>(
   limit: number,
   select?: string,
   sort: Record<string, 1 | -1> = { createdAt: -1 },
-  populate?:
-    | { path: string; select?: string }
-    | { path: string; select?: string }[],
+  populate?: PopulateOption | PopulateOption[],
 ) {
   const query = model.find(filter as any);
 
@@ -18,7 +22,7 @@ export async function paginate<T>(
   }
 
   if (populate) {
-    query.populate(populate);
+    query.populate(populate as any);
   }
 
   const [data, total] = await Promise.all([

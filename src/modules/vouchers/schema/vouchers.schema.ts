@@ -1,51 +1,48 @@
 // schemas/voucher.schema.ts
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, Types } from 'mongoose';
+import mongoose, { Document, HydratedDocument, Types } from 'mongoose';
+import { VoucherType } from 'src/common/constants/voucher-types.enum';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 
-export type VouchersDocument = Vouchers & Document;
+export type VouchersDocument = HydratedDocument<Vouchers>;
 
 @Schema({ timestamps: true, minimize: false })
 export class Vouchers {
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true })
-  createdBy: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'EcoRewardPolicy' })
+  ecoRewardPolicyId?: Types.ObjectId;
 
-  @Prop({ required: true, maxlength: 255 })
+  @Prop({ enum: VoucherType, required: true })
+  voucherType: VoucherType;
+
+  @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, maxlength: 1000 })
+  @Prop({ required: true, trim: true })
   description: string;
 
-  @Prop({ required: true, min: 1, max: 100 })
-  discount: number;
+  @Prop({ type: Number, min: 0, max: 100 })
+  discountPercent?: number;
 
-  @Prop({ required: true, maxlength: 255, index: true })
+  @Prop({ required: true, trim: true })
   baseCode: string;
 
-  @Prop({ required: true, default: 0 })
-  rewardPointCost: number;
+  @Prop({ type: Number, min: 0 })
+  rewardPointCost?: number;
 
-  @Prop({ required: true })
-  maxUsage: number;
+  @Prop({ type: Number, min: 1 })
+  maxUsage?: number;
 
-  @Prop({ type: Date, default: () => new Date() })
-  startDate: Date;
+  @Prop({ type: Date })
+  startDate?: Date;
 
-  @Prop({ type: Date, required: true })
-  endDate: Date;
+  @Prop({ type: Date })
+  endDate?: Date;
 
-  @Prop({
-    type: String,
-    enum: VouchersStatus,
-    default: VouchersStatus.ACTIVE,
-  })
+  @Prop({ enum: VouchersStatus, default: VouchersStatus.TEMPLATE })
   status: VouchersStatus;
 
-  @Prop({ default: 0 })
-  redeemedCount: number;
-
-  @Prop({ default: 0 })
-  usedCount: number;
+  @Prop({ type: Boolean, default: false })
+  isDisabled: boolean;
 }
 
 export const VouchersSchema = SchemaFactory.createForClass(Vouchers);
