@@ -258,9 +258,13 @@ export class BorrowTransactionsService {
       if (!customer) {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
       }
-      const transactions = await this.borrowTransactionModel.find({
-        customerId: new Types.ObjectId(customer._id),
-      });
+      const transactions = await this.borrowTransactionModel
+        .find({
+          customerId: new Types.ObjectId(customer._id),
+        })
+        .populate('productId')
+        .populate('businessId')
+        .sort({ createdAt: -1 });
 
       return {
         statusCode: HttpStatus.OK,
@@ -280,10 +284,14 @@ export class BorrowTransactionsService {
     businessId: string,
   ): Promise<APIResponseDto> {
     try {
-      const transactions = await this.borrowTransactionModel.find({
-        businessId: new Types.ObjectId(businessId),
-        status: 'pending_pickup',
-      });
+      const transactions = await this.borrowTransactionModel
+        .find({
+          businessId: new Types.ObjectId(businessId),
+          status: 'pending_pickup',
+        })
+        .populate('productId')
+        .populate('customerId')
+        .sort({ createdAt: -1 });
 
       return {
         statusCode: HttpStatus.OK,
