@@ -55,7 +55,7 @@ export class BusinessVoucherController {
     return this.businessesVoucherService.setupClaimedVoucher(userId, id, dto);
   }
 
-  // POST business-vouchers/:id
+  // PATCH business-vouchers/:id
   @Patch(':id')
   async updateMyVoucher(
     @Req() req: AuthenticatedRequest,

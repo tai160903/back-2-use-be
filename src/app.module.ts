@@ -25,6 +25,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { ProductGroupsModule } from './modules/product-groups/product-groups.module';
 import { ProductSizesModule } from './modules/product-sizes/product-sizes.module';
 import { BorrowTransactionsModule } from './modules/borrow-transactions/borrow-transactions.module';
+import { CronModule } from './common/cron/cron.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { BorrowTransactionsModule } from './modules/borrow-transactions/borrow-t
     }),
     MongooseModule.forRoot(process.env.DATABASE_URL || ''),
     ScheduleModule.forRoot(),
+    CronModule,
     AuthModule,
     UsersModule,
     MailerModule,

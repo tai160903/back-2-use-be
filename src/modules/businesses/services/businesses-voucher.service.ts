@@ -301,7 +301,6 @@ export class BusinessVoucherService {
       'customDescription',
       'discountPercent',
       'rewardPointCost',
-      'maxUsage',
       'startDate',
       'endDate',
       'isPublished',
