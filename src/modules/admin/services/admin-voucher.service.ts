@@ -11,7 +11,6 @@ import {
   Vouchers,
   VouchersDocument,
 } from 'src/modules/vouchers/schema/vouchers.schema';
-import { CreateSystemVoucherDto } from '../dto/admin-voucher/create-voucher/create-system-voucher.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 import { GetAllVouchersQueryDto } from '../dto/admin-voucher/get-all-vouchers.dto';
@@ -31,7 +30,6 @@ import {
   EcoRewardPolicy,
   EcoRewardPolicyDocument,
 } from 'src/modules/eco-reward-policies/schemas/eco-reward-policy.schema';
-import { getAllowedVoucherUpdateFields } from 'src/common/helpers/voucher.helper';
 import { UpdateVoucherDto } from '../dto/admin-voucher/update-voucher.dto';
 
 @Injectable()
@@ -57,54 +55,19 @@ export class AdminVoucherService {
     let start: Date | undefined;
     let end: Date | undefined;
 
-    // --- VOUCHER TYPE: SYSTEM hoặc LEADERBOARD ---
-    if (voucherType === VoucherType.SYSTEM) {
-      const dto = createVoucherDto as CreateSystemVoucherDto;
-
-      start = dto.startDate ? new Date(dto.startDate) : now;
-      end = dto.endDate ? new Date(dto.endDate) : undefined;
-
-      if (!end || isNaN(end.getTime())) {
-        throw new BadRequestException(
-          'endDate is required and must be a valid date.',
-        );
-      }
-
-      if (isNaN(start.getTime())) {
-        throw new BadRequestException('Invalid startDate format.');
-      }
-
-      if (end <= start) {
-        throw new BadRequestException('endDate must be later than startDate.');
-      }
-
-      if (dto.startDate && start < now) {
-        throw new BadRequestException('startDate cannot be in the past.');
-      }
-
-      // Validate rewardPointCost (only SYSTEM)
-      if (voucherType === VoucherType.SYSTEM) {
-        const rewardPointCost = (dto as CreateSystemVoucherDto).rewardPointCost;
-        if (rewardPointCost === undefined || rewardPointCost < 0) {
-          throw new BadRequestException(
-            'rewardPointCost is required and must be >= 0 for system vouchers.',
-          );
-        }
-      }
-    }
-
     // --- VOUCHER TYPE: BUSINESS ---
-    else if (voucherType === VoucherType.BUSINESS) {
+    if (voucherType === VoucherType.BUSINESS) {
       const dto = createVoucherDto as CreateBusinessVoucherDto;
 
       start = undefined;
       end = undefined;
 
-      // Validate ecoRewardPolicyId
+      // Validate EcoRewardPolicy ID
       if (dto.ecoRewardPolicyId) {
         const ecoPolicy = await this.ecoRewardPolicyModel.findById(
           dto.ecoRewardPolicyId,
         );
+
         if (!ecoPolicy) {
           throw new BadRequestException(
             `EcoRewardPolicy '${dto.ecoRewardPolicyId}' not found.`,
@@ -116,28 +79,18 @@ export class AdminVoucherService {
     // --- VOUCHER TYPE: LEADERBOARD ---
     else if (voucherType === VoucherType.LEADERBOARD) {
       const dto = createVoucherDto as CreateLeaderboardVoucherDto;
-
       start = undefined;
       end = undefined;
     }
 
-    // --- VOUCHER TYPE KHÁC ---
+    // --- VOUCHER TYPE KHÁC (không hợp lệ) ---
     else {
       throw new BadRequestException(
         `Unsupported voucher type '${voucherType}'.`,
       );
     }
 
-    // Determine status
-    const status =
-      voucherType === VoucherType.BUSINESS ||
-      voucherType === VoucherType.LEADERBOARD
-        ? VouchersStatus.TEMPLATE
-        : start && start > now
-          ? VouchersStatus.INACTIVE
-          : VouchersStatus.ACTIVE;
-
-    // Create voucher
+    // --- Create voucher ---
     const newVoucher = new this.voucherModel({
       ...createVoucherDto,
       ecoRewardPolicyId:
@@ -149,7 +102,6 @@ export class AdminVoucherService {
           : undefined,
       startDate: start,
       endDate: end,
-      status,
     });
 
     const savedVoucher = await newVoucher.save();
@@ -165,21 +117,12 @@ export class AdminVoucherService {
   async getAllVoucher(
     query: GetAllVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-    const {
-      status,
-      voucherType,
-      isDisabled,
-      isPublished,
-      page = 1,
-      limit = 10,
-    } = query;
+    const { voucherType, isDisabled, page = 1, limit = 10 } = query;
 
     const filter: Record<string, any> = {};
 
-    if (status) filter.status = status;
     if (voucherType) filter.voucherType = voucherType;
     if (typeof isDisabled === 'boolean') filter.isDisabled = isDisabled;
-    if (typeof isPublished === 'boolean') filter.isPublished = isPublished;
 
     const pipeline: any[] = [
       { $match: filter },
@@ -194,7 +137,7 @@ export class AdminVoucherService {
       {
         $unwind: {
           path: '$ecoRewardPolicy',
-          preserveNullAndEmptyArrays: true, 
+          preserveNullAndEmptyArrays: true,
         },
       },
       { $sort: { createdAt: -1 } },

@@ -41,9 +41,6 @@ export class Vouchers {
   @Prop({ type: Date })
   endDate?: Date;
 
-  @Prop({ enum: VouchersStatus, default: VouchersStatus.TEMPLATE })
-  status: VouchersStatus;
-
   @Prop({ type: Boolean })
   isDisabled?: boolean;
 

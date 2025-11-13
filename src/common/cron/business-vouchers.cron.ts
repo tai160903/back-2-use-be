@@ -21,7 +21,7 @@ export class BusinessVouchersCronService {
       `Running voucher status update job at ${now.toISOString()}`,
     );
 
-    // 1️⃣ inactive → active
+    // inactive → active
     const activated = await this.businessVoucherModel.updateMany(
       {
         status: VouchersStatus.INACTIVE,
@@ -31,7 +31,7 @@ export class BusinessVouchersCronService {
       { $set: { status: VouchersStatus.ACTIVE, isPublished: true } },
     );
 
-    // 2️⃣ active → expired
+    // active → expired
     const expired = await this.businessVoucherModel.updateMany(
       {
         status: VouchersStatus.ACTIVE,

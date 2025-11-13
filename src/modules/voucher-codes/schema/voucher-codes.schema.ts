@@ -50,5 +50,4 @@ export class VoucherCodes {
 
 export const VoucherCodesSchema = SchemaFactory.createForClass(VoucherCodes);
 
-VoucherCodesSchema.index({ fullCode: 1 }, { unique: true });
 VoucherCodesSchema.index({ voucherId: 1, redeemedBy: 1 }, { unique: true });
