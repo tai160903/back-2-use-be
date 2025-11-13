@@ -29,6 +29,9 @@ export class Vouchers {
   @Prop({ type: Number, min: 0 })
   rewardPointCost?: number;
 
+  @Prop({ type: Number, min: 0 })
+  redeemedCount?: number;
+
   @Prop({ type: Number, min: 1 })
   maxUsage?: number;
 
@@ -41,8 +44,11 @@ export class Vouchers {
   @Prop({ enum: VouchersStatus, default: VouchersStatus.TEMPLATE })
   status: VouchersStatus;
 
-  @Prop({ type: Boolean, default: false })
-  isDisabled: boolean;
+  @Prop({ type: Boolean })
+  isDisabled?: boolean;
+
+  @Prop({ type: Boolean })
+  isPublished?: boolean;
 }
 
 export const VouchersSchema = SchemaFactory.createForClass(Vouchers);

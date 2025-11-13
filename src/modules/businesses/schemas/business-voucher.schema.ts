@@ -1,6 +1,7 @@
 import { HydratedDocument, Types } from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
+import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
 export type BusinessVoucherDocument = HydratedDocument<BusinessVouchers>;
 
@@ -30,6 +31,9 @@ export class BusinessVouchers {
   @Prop({ type: Number, min: 0 })
   maxUsage?: number;
 
+  @Prop({ type: Number, default: 0, min: 0 })
+  redeemedCount: number;
+
   @Prop({ type: Date })
   startDate: Date;
 
@@ -47,6 +51,9 @@ export class BusinessVouchers {
 
   @Prop({ type: Date, default: Date.now })
   claimedAt: Date;
+
+  @Prop({ type: String, default: VoucherType.BUSINESS })
+  voucherType: string;
 }
 
 export const BusinessVouchersSchema =

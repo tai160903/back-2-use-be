@@ -3,9 +3,10 @@ import {
   Injectable,
   NotFoundException,
   HttpStatus,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import mongoose, { Connection, Model } from 'mongoose';
+import mongoose, { Connection, Model, Types } from 'mongoose';
 import {
   Vouchers,
   VouchersDocument,
@@ -24,12 +25,20 @@ import { GetAllVouchersQueryDto } from '../admin/dto/admin-voucher/get-all-vouch
 import { GetAllActiveVouchersQueryDto } from './dto/get-all-active-voucher.dto';
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import {
+  BusinessVoucherDocument,
+  BusinessVouchers,
+} from '../businesses/schemas/business-voucher.schema';
+import { VoucherCodeType } from 'src/common/constants/voucher-codes-types.enum';
 
 @Injectable()
 export class VouchersService {
   constructor(
     @InjectModel(Vouchers.name)
     private readonly voucherModel: Model<VouchersDocument>,
+
+    @InjectModel(BusinessVouchers.name)
+    private readonly businessVoucherModel: Model<BusinessVoucherDocument>,
 
     @InjectModel(VoucherCodes.name)
     private readonly voucherCodeModel: Model<VoucherCodesDocument>,
@@ -42,83 +51,116 @@ export class VouchersService {
   ) {}
 
   // Customer redeem voucher
-  // async redeemVoucher(
-  //   userId: string,
-  //   redeemVoucherDto: RedeemVoucherDto,
-  // ): Promise<APIResponseDto<VoucherCodes>> {
-  //   const { voucherId } = redeemVoucherDto;
-  //   const session = await this.connection.startSession();
-  //   session.startTransaction();
+  async redeemVoucher(
+    userId: string,
+    redeemVoucherDto: RedeemVoucherDto,
+  ): Promise<APIResponseDto<VoucherCodes>> {
+    const { voucherId, voucherType } = redeemVoucherDto;
+    const session = await this.connection.startSession();
+    session.startTransaction();
 
-  //   try {
-  //     const now = new Date();
+    try {
+      const now = new Date();
 
-  //     // 1️⃣ Tìm voucher
-  //     const voucher = await this.voucherModel
-  //       .findById(voucherId)
-  //       .session(session);
-  //     if (!voucher) throw new NotFoundException('Voucher not found');
-  //     if (voucher.status !== VouchersStatus.ACTIVE)
-  //       throw new BadRequestException('Voucher is not active');
-  //     if (voucher.endDate < now)
-  //       throw new BadRequestException('Voucher has expired');
-  //     if (voucher.redeemedCount >= voucher.maxUsage)
-  //       throw new BadRequestException('Voucher has reached max usage');
+      // 1️⃣ Lấy voucher theo loại
+      let voucher;
+      if (voucherType === VoucherCodeType.BUSINESS) {
+        voucher = await this.businessVoucherModel
+          .findById(voucherId)
+          .session(session);
+      } else {
+        voucher = await this.voucherModel.findById(voucherId).session(session);
+      }
 
-  //     // 2️⃣ Tìm customer
-  //     const customer = await this.customerModel
-  //       .findOne({ userId: new mongoose.Types.ObjectId(userId) })
-  //       .session(session);
-  //     if (!customer) throw new NotFoundException('Customer not found');
+      if (!voucher) throw new NotFoundException('Voucher not found');
+      if (voucher.isPublished !== true)
+        throw new BadRequestException('Voucher is not published');
+      if (voucher.status !== VouchersStatus.ACTIVE)
+        throw new BadRequestException('Voucher is not active');
+      if (voucher.endDate < now)
+        throw new BadRequestException('Voucher has expired');
+      if (voucher.redeemedCount >= voucher.maxUsage)
+        throw new BadRequestException('Voucher has reached max usage');
 
-  //     // 3️⃣ Kiểm tra xem customer đã redeem voucher này chưa
-  //     const existingCode = await this.voucherCodeModel
-  //       .findOne({ voucherId, redeemedBy: userId })
-  //       .session(session);
+      // 2️⃣ Lấy customer
+      const customer = await this.customerModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .session(session);
+      if (!customer) throw new NotFoundException('Customer not found');
 
-  //     if (existingCode) {
-  //       throw new BadRequestException('You have already redeemed this voucher');
-  //     }
+      // 3️⃣ Kiểm tra đã redeem voucher này chưa
+      const existingCode = await this.voucherCodeModel
+        .findOne({
+          voucherId: new Types.ObjectId(voucherId),
+          redeemedBy: new Types.ObjectId(userId),
+        })
+        .session(session);
 
-  //     // 4️⃣ Kiểm tra điểm thưởng
-  //     if (customer.rewardPoints < voucher.rewardPointCost)
-  //       throw new BadRequestException('Not enough reward points');
+      if (existingCode) {
+        throw new BadRequestException('You have already redeemed this voucher');
+      }
 
-  //     // 5️⃣ Trừ điểm khách hàng
-  //     customer.rewardPoints -= voucher.rewardPointCost;
-  //     await customer.save({ session });
+      // 4️⃣ Kiểm tra điểm thưởng
+      if (customer.rewardPoints < voucher.rewardPointCost)
+        throw new BadRequestException('Not enough reward points');
 
-  //     // 6️⃣ Tạo voucher code
-  //     const randomSuffix = generateRandomString(6);
-  //     const voucherCodeValue = `${voucher.baseCode}-${randomSuffix}`;
+      // 5️⃣ Trừ điểm
+      customer.rewardPoints -= voucher.rewardPointCost;
+      await customer.save({ session });
 
-  //     const voucherCode = new this.voucherCodeModel({
-  //       voucherId: voucher._id,
-  //       code: voucherCodeValue,
-  //       redeemedBy: userId,
-  //       redeemedAt: now,
-  //       status: VoucherCodeStatus.REDEEMED,
-  //     });
-  //     await voucherCode.save({ session });
+      // 6️⃣ Tạo voucher code (retry 3 lần nếu trùng mã)
+      let voucherCode: VoucherCodesDocument | null = null;
 
-  //     // 7️⃣ Cập nhật voucher redeemedCount
-  //     voucher.redeemedCount += 1;
-  //     await voucher.save({ session });
+      for (let i = 0; i < 3; i++) {
+        const randomSuffix = generateRandomString(6);
+        const fullCode = `${voucher.baseCode}-${randomSuffix}`;
 
-  //     await session.commitTransaction();
+        try {
+          voucherCode = new this.voucherCodeModel({
+            voucherId: voucher._id,
+            voucherType,
+            businessId: voucher.businessId ?? undefined,
+            redeemedBy: new Types.ObjectId(userId),
+            fullCode,
+            status: VoucherCodeStatus.REDEEMED,
+            redeemedAt: now,
+          });
 
-  //     return {
-  //       statusCode: HttpStatus.OK,
-  //       message: 'Redeem voucher successfully',
-  //       data: voucherCode,
-  //     };
-  //   } catch (error) {
-  //     await session.abortTransaction();
-  //     throw error;
-  //   } finally {
-  //     session.endSession();
-  //   }
-  // }
+          await voucherCode.save({ session });
+          break; // ✅ Thành công => thoát vòng lặp
+        } catch (err) {
+          if (err.code === 11000 && err.keyPattern?.fullCode) {
+            // 🔁 Nếu trùng mã => thử lại
+            continue;
+          }
+          throw err; // ❌ Lỗi khác => ném ra
+        }
+      }
+
+      if (!voucherCode) {
+        throw new InternalServerErrorException(
+          'Failed to generate unique voucher code',
+        );
+      }
+
+      // 7️⃣ Tăng redeemedCount
+      voucher.redeemedCount += 1;
+      await voucher.save({ session });
+
+      await session.commitTransaction();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Redeem voucher successfully',
+        data: voucherCode,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
 
   // //Get all active voucher
   // async getAllActiveVouchers(

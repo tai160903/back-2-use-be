@@ -13,6 +13,7 @@ import {
   Max,
   IsDateString,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { VoucherType } from 'src/common/constants/voucher-types.enum';
 import { BaseVoucherDto } from '../base-voucher.dto';
@@ -61,6 +62,10 @@ export class CreateSystemVoucherDto extends BaseVoucherDto {
   @IsNumber()
   @Min(1)
   maxUsage?: number;
+
+  @ApiHideProperty()
+  @IsBoolean()
+  isPublished: boolean = true;
 
   @ApiHideProperty()
   @IsEnum(VoucherType)

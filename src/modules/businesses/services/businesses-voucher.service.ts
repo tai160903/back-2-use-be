@@ -147,6 +147,7 @@ export class BusinessVoucherService {
       baseCode: template.baseCode,
       maxUsage: template.maxUsage,
       status: VouchersStatus.CLAIMED,
+      voucherType: VoucherType.BUSINESS,
       isPublished: false,
       isSetup: false,
     });
@@ -359,7 +360,6 @@ export class BusinessVoucherService {
       minThreshold,
     } = query;
 
-    // Lấy business theo user
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(userId),
     });
@@ -368,23 +368,43 @@ export class BusinessVoucherService {
       throw new NotFoundException(`No business found for user '${userId}'.`);
     }
 
-    // Các loại voucher được phép
     const allowedTypes = [VoucherType.SYSTEM, VoucherType.BUSINESS];
+
     const filter: any = {
-      isDisabled: false,
       voucherType: voucherType ? { $in: [voucherType] } : { $in: allowedTypes },
     };
 
-    // Nếu lọc system vouchers → chỉ lấy ACTIVE
+    // ============================
+    // 🔸 Nếu lọc SYSTEM vouchers
+    // ============================
     if (voucherType === VoucherTypeFilter.SYSTEM) {
-      filter.status = VouchersStatus.ACTIVE;
+      filter.isPublished = true;
+
+      const { data, total, currentPage, totalPages } =
+        await paginate<VouchersDocument>(
+          this.voucherModel,
+          filter,
+          page,
+          limit,
+        );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Get system vouchers successfully',
+        data,
+        total,
+        currentPage,
+        totalPages,
+      };
     }
 
-    // Nếu lọc business vouchers → chỉ lấy TEMPLATE
+    // ============================
+    // 🔸 Nếu lọc BUSINESS vouchers
+    // ============================
     else if (voucherType === VoucherTypeFilter.BUSINESS) {
+      filter.isDisabled = false;
       filter.status = VouchersStatus.TEMPLATE;
 
-      // Nếu có lọc theo tier hoặc threshold → join sang ecoRewardPolicy
       const pipeline: any[] = [
         { $match: filter },
         {
@@ -398,21 +418,16 @@ export class BusinessVoucherService {
         { $unwind: '$ecoRewardPolicy' },
       ];
 
-      // Thêm filter theo tierLabel
       if (tierLabel) {
-        pipeline.push({
-          $match: { 'ecoRewardPolicy.label': tierLabel },
-        });
+        pipeline.push({ $match: { 'ecoRewardPolicy.label': tierLabel } });
       }
 
-      // Hoặc filter theo threshold
       if (minThreshold) {
         pipeline.push({
           $match: { 'ecoRewardPolicy.threshold': { $gte: minThreshold } },
         });
       }
 
-      // Phân trang
       pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
 
       const data = await this.voucherModel.aggregate(pipeline);
@@ -431,27 +446,67 @@ export class BusinessVoucherService {
       };
     }
 
-    // Nếu không truyền voucherType → lấy cả 2 loại
+    // ============================
+    // 🔸 Nếu không truyền voucherType (lấy cả 2 loại)
+    // ============================
     else {
-      filter.$or = [
-        { voucherType: VoucherType.SYSTEM, status: VouchersStatus.ACTIVE },
-        { voucherType: VoucherType.BUSINESS, status: VouchersStatus.TEMPLATE },
+      const pipeline: any[] = [
+        {
+          $match: {
+            $or: [
+              { voucherType: VoucherType.SYSTEM, isPublished: true },
+              {
+                voucherType: VoucherType.BUSINESS,
+                isDisabled: false,
+                status: VouchersStatus.TEMPLATE,
+              },
+            ],
+          },
+        },
+        {
+          $lookup: {
+            from: 'ecorewardpolicies',
+            localField: 'ecoRewardPolicyId',
+            foreignField: '_id',
+            as: 'ecoRewardPolicy',
+          },
+        },
+        {
+          $unwind: {
+            path: '$ecoRewardPolicy',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        { $skip: (page - 1) * limit },
+        { $limit: limit },
       ];
-      delete filter.voucherType;
+
+      const data = await this.voucherModel.aggregate(pipeline);
+      const total = await this.voucherModel.aggregate([
+        {
+          $match: {
+            $or: [
+              { voucherType: VoucherType.SYSTEM, isPublished: true },
+              {
+                voucherType: VoucherType.BUSINESS,
+                isDisabled: false,
+                status: VouchersStatus.TEMPLATE,
+              },
+            ],
+          },
+        },
+        { $count: 'total' },
+      ]);
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Get all vouchers successfully',
+        data,
+        total: total[0]?.total || 0,
+        currentPage: page,
+        totalPages: Math.ceil((total[0]?.total || 0) / limit),
+      };
     }
-
-    // Mặc định paginate cho system hoặc combined
-    const { data, total, currentPage, totalPages } =
-      await paginate<VouchersDocument>(this.voucherModel, filter, page, limit);
-
-    return {
-      statusCode: HttpStatus.OK,
-      message: 'Get business vouchers successfully',
-      data,
-      total,
-      currentPage,
-      totalPages,
-    };
   }
 
   // Business get all claimed voucher
