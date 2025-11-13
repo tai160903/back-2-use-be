@@ -25,7 +25,7 @@ export class NotificationsService {
         createNotificationDto,
       );
       this.gateway.sendNotificationToUser(
-        createNotificationDto.userId,
+        createNotificationDto.receiverId,
         createdNotification,
       );
       return createdNotification;
@@ -41,9 +41,9 @@ export class NotificationsService {
     return this.notificationModel.find().sort({ createdAt: -1 }).exec();
   }
 
-  async findByUserId(userId: string) {
+  async findByReceiverId(receiverId: string) {
     return this.notificationModel
-      .find({ userId: new Types.ObjectId(userId) })
+      .find({ receiverId: new Types.ObjectId(receiverId) })
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -51,8 +51,37 @@ export class NotificationsService {
   async markAsRead(id: string) {
     return this.notificationModel.findByIdAndUpdate(
       id,
-      { isRead: true },
+      { isRead: true, ReadAt: new Date() },
       { new: true },
     );
+  }
+
+  async findOne(id: string) {
+    return this.notificationModel.findById(id).exec();
+  }
+
+  async update(id: string, payload: Partial<any>) {
+    try {
+      return this.notificationModel.findByIdAndUpdate(id, payload, {
+        new: true,
+      });
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to update notification',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      const doc = await this.notificationModel.findByIdAndDelete(id).exec();
+      return doc;
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to delete notification',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

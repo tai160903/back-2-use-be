@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { BusinessesService } from './businesses.service';
-import { BusinessesController } from './businesses.controller';
+import { BusinessesService } from './services/businesses.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Businesses, BusinessesSchema } from './schemas/businesses.schema';
 import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.module';
@@ -48,6 +47,7 @@ import {
   EcoRewardPolicySchema,
 } from '../eco-reward-policies/schemas/eco-reward-policy.schema';
 import { Vouchers, VouchersSchema } from '../vouchers/schema/vouchers.schema';
+import { BusinessesController } from './controller/businesses.controller';
 
 @Module({
   imports: [

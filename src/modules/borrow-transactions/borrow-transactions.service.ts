@@ -262,7 +262,13 @@ export class BorrowTransactionsService {
         .find({
           customerId: new Types.ObjectId(customer._id),
         })
-        .populate('productId')
+        .populate({
+          path: 'productId',
+          populate: [
+            { path: 'productGroupId', populate: 'materialId' },
+            { path: 'productSizeId' },
+          ],
+        })
         .populate('businessId')
         .sort({ createdAt: -1 });
 
@@ -289,7 +295,10 @@ export class BorrowTransactionsService {
           businessId: new Types.ObjectId(businessId),
           status: 'pending_pickup',
         })
-        .populate('productId')
+        .populate({
+          path: 'productId',
+          populate: [{ path: 'productGroupId' }, { path: 'productSizeId' }],
+        })
         .populate('customerId')
         .sort({ createdAt: -1 });
 
@@ -312,7 +321,7 @@ export class BorrowTransactionsService {
     const now = new Date();
     const expiredTransactions = await this.borrowTransactionModel.find({
       status: 'pending_pickup',
-      borrowDate: { $lte: new Date(now.getTime() - 2 * 60 * 60 * 1000) },
+      borrowDate: { $lte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
     });
 
     for (const transaction of expiredTransactions) {

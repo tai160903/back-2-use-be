@@ -1,26 +1,23 @@
-import {
-  IsNotEmpty,
-  IsString,
-  IsMongoId,
-  IsEnum,
-  IsOptional,
-} from 'class-validator';
+import { IsOptional, IsString, IsEnum, IsMongoId } from 'class-validator';
 
-export class CreateNotificationDto {
+export class UpdateNotificationDto {
+  @IsOptional()
   @IsMongoId()
-  receiverId: string;
+  receiverId?: string;
 
+  @IsOptional()
   @IsEnum(['customer', 'business'])
-  receiverType: string;
+  receiverType?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  title: string;
+  title?: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  message: string;
+  message?: string;
 
+  @IsOptional()
   @IsEnum([
     'borrow',
     'return',
@@ -31,7 +28,7 @@ export class CreateNotificationDto {
     'eco',
     'manual',
   ])
-  type: string;
+  type?: string;
 
   @IsOptional()
   @IsString()
@@ -49,4 +46,10 @@ export class CreateNotificationDto {
     'feedback',
   ])
   referenceType?: string;
+
+  @IsOptional()
+  isRead?: boolean;
+
+  @IsOptional()
+  ReadAt?: Date;
 }
