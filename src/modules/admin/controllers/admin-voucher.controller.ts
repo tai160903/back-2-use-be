@@ -14,7 +14,6 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { RolesEnum } from 'src/common/constants/roles.enum';
-import { CreateSystemVoucherDto } from '../dto/admin-voucher/create-voucher/create-system-voucher.dto';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { Vouchers } from 'src/modules/vouchers/schema/vouchers.schema';
@@ -34,16 +33,6 @@ import { UpdateVoucherDto } from '../dto/admin-voucher/update-voucher.dto';
 @Controller('admin/vouchers')
 export class AdminVoucherController {
   constructor(private readonly voucherService: AdminVoucherService) {}
-
-  // POST admin/vouchers/system
-  @Post('system')
-  @ApiOperation({ summary: 'Admin create system voucher' })
-  @ApiBody({ type: CreateSystemVoucherDto })
-  async createSystemVoucher(
-    @Body() dto: CreateSystemVoucherDto,
-  ): Promise<APIResponseDto<Vouchers>> {
-    return this.voucherService.createVoucher(dto);
-  }
 
   // POST admin/vouchers/business
   @Post('business')

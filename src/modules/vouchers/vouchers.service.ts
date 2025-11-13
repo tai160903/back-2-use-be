@@ -55,40 +55,34 @@ export class VouchersService {
     userId: string,
     redeemVoucherDto: RedeemVoucherDto,
   ): Promise<APIResponseDto<VoucherCodes>> {
-    const { voucherId, voucherType } = redeemVoucherDto;
+    const { voucherId } = redeemVoucherDto;
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
       const now = new Date();
 
-      // 1️⃣ Lấy voucher theo loại
-      let voucher;
-      if (voucherType === VoucherCodeType.BUSINESS) {
-        voucher = await this.businessVoucherModel
-          .findById(voucherId)
-          .session(session);
-      } else {
-        voucher = await this.voucherModel.findById(voucherId).session(session);
-      }
+      const voucher = await this.businessVoucherModel
+        .findById(voucherId)
+        .session(session);
 
       if (!voucher) throw new NotFoundException('Voucher not found');
-      if (voucher.isPublished !== true)
+      if (!voucher.isPublished)
         throw new BadRequestException('Voucher is not published');
       if (voucher.status !== VouchersStatus.ACTIVE)
         throw new BadRequestException('Voucher is not active');
       if (voucher.endDate < now)
         throw new BadRequestException('Voucher has expired');
-      if (voucher.redeemedCount >= voucher.maxUsage)
+      if (voucher.maxUsage && voucher.redeemedCount >= voucher.maxUsage)
         throw new BadRequestException('Voucher has reached max usage');
 
-      // 2️⃣ Lấy customer
+      //  Lấy customer
       const customer = await this.customerModel
         .findOne({ userId: new Types.ObjectId(userId) })
         .session(session);
       if (!customer) throw new NotFoundException('Customer not found');
 
-      // 3️⃣ Kiểm tra đã redeem voucher này chưa
+      // Kiểm tra đã redeem chưa
       const existingCode = await this.voucherCodeModel
         .findOne({
           voucherId: new Types.ObjectId(voucherId),
@@ -96,19 +90,16 @@ export class VouchersService {
         })
         .session(session);
 
-      if (existingCode) {
+      if (existingCode)
         throw new BadRequestException('You have already redeemed this voucher');
-      }
 
-      // 4️⃣ Kiểm tra điểm thưởng
       if (customer.rewardPoints < voucher.rewardPointCost)
         throw new BadRequestException('Not enough reward points');
 
-      // 5️⃣ Trừ điểm
       customer.rewardPoints -= voucher.rewardPointCost;
       await customer.save({ session });
 
-      // 6️⃣ Tạo voucher code (retry 3 lần nếu trùng mã)
+      // Tạo voucher code
       let voucherCode: VoucherCodesDocument | null = null;
 
       for (let i = 0; i < 3; i++) {
@@ -118,7 +109,7 @@ export class VouchersService {
         try {
           voucherCode = new this.voucherCodeModel({
             voucherId: voucher._id,
-            voucherType,
+            voucherType: VoucherCodeType.BUSINESS,
             businessId: voucher.businessId ?? undefined,
             redeemedBy: new Types.ObjectId(userId),
             fullCode,
@@ -127,23 +118,19 @@ export class VouchersService {
           });
 
           await voucherCode.save({ session });
-          break; // ✅ Thành công => thoát vòng lặp
+          break;
         } catch (err) {
-          if (err.code === 11000 && err.keyPattern?.fullCode) {
-            // 🔁 Nếu trùng mã => thử lại
-            continue;
-          }
-          throw err; // ❌ Lỗi khác => ném ra
+          if (err.code === 11000 && err.keyPattern?.fullCode) continue;
+          throw err;
         }
       }
 
-      if (!voucherCode) {
+      if (!voucherCode)
         throw new InternalServerErrorException(
           'Failed to generate unique voucher code',
         );
-      }
 
-      // 7️⃣ Tăng redeemedCount
+      // Cập nhật redeemedCount
       voucher.redeemedCount += 1;
       await voucher.save({ session });
 

@@ -56,10 +56,10 @@ export class CreateBusinessVoucherDto extends OmitType(BaseVoucherDto, [
   @IsString()
   ecoRewardPolicyId: string;
 
-  @ApiHideProperty()
+  @ApiProperty()
   @IsBoolean()
-  isDisabled: boolean = true;
-  
+  isDisabled: boolean;
+
   @ApiHideProperty()
   @IsEnum(VoucherType)
   voucherType: VoucherType = VoucherType.BUSINESS;
