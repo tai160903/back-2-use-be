@@ -20,7 +20,7 @@ import { Wallets } from 'src/modules/wallets/schemas/wallets.schema';
 import { WalletTransactions } from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 import { Customers } from 'src/modules/users/schemas/customer.schema';
-import { TransactionType } from 'src/common/constants/transaction-type.enum';
+// TransactionType import removed because approval no longer auto-transfers funds
 
 @Injectable()
 export class AdminBusinessFormService {
@@ -150,46 +150,6 @@ export class AdminBusinessFormService {
         );
       }
 
-      let transferAmount = 0;
-      if (customerWallet && customerWallet.availableBalance > 0) {
-        transferAmount = customerWallet.availableBalance;
-
-        customerWallet.availableBalance = 0;
-        existingBusinessWallet.availableBalance += transferAmount;
-
-        await Promise.all([
-          customerWallet.save(),
-          existingBusinessWallet.save(),
-          this.walletTransactionsModel.create({
-            walletId: customerWallet._id,
-            relatedUserId: user._id,
-            relatedUserType: 'customer',
-            transactionType: TransactionType.WITHDRAWAL,
-            amount: transferAmount,
-            direction: 'out',
-            referenceId: String(business._id),
-            referenceType: 'system',
-            fromBalanceType: 'available',
-            description: 'Balance transferred to business wallet on approval',
-            status: 'completed',
-          }),
-          this.walletTransactionsModel.create({
-            walletId: existingBusinessWallet._id,
-            relatedUserId: user._id,
-            relatedUserType: 'business',
-            transactionType: TransactionType.TOP_UP,
-            amount: transferAmount,
-            fromBalanceType: 'available',
-            direction: 'in',
-            referenceId: String(business._id),
-            referenceType: 'system',
-            description:
-              'Balance received from customer wallet on business approval',
-            status: 'completed',
-          }),
-        ]);
-      }
-
       user.role = RolesEnum.BUSINESS;
       await user.save();
 
@@ -206,10 +166,7 @@ export class AdminBusinessFormService {
             },
           ],
           subject: 'Business Approved - Welcome to Back 2 Use!',
-          html: businessApprovedTemplate(
-            user.username,
-            transferAmount > 0 ? transferAmount : undefined,
-          ),
+          html: businessApprovedTemplate(user.username),
         });
       } catch (error) {
         throw new HttpException(
@@ -231,7 +188,6 @@ export class AdminBusinessFormService {
         data: {
           businessForm,
           business,
-          transferAmount,
         },
       };
     } catch (error) {

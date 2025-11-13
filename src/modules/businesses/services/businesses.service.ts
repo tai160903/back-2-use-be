@@ -1,25 +1,25 @@
-import { CreateBusinessFormDto } from './dto/create-business-form.dto';
+import { CreateBusinessFormDto } from '../dto/create-business-form.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { Businesses } from './schemas/businesses.schema';
+import { Businesses } from '../schemas/businesses.schema';
 import { Connection, Model, PipelineStage, Types } from 'mongoose';
 import { InjectModel, InjectConnection } from '@nestjs/mongoose';
-import { BusinessForm } from './schemas/business-form.schema';
-import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
-import { BusinessSubscriptions } from './schemas/business-subscriptions.schema';
+import { BusinessForm } from '../schemas/business-form.schema';
+import { Subscriptions } from '../../subscriptions/schemas/subscriptions.schema';
+import { BusinessSubscriptions } from '../schemas/business-subscriptions.schema';
 import { Injectable } from '@nestjs/common';
-import { Wallets } from '../wallets/schemas/wallets.schema';
-import { Users } from '../users/schemas/users.schema';
-import { NotificationsService } from '../notifications/notifications.service';
+import { Wallets } from '../../wallets/schemas/wallets.schema';
+import { Users } from '../../users/schemas/users.schema';
+import { NotificationsService } from '../../notifications/notifications.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   WalletTransactions,
   WalletTransactionsDocument,
-} from '../wallet-transactions/schema/wallet-transactions.schema';
+} from '../../wallet-transactions/schema/wallet-transactions.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { BusinessProjectionStage, UserLookupStage } from 'src/common/pipelines';
-import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
+import { GetAllBusinessesDto } from '../dto/get-all-businesses.dto';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { aggregatePaginate } from 'src/common/utils/aggregate-pagination.util';
 import { MailerService } from 'src/infrastructure/mailer/mailer.service';
@@ -30,12 +30,12 @@ import { subscriptionExpiringSoonTemplate } from 'src/infrastructure/mailer/temp
 import { autoRenewalSuccessTemplate } from 'src/infrastructure/mailer/templates/auto-renewal-success.template';
 import { autoRenewalFailedTemplate } from 'src/infrastructure/mailer/templates/auto-renewal-failed.template';
 import { subscriptionCanceledTemplate } from 'src/infrastructure/mailer/templates/subscription-canceled.template';
-import { Customers } from '../users/schemas/customer.schema';
+import { Customers } from '../../users/schemas/customer.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 import * as moment from 'moment-timezone';
 
-import { Product } from '../products/schemas/product.schema';
-import { ProductGroup } from '../product-groups/schemas/product-group.schema';
+import { Product } from '../../products/schemas/product.schema';
+import { ProductGroup } from '../../product-groups/schemas/product-group.schema';
 
 @Injectable()
 export class BusinessesService {
@@ -333,10 +333,13 @@ export class BusinessesService {
     await businessTrial.save();
 
     await this.notificationsService.create({
-      userId,
+      receiverId: userId,
+      receiverType: 'business',
       title: 'Trial Activated',
       message: `Your ${trialSub.name} trial has been activated from ${now.toDateString()} to ${endDate.toDateString()}.`,
-      type: 'system',
+      type: 'manual',
+      referenceType: 'subscription',
+      referenceId: businessTrial._id?.toString(),
     });
 
     const user = await this.usersModel.findById(userId);
@@ -482,12 +485,15 @@ export class BusinessesService {
       await session.commitTransaction();
 
       await this.notificationsService.create({
-        userId,
+        receiverId: userId,
+        receiverType: 'business',
         title: 'Subscription Purchased',
         message: activeSub
           ? `You have successfully purchased the ${subscription.name} subscription. It will activate after your current plan expires on ${activeSub.endDate.toDateString()}.`
           : `You have successfully purchased the ${subscription.name} subscription.`,
-        type: 'system',
+        type: 'manual',
+        referenceType: 'subscription',
+        referenceId: businessSub._id?.toString(),
       });
 
       const user = await this.usersModel.findById(userId);
@@ -664,12 +670,15 @@ export class BusinessesService {
       );
 
       await this.notificationsService.create({
-        userId,
+        receiverId: userId,
+        receiverType: 'business',
         title: 'Subscription Canceled',
         message: subscription
           ? `Your pending ${subscription.name} subscription has been canceled and refunded.`
           : 'Your pending subscription has been canceled and refunded.',
-        type: 'system',
+        type: 'manual',
+        referenceType: 'subscription',
+        referenceId: businessSub._id?.toString(),
       });
 
       const user = await this.usersModel.findById(userId);
@@ -1003,7 +1012,7 @@ export class BusinessesService {
     };
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_1AM, { timeZone: 'Asia/Ho_Chi_Minh' })
+  @Cron(CronExpression.EVERY_MINUTE, { timeZone: 'Asia/Ho_Chi_Minh' })
   // @Cron(CronExpression.EVERY_5_SECONDS)
   async notifyExpiringSubscriptions() {
     const now = new Date();
@@ -1031,10 +1040,13 @@ export class BusinessesService {
         );
 
         await this.notificationsService.create({
-          userId: business.userId.toString(),
+          receiverId: business.userId.toString(),
+          receiverType: 'business',
           title: 'Subscription Expiring Soon',
           message: `Your ${subscription.name} subscription will expire on ${sub.endDate.toDateString()}. Please renew soon to avoid interruption.`,
-          type: 'system',
+          type: 'manual',
+          referenceType: 'subscription',
+          referenceId: sub._id?.toString(),
         });
 
         const user = await this.usersModel.findById(business.userId);
@@ -1092,7 +1104,7 @@ export class BusinessesService {
     );
   }
 
-  @Cron(CronExpression.EVERY_10_MINUTES, { timeZone: 'Asia/Ho_Chi_Minh' })
+  @Cron(CronExpression.EVERY_MINUTE, { timeZone: 'Asia/Ho_Chi_Minh' })
   async handleSubscriptionsLifecycle() {
     const now = new Date();
 
@@ -1119,11 +1131,14 @@ export class BusinessesService {
           );
 
           await this.notificationsService.create({
-            userId: business.userId.toString(),
+            receiverId: business.userId.toString(),
+            receiverType: 'business',
             title: 'Subscription Expired',
             message:
               'Your subscription has expired. Please renew to continue using our services.',
-            type: 'system',
+            type: 'manual',
+            referenceType: 'subscription',
+            referenceId: sub._id?.toString(),
           });
 
           const user = await this.usersModel.findById(business.userId);
@@ -1168,10 +1183,13 @@ export class BusinessesService {
             );
 
             await this.notificationsService.create({
-              userId: business.userId.toString(),
+              receiverId: business.userId.toString(),
+              receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your new subscription has been activated.',
-              type: 'system',
+              type: 'manual',
+              referenceType: 'subscription',
+              referenceId: nextSub._id?.toString(),
             });
 
             const user = await this.usersModel.findById(business.userId);
@@ -1225,10 +1243,13 @@ export class BusinessesService {
             );
 
             await this.notificationsService.create({
-              userId: business.userId.toString(),
+              receiverId: business.userId.toString(),
+              receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your subscription has been activated.',
-              type: 'system',
+              type: 'manual',
+              referenceType: 'subscription',
+              referenceId: sub._id?.toString(),
             });
 
             const user = await this.usersModel.findById(business.userId);
@@ -1258,7 +1279,7 @@ export class BusinessesService {
     );
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Asia/Ho_Chi_Minh' })
+  @Cron(CronExpression.EVERY_MINUTE, { timeZone: 'Asia/Ho_Chi_Minh' })
   // @Cron(CronExpression.EVERY_10_SECONDS)
   async handleAutoRenewals() {
     const now = new Date();
@@ -1329,10 +1350,13 @@ export class BusinessesService {
           await sub.save();
 
           await this.notificationsService.create({
-            userId: business.userId.toString(),
+            receiverId: business.userId.toString(),
+            receiverType: 'business',
             title: 'Auto-Renewal Failed',
             message: `Auto-renewal failed for ${subscription.name}. Insufficient wallet balance. Please add funds to your wallet.`,
-            type: 'system',
+            type: 'manual',
+            referenceType: 'subscription',
+            referenceId: sub._id?.toString(),
           });
 
           const user = await this.usersModel.findById(business.userId);
@@ -1408,10 +1432,13 @@ export class BusinessesService {
           );
 
           await this.notificationsService.create({
-            userId: business.userId.toString(),
+            receiverId: business.userId.toString(),
+            receiverType: 'business',
             title: 'Subscription Auto-Renewed',
             message: `Your ${subscription.name} subscription has been automatically renewed and will activate on ${startDate.toDateString()}.`,
-            type: 'system',
+            type: 'manual',
+            referenceType: 'subscription',
+            referenceId: sub._id?.toString(),
           });
 
           const user = await this.usersModel.findById(business.userId);

@@ -12,10 +12,8 @@ import {
   Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { BusinessesService } from './businesses.service';
 import { UseInterceptors, UploadedFiles } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
-import { CreateBusinessFormDto } from './dto/create-business-form.dto';
 import {
   ApiOperation,
   ApiBody,
@@ -27,13 +25,14 @@ import {
 } from '@nestjs/swagger';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
-import { GetNearbyBusinessesDto } from './dto/get-nearby-businesses.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
-import { Businesses } from './schemas/businesses.schema';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
-import { UpdateBusinessDto } from './dto/update-business.dto';
-
-import { GetAllBusinessesDto } from './dto/get-all-businesses.dto';
+import { BusinessesService } from '../services/businesses.service';
+import { GetAllBusinessesDto } from '../dto/get-all-businesses.dto';
+import { Businesses } from '../schemas/businesses.schema';
+import { GetNearbyBusinessesDto } from '../dto/get-nearby-businesses.dto';
+import { CreateBusinessFormDto } from '../dto/create-business-form.dto';
+import { UpdateBusinessDto } from '../dto/update-business.dto';
 
 @Controller('businesses')
 @ApiTags('Businesses')

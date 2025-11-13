@@ -14,6 +14,9 @@ export class BorrowTransaction {
   @Prop({ required: true, ref: 'Businesses', type: Types.ObjectId })
   businessId: Types.ObjectId;
 
+  @Prop({ enum: ['borrow', 'return'], required: true })
+  borrowTransactionType: string;
+
   @Prop({ required: true })
   borrowDate: Date;
 

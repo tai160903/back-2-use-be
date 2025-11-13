@@ -1,4 +1,4 @@
-import { IsString } from 'class-validator';
+import { IsEnum, IsString } from 'class-validator';
 
 export class LoginDto {
   @IsString()
@@ -6,4 +6,8 @@ export class LoginDto {
 
   @IsString()
   password: string;
+
+  @IsString()
+  @IsEnum(['customer', 'business'])
+  type: 'customer' | 'business';
 }

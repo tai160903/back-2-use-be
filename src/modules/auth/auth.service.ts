@@ -145,7 +145,11 @@ export class AuthService {
     }
   }
   // Login
-  async login(username: string, password: string): Promise<APIResponseDto> {
+  async login(
+    username: string,
+    password: string,
+    type?: string,
+  ): Promise<APIResponseDto> {
     if (!username || !password) {
       throw new HttpException(
         'Username and password are required',
@@ -187,6 +191,48 @@ export class AuthService {
       throw new HttpException('Account is blocked', HttpStatus.UNAUTHORIZED);
     }
 
+    let userRole: string;
+
+    if (user.role === RolesEnum.ADMIN) {
+      userRole = RolesEnum.ADMIN;
+    } else {
+      if (!type) {
+        throw new HttpException(
+          'Type is required for non-admin users',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (type === 'business') {
+        const business = await this.businessModel.findOne({
+          userId: new Types.ObjectId(user._id),
+        });
+        if (!business) {
+          throw new HttpException(
+            'Business account not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+        userRole = 'business';
+      } else if (type === 'customer') {
+        const customer = await this.customersModel.findOne({
+          userId: new Types.ObjectId(user._id),
+        });
+        if (!customer) {
+          throw new HttpException(
+            'Customer account not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+        userRole = 'customer';
+      } else {
+        throw new HttpException(
+          'Invalid type. Must be either "business" or "customer"',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       throw new HttpException(
@@ -195,7 +241,7 @@ export class AuthService {
       );
     }
 
-    const payload = { _id: user._id, role: user.role };
+    const payload = { _id: user._id, role: userRole };
     let accessToken: string;
     let refreshToken: string;
     try {
@@ -228,7 +274,7 @@ export class AuthService {
           _id: user._id,
           username: user.username,
           email: user.email,
-          role: user.role,
+          role: userRole,
         },
       },
     };

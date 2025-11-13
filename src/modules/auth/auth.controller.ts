@@ -46,14 +46,19 @@ export class AuthController {
       properties: {
         username: { type: 'string', example: 'johndoe' },
         password: { type: 'string', example: 'password123' },
+        type: { type: 'string', example: 'customer' },
       },
-      required: ['username', 'password'],
+      required: ['username', 'password', 'type'],
     },
     required: true,
   })
   @Post('login')
   login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto.username, loginDto.password);
+    return this.authService.login(
+      loginDto.username,
+      loginDto.password,
+      loginDto.type,
+    );
   }
 
   //Active account (OTP + email)

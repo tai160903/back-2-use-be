@@ -1,27 +1,4 @@
-export function businessApprovedTemplate(
-  username: string,
-  transferAmount?: number,
-) {
-  const transferBlock =
-    transferAmount && transferAmount > 0
-      ? `
-          <div
-            style="
-              background: #eff6ff;
-              border-left: 4px solid #3b82f6;
-              padding: 12px 16px;
-              margin: 16px 0;
-              border-radius: 4px;
-            "
-          >
-            <p style="margin: 0; color: #1e40af; font-weight: 600">💼 Wallet Update</p>
-            <p style="margin: 6px 0 0; color: #1e3a8a">
-              Your customer wallet balance of <strong>${transferAmount.toLocaleString()}</strong> has been
-              transferred to your <strong>business wallet</strong> so you can start trading immediately.
-            </p>
-          </div>
-        `
-      : '';
+export function businessApprovedTemplate(username: string) {
   return `
  <!DOCTYPE html>
 <html>
@@ -91,8 +68,7 @@ export function businessApprovedTemplate(
             </p>
           </div>
 
-          ${transferBlock}
-
+          
           <div
             style="
               background: #f8fafc;

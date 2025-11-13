@@ -57,10 +57,13 @@ export class VnpayController {
 
         if (wallet && wallet.userId) {
           await this.notificationsService.create({
-            userId: wallet.userId.toString(),
+            receiverId: wallet.userId.toString(),
+            receiverType: wallet.type || 'customer',
             title: 'Wallet Top-up Successful',
             message: `Your wallet has been topped up with ${transaction.amount} VND.`,
-            type: 'wallet',
+            type: 'manual',
+            referenceId: transaction._id?.toString(),
+            referenceType: 'wallet',
           });
 
           this.sendRealtimeNotification(
@@ -123,10 +126,13 @@ export class VnpayController {
 
           // persist notification
           await this.notificationsService.create({
-            userId: wallet.userId.toString(),
+            receiverId: wallet.userId.toString(),
+            receiverType: wallet.type || 'customer',
             title: 'Wallet Top-up Successful',
             message: `Your wallet has been topped up with ${amount} VND.`,
-            type: 'wallet',
+            type: 'manual',
+            referenceId: transaction?._id?.toString(),
+            referenceType: 'wallet',
           });
 
           this.sendRealtimeNotification(
