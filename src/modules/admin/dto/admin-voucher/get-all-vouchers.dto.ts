@@ -31,7 +31,8 @@ export class GetAllVouchersQueryDto {
 
   @ApiPropertyOptional({
     example: true,
-    description: 'Filter by disabled status (true or false)',
+    description:
+      'Filter by disabled status (true or false) use for business voucher',
   })
   @IsOptional()
   @IsBoolean()
@@ -39,6 +40,18 @@ export class GetAllVouchersQueryDto {
     value === 'true' ? true : value === 'false' ? false : undefined,
   )
   isDisabled?: boolean;
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Filter by disabled status (true or false) use for system voucher',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) =>
+    value === 'true' ? true : value === 'false' ? false : undefined,
+  )
+  isPublished?: boolean;
 
   @ApiPropertyOptional({
     example: 1,

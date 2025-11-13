@@ -12,6 +12,7 @@ import {
   IsOptional,
   Min,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
@@ -55,6 +56,10 @@ export class CreateBusinessVoucherDto extends OmitType(BaseVoucherDto, [
   @IsString()
   ecoRewardPolicyId: string;
 
+  @ApiHideProperty()
+  @IsBoolean()
+  isDisabled: boolean = true;
+  
   @ApiHideProperty()
   @IsEnum(VoucherType)
   voucherType: VoucherType = VoucherType.BUSINESS;

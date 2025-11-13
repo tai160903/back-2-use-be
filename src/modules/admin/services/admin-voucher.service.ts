@@ -165,25 +165,56 @@ export class AdminVoucherService {
   async getAllVoucher(
     query: GetAllVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-    const { status, voucherType, isDisabled, page = 1, limit = 10 } = query;
+    const {
+      status,
+      voucherType,
+      isDisabled,
+      isPublished,
+      page = 1,
+      limit = 10,
+    } = query;
 
     const filter: Record<string, any> = {};
+
     if (status) filter.status = status;
     if (voucherType) filter.voucherType = voucherType;
-    if (typeof isDisabled === 'boolean') {
-      filter.isDisabled = isDisabled;
-    }
+    if (typeof isDisabled === 'boolean') filter.isDisabled = isDisabled;
+    if (typeof isPublished === 'boolean') filter.isPublished = isPublished;
 
-    const { data, total, currentPage, totalPages } =
-      await paginate<VouchersDocument>(this.voucherModel, filter, page, limit);
+    const pipeline: any[] = [
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'ecorewardpolicies',
+          localField: 'ecoRewardPolicyId',
+          foreignField: '_id',
+          as: 'ecoRewardPolicy',
+        },
+      },
+      {
+        $unwind: {
+          path: '$ecoRewardPolicy',
+          preserveNullAndEmptyArrays: true, 
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
+    ];
+
+    const data = await this.voucherModel.aggregate(pipeline);
+
+    const totalPipeline = [{ $match: filter }, { $count: 'total' }];
+    const totalResult = await this.voucherModel.aggregate(totalPipeline);
+    const total = totalResult[0]?.total || 0;
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Get vouchers successfully',
       data,
       total,
-      currentPage,
-      totalPages,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
     };
   }
 
