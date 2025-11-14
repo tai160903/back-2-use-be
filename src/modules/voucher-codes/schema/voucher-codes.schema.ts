@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { VoucherCodeStatus } from 'src/common/constants/voucher-codes-status.enum';
-import { VoucherCodeType } from 'src/common/constants/voucher-codes-types.enum';
+import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
 export type VoucherCodesDocument = VoucherCodes & Document;
 
@@ -12,9 +12,9 @@ export class VoucherCodes {
 
   @Prop({
     type: String,
-    enum: VoucherCodeType,
+    enum: VoucherType,
   })
-  voucherType: VoucherCodeType;
+  voucherType: VoucherType;
 
   @Prop({ type: Types.ObjectId, ref: 'Businesses' })
   businessId?: Types.ObjectId;

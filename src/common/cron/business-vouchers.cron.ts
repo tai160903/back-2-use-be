@@ -4,6 +4,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BusinessVouchers } from 'src/modules/businesses/schemas/business-voucher.schema';
 import { VouchersStatus } from '../constants/vouchers-status.enum';
+import { VoucherCodeStatus } from '../constants/voucher-codes-status.enum';
+import {
+  VoucherCodes,
+  VoucherCodesDocument,
+} from 'src/modules/voucher-codes/schema/voucher-codes.schema';
 
 @Injectable()
 export class BusinessVouchersCronService {
@@ -12,6 +17,9 @@ export class BusinessVouchersCronService {
   constructor(
     @InjectModel(BusinessVouchers.name)
     private readonly businessVoucherModel: Model<BusinessVouchers>,
+
+    @InjectModel(VoucherCodes.name)
+    private readonly voucherCodeModel: Model<VoucherCodesDocument>,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -21,7 +29,7 @@ export class BusinessVouchersCronService {
       `Running voucher status update job at ${now.toISOString()}`,
     );
 
-    // inactive → active
+    // 1️⃣ inactive → active
     const activated = await this.businessVoucherModel.updateMany(
       {
         status: VouchersStatus.INACTIVE,
@@ -31,7 +39,14 @@ export class BusinessVouchersCronService {
       { $set: { status: VouchersStatus.ACTIVE, isPublished: true } },
     );
 
-    // active → expired
+    // 2️⃣ active → expired
+    const expiringVouchers = await this.businessVoucherModel
+      .find({
+        status: VouchersStatus.ACTIVE,
+        endDate: { $lte: now },
+      })
+      .select('_id');
+
     const expired = await this.businessVoucherModel.updateMany(
       {
         status: VouchersStatus.ACTIVE,
@@ -40,9 +55,26 @@ export class BusinessVouchersCronService {
       { $set: { status: VouchersStatus.EXPIRED } },
     );
 
+    // 3️⃣ Đồng bộ voucher codes → expired
+    if (expiringVouchers.length > 0) {
+      const expiredVoucherIds = expiringVouchers.map((v) => v._id);
+
+      const updatedCodes = await this.voucherCodeModel.updateMany(
+        {
+          voucherId: { $in: expiredVoucherIds },
+          status: { $ne: VoucherCodeStatus.EXPIRED },
+        },
+        { $set: { status: VoucherCodeStatus.EXPIRED, expiredAt: now } },
+      );
+
+      this.logger.log(
+        `Voucher codes expired: ${updatedCodes.modifiedCount} items.`,
+      );
+    }
+
     if (activated.modifiedCount || expired.modifiedCount) {
       this.logger.log(
-        `✅ Updated vouchers — activated: ${activated.modifiedCount}, expired: ${expired.modifiedCount}`,
+        `Updated vouchers — activated: ${activated.modifiedCount}, expired: ${expired.modifiedCount}`,
       );
     } else {
       this.logger.log(`No voucher status changes at this time.`);
