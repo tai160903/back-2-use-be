@@ -23,6 +23,9 @@ import { BusinessVouchers } from '../schemas/business-voucher.schema';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { SetupBusinessVoucherDto } from '../dto/setup-business-voucher.dto';
 import { UpdateBusinessVoucherDto } from '../dto/update-business-voucher.dto';
+import { UseVoucherAtStoreDto } from '../dto/use-voucher-at-store';
+import { VoucherCodes } from 'src/modules/voucher-codes/schema/voucher-codes.schema';
+import { GetVoucherDetailQueryDto } from '../dto/get-voucher-detail.dto';
 
 @Controller('business-vouchers')
 @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
@@ -50,9 +53,19 @@ export class BusinessVoucherController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: SetupBusinessVoucherDto,
-  ) {
+  ): Promise<APIResponseDto<BusinessVouchers>> {
     const userId = req.user._id;
     return this.businessesVoucherService.setupClaimedVoucher(userId, id, dto);
+  }
+
+  // POST business-vouchers/voucher-codes/use
+  @Post('voucher-codes/use')
+  async useVoucherAtStore(
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UseVoucherAtStoreDto,
+  ): Promise<APIResponseDto<VoucherCodes>> {
+    const userId = req.user._id;
+    return this.businessesVoucherService.useVoucherAtStore(userId, dto);
   }
 
   // PATCH business-vouchers/:id
@@ -61,7 +74,7 @@ export class BusinessVoucherController {
     @Req() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() dto: UpdateBusinessVoucherDto,
-  ) {
+  ): Promise<APIResponseDto<BusinessVouchers>> {
     const userId = req.user._id;
     return this.businessesVoucherService.updateMyVoucher(userId, id, dto);
   }
@@ -84,5 +97,19 @@ export class BusinessVoucherController {
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
     const userId = req.user._id;
     return this.businessesVoucherService.getMyClaimedVouchers(userId, query);
+  }
+
+  @Get(':businessVoucherId/detail')
+  async getBusinessVoucherDetail(
+    @Req() req: AuthenticatedRequest,
+    @Param('businessVoucherId') businessVoucherId: string,
+    @Query() query: GetVoucherDetailQueryDto,
+  ) {
+    const userId = req.user._id;
+    return this.businessesVoucherService.getBusinessVoucherDetail(
+      userId,
+      businessVoucherId,
+      query,
+    );
   }
 }

@@ -43,23 +43,23 @@ export class AdminBusinessController {
   }
 
   // GET admin/business/:id
-  // @Get(':id')
-  // @ApiParam({ name: 'id', description: 'Business ID' })
-  // async getBusinessById(
-  //   @Param('id') id: string,
-  // ): Promise<APIResponseDto<Businesses>> {
-  //   return this.businessService.getBusinessById(id);
-  // }
+  @Get(':id')
+  @ApiParam({ name: 'id', description: 'Business ID' })
+  async getBusinessById(
+    @Param('id') id: string,
+  ): Promise<APIResponseDto<Businesses>> {
+    return this.businessService.getBusinessById(id);
+  }
 
   // PATCH admin/business/:id/block-status
-  // @Patch(':id/block-status')
-  // @ApiParam({ name: 'id', description: 'User ID' })
-  // async updateBlockStatus(
-  //   @Req() req: AuthenticatedRequest,
-  //   @Param('id') id: string,
-  //   @Body() dto: UpdateBusinessBlockStatusDto,
-  // ): Promise<APIResponseDto<UserResponseDto>> {
-  //   const adminId = req.user?._id;
-  //   return this.businessService.updateBlockStatus(id, dto, adminId);
-  // }
+  @Patch(':id/block-status')
+  @ApiParam({ name: 'id', description: 'User ID' })
+  async updateBlockStatus(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateBusinessBlockStatusDto,
+  ): Promise<APIResponseDto<UserResponseDto>> {
+    const adminId = req.user?._id;
+    return this.businessService.updateBlockStatus(id, dto, adminId);
+  }
 }

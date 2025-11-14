@@ -33,6 +33,10 @@ import {
 } from './dto/get-all-active-voucher.dto';
 import { GetMyVouchersQueryDto } from './dto/get-my-voucher-query.dto';
 import { VoucherType } from 'src/common/constants/voucher-types.enum';
+import {
+  BusinessDocument,
+  Businesses,
+} from '../businesses/schemas/businesses.schema';
 
 @Injectable()
 export class VouchersService {
@@ -48,6 +52,9 @@ export class VouchersService {
 
     @InjectModel(Customers.name)
     private readonly customerModel: Model<CustomersDocument>,
+
+    @InjectModel(Businesses.name)
+    private readonly businessModel: Model<BusinessDocument>,
 
     @InjectConnection()
     private readonly connection: Connection,
@@ -83,13 +90,29 @@ export class VouchersService {
       const customer = await this.customerModel
         .findOne({ userId: new Types.ObjectId(userId) })
         .session(session);
+
       if (!customer) throw new NotFoundException('Customer not found');
+
+      // Lấy business sở hữu voucher
+      const voucherBusiness = await this.businessModel
+        .findById(voucher.businessId)
+        .session(session);
+
+      if (!voucherBusiness)
+        throw new NotFoundException('Voucher business not found');
+
+      // Kiểm tra cấm customer redeem voucher của business chính họ
+      if (voucherBusiness.userId.toString() === userId.toString()) {
+        throw new BadRequestException(
+          'You can not redeem your own business voucher',
+        );
+      }
 
       // Kiểm tra đã redeem chưa
       const existingCode = await this.voucherCodeModel
         .findOne({
           voucherId: new Types.ObjectId(voucherId),
-          redeemedBy: new Types.ObjectId(userId),
+          redeemedBy: new Types.ObjectId(customer._id),
         })
         .session(session);
 
@@ -114,7 +137,7 @@ export class VouchersService {
             voucherId: voucher._id,
             voucherType: VoucherType.BUSINESS,
             businessId: voucher.businessId ?? undefined,
-            redeemedBy: new Types.ObjectId(userId),
+            redeemedBy: new Types.ObjectId(customer._id),
             fullCode,
             status: VoucherCodeStatus.REDEEMED,
             redeemedAt: now,
@@ -178,7 +201,7 @@ export class VouchersService {
     }
 
     const redeemed = await this.voucherCodeModel.find({
-      redeemedBy: new Types.ObjectId(userId),
+      redeemedBy: new Types.ObjectId(customer._id),
     });
     const redeemedVoucherIds = new Set(
       redeemed.map((v) => v.voucherId.toString()),
@@ -209,11 +232,23 @@ export class VouchersService {
     userId: string,
     query: GetMyVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<any>> {
-    const { page = 1, limit = 10 } = query;
+    const { page = 1, limit = 10, status } = query;
 
-    const filter = {
-      redeemedBy: new Types.ObjectId(userId),
+    const customer = await this.customerModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const filter: any = {
+      redeemedBy: new Types.ObjectId(customer._id),
     };
+
+    // Thêm filter theo voucher code status nếu có truyền
+    if (status) {
+      filter.status = status;
+    }
 
     const populate = [
       {
