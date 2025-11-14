@@ -6,6 +6,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
@@ -33,6 +34,13 @@ import { GetVouchersQueryDto } from '../dto/get-vouchers-query.dto';
 import { GetAllClaimVouchersQueryDto } from '../dto/get-all-claim-voucher.dto';
 import { SetupBusinessVoucherDto } from '../dto/setup-business-voucher.dto';
 import { UpdateBusinessVoucherDto } from '../dto/update-business-voucher.dto';
+import {
+  VoucherCodes,
+  VoucherCodesDocument,
+} from 'src/modules/voucher-codes/schema/voucher-codes.schema';
+import { VoucherCodeStatus } from 'src/common/constants/voucher-codes-status.enum';
+import { UseVoucherAtStoreDto } from '../dto/use-voucher-at-store';
+import { GetVoucherDetailQueryDto } from '../dto/get-voucher-detail.dto';
 
 @Injectable()
 export class BusinessVoucherService {
@@ -42,6 +50,9 @@ export class BusinessVoucherService {
 
     @InjectModel(Vouchers.name)
     private readonly voucherModel: Model<VouchersDocument>,
+
+    @InjectModel(VoucherCodes.name)
+    private readonly voucherCodeModel: Model<VoucherCodesDocument>,
 
     @InjectModel(Businesses.name)
     private readonly businessModel: Model<BusinessDocument>,
@@ -336,13 +347,14 @@ export class BusinessVoucherService {
     };
   }
 
-  // Get all vouchers available for a business
-  async getAllForBusiness(
+  // Business check customer's voucher at store
+  async useVoucherAtStore(
     userId: string,
-    query: GetVouchersQueryDto,
-  ): Promise<APIPaginatedResponseDto<any>> {
-    const { page = 1, limit = 10, tierLabel, minThreshold } = query;
+    dto: UseVoucherAtStoreDto,
+  ): Promise<APIResponseDto<VoucherCodes>> {
+    const { code } = dto;
 
+    // Tìm business theo userId
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(userId),
     });
@@ -351,10 +363,79 @@ export class BusinessVoucherService {
       throw new NotFoundException(`No business found for user '${userId}'.`);
     }
 
+    const businessId = business._id.toString();
+
+    // Tìm voucher code
+    const voucherCode = await this.voucherCodeModel.findOne({ fullCode: code });
+
+    if (!voucherCode) throw new NotFoundException('Invalid voucher code');
+
+    // Chỉ voucher BUSINESS mới được dùng ở cửa hàng
+    if (voucherCode.voucherType !== VoucherType.BUSINESS)
+      throw new BadRequestException('This voucher cannot be used at store');
+
+    // Kiểm tra voucher có thuộc business này không
+    if (
+      voucherCode.businessId &&
+      voucherCode.businessId.toString() !== businessId
+    ) {
+      throw new ForbiddenException('This voucher belongs to another business');
+    }
+
+    // Đã dùng
+    if (voucherCode.status === VoucherCodeStatus.USED)
+      throw new BadRequestException('Voucher already used');
+
+    // Hết hạn
+    if (voucherCode.status === VoucherCodeStatus.EXPIRED)
+      throw new BadRequestException('Voucher expired');
+
+    // Update + return kết quả đúng bản ghi mới
+    const updated = await this.voucherCodeModel.findOneAndUpdate(
+      { _id: voucherCode._id },
+      {
+        $set: {
+          status: VoucherCodeStatus.USED,
+          usedByBusinessId: business._id,
+          usedAt: new Date(),
+        },
+      },
+      { new: true },
+    );
+
+    if (!updated) {
+      throw new InternalServerErrorException('Failed to update voucher');
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Voucher used successfully',
+      data: updated,
+    };
+  }
+
+  // Get all vouchers available for a business
+  async getAllForBusiness(
+    userId: string,
+    query: GetVouchersQueryDto,
+  ): Promise<APIPaginatedResponseDto<any>> {
+    const { page = 1, limit = 10, tierLabel, minThreshold } = query;
+
+    // 1️⃣ Lấy business
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new NotFoundException(`No business found for user '${userId}'.`);
+    }
+
+    // 2️⃣ Lấy toàn bộ eco reward policies
     const allPolicies = await this.ecoRewardPolicyModel
       .find({ isActive: true })
       .sort({ threshold: 1 });
 
+    // 3️⃣ Xác định tier hiện tại của business
     const currentTier = getBusinessCurrentTier(business.ecoPoints, allPolicies);
 
     if (!currentTier) {
@@ -363,7 +444,7 @@ export class BusinessVoucherService {
       );
     }
 
-    // Fetch all vouchers business already claimed
+    // 4️⃣ Lấy danh sách template voucher mà business đã claim
     const claimed = await this.businessVoucherModel.find({
       businessId: business._id,
     });
@@ -372,18 +453,15 @@ export class BusinessVoucherService {
       claimed.map((c) => c.templateVoucherId.toString()),
     );
 
-    // Filter base
-    const filter: any = {
+    // 5️⃣ Filter voucher base
+    const baseFilter: any = {
       voucherType: VoucherType.BUSINESS,
       isDisabled: false,
     };
 
-    if (tierLabel) filter['ecoRewardPolicy.label'] = tierLabel;
-    if (minThreshold)
-      filter['ecoRewardPolicy.threshold'] = { $gte: minThreshold };
-
+    // 6️⃣ Pipeline chính
     const pipeline: any[] = [
-      { $match: filter },
+      { $match: baseFilter },
       {
         $lookup: {
           from: 'ecorewardpolicies',
@@ -393,14 +471,30 @@ export class BusinessVoucherService {
         },
       },
       { $unwind: '$ecoRewardPolicy' },
-      { $skip: (page - 1) * limit },
-      { $limit: limit },
     ];
 
+    // 7️⃣ Filter theo tiers
+    if (tierLabel) {
+      pipeline.push({
+        $match: { 'ecoRewardPolicy.label': tierLabel },
+      });
+    }
+
+    if (minThreshold) {
+      pipeline.push({
+        $match: { 'ecoRewardPolicy.threshold': { $gte: minThreshold } },
+      });
+    }
+
+    // 8️⃣ Paginate
+    pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
+
+    // 9️⃣ Query data
     const data = await this.voucherModel.aggregate(pipeline);
 
-    const total = await this.voucherModel.aggregate([
-      { $match: filter },
+    // 🔟 Count pipeline
+    const countPipeline: any[] = [
+      { $match: baseFilter },
       {
         $lookup: {
           from: 'ecorewardpolicies',
@@ -410,10 +504,24 @@ export class BusinessVoucherService {
         },
       },
       { $unwind: '$ecoRewardPolicy' },
-      { $count: 'total' },
-    ]);
+    ];
 
-    // Attach isClaimable
+    if (tierLabel) {
+      countPipeline.push({ $match: { 'ecoRewardPolicy.label': tierLabel } });
+    }
+
+    if (minThreshold) {
+      countPipeline.push({
+        $match: { 'ecoRewardPolicy.threshold': { $gte: minThreshold } },
+      });
+    }
+
+    countPipeline.push({ $count: 'total' });
+
+    const countResult = await this.voucherModel.aggregate(countPipeline);
+    const total = countResult[0]?.total || 0;
+
+    // 🔟 Gắn isClaimable
     const enrichedData = data.map((v: any) => {
       const policy = v.ecoRewardPolicy;
 
@@ -421,7 +529,7 @@ export class BusinessVoucherService {
         policy &&
         business.ecoPoints >= policy.threshold &&
         policy.threshold >= currentTier.threshold &&
-        v.isDisabled === false &&
+        !v.isDisabled &&
         !claimedTemplateIds.has(v._id.toString());
 
       return {
@@ -434,9 +542,9 @@ export class BusinessVoucherService {
       statusCode: HttpStatus.OK,
       message: 'Get business vouchers successfully',
       data: enrichedData,
-      total: total[0]?.total || 0,
+      total,
       currentPage: page,
-      totalPages: Math.ceil((total[0]?.total || 0) / limit),
+      totalPages: Math.ceil(total / limit),
     };
   }
 
@@ -487,6 +595,74 @@ export class BusinessVoucherService {
       total,
       currentPage,
       totalPages,
+    };
+  }
+
+  // Get business voucher detail
+  async getBusinessVoucherDetail(
+    userId: string,
+    businessVoucherId: string,
+    query: GetVoucherDetailQueryDto,
+  ): Promise<APIResponseDto<any>> {
+    const { page = 1, limit = 10, status } = query;
+
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new NotFoundException(`No business found for user '${userId}'.`);
+    }
+
+    const businessVoucher = await this.businessVoucherModel.findOne({
+      _id: businessVoucherId,
+      businessId: business._id,
+    });
+
+    if (!businessVoucher) {
+      throw new NotFoundException('Business voucher not found');
+    }
+
+    const filter: any = { voucherId: businessVoucher._id };
+    if (status) filter.status = status;
+
+    const allCodes = await this.voucherCodeModel.find({
+      voucherId: businessVoucher._id,
+    });
+
+    const stats = {
+      total: allCodes.length,
+      used: allCodes.filter((v) => v.status === 'used').length,
+      redeemed: allCodes.filter((v) => v.status === 'redeemed').length,
+      expired: allCodes.filter((v) => v.status === 'expired').length,
+    };
+
+    // 4. Paginate voucher codes
+    const [voucherCodes, total] = await Promise.all([
+      this.voucherCodeModel
+        .find(filter)
+        .populate('redeemedBy', 'fullName phone')
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
+
+      this.voucherCodeModel.countDocuments(filter),
+    ]);
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get vouchers detail successfully',
+      data: {
+        voucher: businessVoucher,
+        voucherCodes,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+        stats,
+      },
     };
   }
 }

@@ -12,6 +12,7 @@ import {
   BusinessVouchers,
   BusinessVouchersSchema,
 } from '../businesses/schemas/business-voucher.schema';
+import { Businesses, BusinessesSchema } from '../businesses/schemas/businesses.schema';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import {
       { name: Vouchers.name, schema: VouchersSchema },
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
       { name: Customers.name, schema: CustomersSchema },
+      { name: Businesses.name, schema: BusinessesSchema },
       { name: BusinessVouchers.name, schema: BusinessVouchersSchema },
     ]),
   ],

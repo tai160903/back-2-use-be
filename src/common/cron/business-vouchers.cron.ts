@@ -62,7 +62,7 @@ export class BusinessVouchersCronService {
       const updatedCodes = await this.voucherCodeModel.updateMany(
         {
           voucherId: { $in: expiredVoucherIds },
-          status: { $ne: VoucherCodeStatus.EXPIRED },
+          status: VoucherCodeStatus.REDEEMED,
         },
         { $set: { status: VoucherCodeStatus.EXPIRED, expiredAt: now } },
       );
