@@ -21,15 +21,18 @@ import { generateRandomString } from 'src/common/utils/generate-random-string.ut
 import { Customers, CustomersDocument } from '../users/schemas/customer.schema';
 import { RedeemVoucherDto } from './dto/redeem-voucher.dto';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
-import { GetAllVouchersQueryDto } from '../admin/dto/admin-voucher/get-all-vouchers.dto';
-import { GetAllActiveVouchersQueryDto } from './dto/get-all-active-voucher.dto';
 import { paginate } from 'src/common/utils/pagination.util';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import {
   BusinessVoucherDocument,
   BusinessVouchers,
 } from '../businesses/schemas/business-voucher.schema';
-import { VoucherCodeType } from 'src/common/constants/voucher-codes-types.enum';
+import {
+  CustomerVoucherFilterStatus,
+  GetAllVouchersQueryDto,
+} from './dto/get-all-active-voucher.dto';
+import { GetMyVouchersQueryDto } from './dto/get-my-voucher-query.dto';
+import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
 @Injectable()
 export class VouchersService {
@@ -109,7 +112,7 @@ export class VouchersService {
         try {
           voucherCode = new this.voucherCodeModel({
             voucherId: voucher._id,
-            voucherType: VoucherCodeType.BUSINESS,
+            voucherType: VoucherType.BUSINESS,
             businessId: voucher.businessId ?? undefined,
             redeemedBy: new Types.ObjectId(userId),
             fullCode,
@@ -149,29 +152,102 @@ export class VouchersService {
     }
   }
 
-  // //Get all active voucher
-  // async getAllActiveVouchers(
-  //   query: GetAllActiveVouchersQueryDto,
-  // ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-  //   const { page = 1, limit = 10 } = query;
+  //Get all business voucher
+  async getAllVouchers(
+    userId: string,
+    query: GetAllVouchersQueryDto,
+  ): Promise<APIPaginatedResponseDto<any>> {
+    const { page = 1, limit = 10, status } = query;
 
-  //   const now = new Date();
-  //   const filter = {
-  //     status: VouchersStatus.ACTIVE,
-  //     startDate: { $lte: now },
-  //     endDate: { $gte: now },
-  //   };
+    const filter: any = { isPublished: true };
+    if (status) filter.status = status;
 
-  //   const { data, total, currentPage, totalPages } =
-  //     await paginate<VouchersDocument>(this.voucherModel, filter, page, limit);
+    const { data, total, currentPage, totalPages } =
+      await paginate<BusinessVoucherDocument>(
+        this.businessVoucherModel,
+        filter,
+        page,
+        limit,
+      );
 
-  //   return {
-  //     statusCode: HttpStatus.OK,
-  //     message: 'Get active vouchers successfully',
-  //     data,
-  //     total,
-  //     currentPage,
-  //     totalPages,
-  //   };
-  // }
+    const customer = await this.customerModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const redeemed = await this.voucherCodeModel.find({
+      redeemedBy: new Types.ObjectId(userId),
+    });
+    const redeemedVoucherIds = new Set(
+      redeemed.map((v) => v.voucherId.toString()),
+    );
+
+    // Gắn isRedeemable
+    const enrichedData = data.map((v) => ({
+      ...v.toObject(),
+      isRedeemable:
+        // v.isPublished === true &&
+        v.status === VouchersStatus.ACTIVE &&
+        customer?.rewardPoints >= (v.rewardPointCost ?? 0) &&
+        !redeemedVoucherIds.has(v._id.toString()),
+    }));
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get customer business vouchers successfully',
+      data: enrichedData,
+      total,
+      currentPage,
+      totalPages,
+    };
+  }
+
+  // Get my redeemed voucher
+  async getMyVouchers(
+    userId: string,
+    query: GetMyVouchersQueryDto,
+  ): Promise<APIPaginatedResponseDto<any>> {
+    const { page = 1, limit = 10 } = query;
+
+    const filter = {
+      redeemedBy: new Types.ObjectId(userId),
+    };
+
+    const populate = [
+      {
+        path: 'voucherId',
+        model: 'BusinessVouchers',
+        select:
+          'customName customDescription discountPercent maxUsage redeemedCount startDate endDate',
+      },
+      {
+        path: 'businessId',
+        model: 'Businesses',
+        select:
+          'businessName businessAddress businessPhone openTime closeTime businessLogoUrl',
+      },
+    ];
+
+    const { data, total, currentPage, totalPages } =
+      await paginate<VoucherCodesDocument>(
+        this.voucherCodeModel,
+        filter,
+        page,
+        limit,
+        undefined,
+        undefined,
+        populate,
+      );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get my vouchers successfully',
+      data,
+      total,
+      currentPage,
+      totalPages,
+    };
+  }
 }

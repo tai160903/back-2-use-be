@@ -275,12 +275,10 @@ export class BusinessVoucherService {
       throw new ForbiddenException(`You are not allowed to edit this voucher.`);
     }
 
-    // --- Check setup state ---
     if (!businessVoucher.isSetup) {
       throw new BadRequestException(`Voucher has not been set up yet.`);
     }
 
-    // --- Only allow update if inactive ---
     if (businessVoucher.status !== VouchersStatus.INACTIVE) {
       throw new BadRequestException(
         `Only inactive vouchers can be updated. Current status: '${businessVoucher.status}'.`,
@@ -345,7 +343,6 @@ export class BusinessVoucherService {
   ): Promise<APIPaginatedResponseDto<any>> {
     const { page = 1, limit = 10, tierLabel, minThreshold } = query;
 
-    // 🔸 Kiểm tra business
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(userId),
     });
@@ -354,15 +351,36 @@ export class BusinessVoucherService {
       throw new NotFoundException(`No business found for user '${userId}'.`);
     }
 
-    // ============================
-    // 🔸 Lấy danh sách voucher BUSINESS
-    // ============================
+    const allPolicies = await this.ecoRewardPolicyModel
+      .find({ isActive: true })
+      .sort({ threshold: 1 });
 
+    const currentTier = getBusinessCurrentTier(business.ecoPoints, allPolicies);
+
+    if (!currentTier) {
+      throw new BadRequestException(
+        `No active eco reward tier could be determined for business '${business.businessName}'.`,
+      );
+    }
+
+    // Fetch all vouchers business already claimed
+    const claimed = await this.businessVoucherModel.find({
+      businessId: business._id,
+    });
+
+    const claimedTemplateIds = new Set(
+      claimed.map((c) => c.templateVoucherId.toString()),
+    );
+
+    // Filter base
     const filter: any = {
       voucherType: VoucherType.BUSINESS,
       isDisabled: false,
-      // status: VouchersStatus.TEMPLATE,
     };
+
+    if (tierLabel) filter['ecoRewardPolicy.label'] = tierLabel;
+    if (minThreshold)
+      filter['ecoRewardPolicy.threshold'] = { $gte: minThreshold };
 
     const pipeline: any[] = [
       { $match: filter },
@@ -374,37 +392,48 @@ export class BusinessVoucherService {
           as: 'ecoRewardPolicy',
         },
       },
-      {
-        $unwind: {
-          path: '$ecoRewardPolicy',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+      { $unwind: '$ecoRewardPolicy' },
+      { $skip: (page - 1) * limit },
+      { $limit: limit },
     ];
-
-    if (tierLabel) {
-      pipeline.push({ $match: { 'ecoRewardPolicy.label': tierLabel } });
-    }
-
-    if (minThreshold) {
-      pipeline.push({
-        $match: { 'ecoRewardPolicy.threshold': { $gte: minThreshold } },
-      });
-    }
-
-    pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
 
     const data = await this.voucherModel.aggregate(pipeline);
 
     const total = await this.voucherModel.aggregate([
-      ...pipeline.slice(0, -2),
+      { $match: filter },
+      {
+        $lookup: {
+          from: 'ecorewardpolicies',
+          localField: 'ecoRewardPolicyId',
+          foreignField: '_id',
+          as: 'ecoRewardPolicy',
+        },
+      },
+      { $unwind: '$ecoRewardPolicy' },
       { $count: 'total' },
     ]);
+
+    // Attach isClaimable
+    const enrichedData = data.map((v: any) => {
+      const policy = v.ecoRewardPolicy;
+
+      const isClaimable =
+        policy &&
+        business.ecoPoints >= policy.threshold &&
+        policy.threshold >= currentTier.threshold &&
+        v.isDisabled === false &&
+        !claimedTemplateIds.has(v._id.toString());
+
+      return {
+        ...v,
+        isClaimable,
+      };
+    });
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Get business vouchers successfully',
-      data,
+      data: enrichedData,
       total: total[0]?.total || 0,
       currentPage: page,
       totalPages: Math.ceil((total[0]?.total || 0) / limit),

@@ -1,8 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min } from 'class-validator';
+import { IsOptional, IsInt, Min, IsEnum } from 'class-validator';
 
-export class GetAllActiveVouchersQueryDto {
+export enum CustomerVoucherFilterStatus {
+  INACTIVE = 'inactive',
+  ACTIVE = 'active',
+  EXPIRED = 'expired',
+}
+
+export class GetAllVouchersQueryDto {
+  @ApiPropertyOptional({
+    enum: CustomerVoucherFilterStatus,
+    example: CustomerVoucherFilterStatus.ACTIVE,
+    description: 'Filter by voucher status (inactive, active, expired)',
+  })
+  @IsOptional()
+  @IsEnum(CustomerVoucherFilterStatus)
+  status?: CustomerVoucherFilterStatus;
+
   @ApiPropertyOptional({
     example: 1,
     description: 'Page number for pagination',
