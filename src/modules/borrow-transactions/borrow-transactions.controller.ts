@@ -50,7 +50,6 @@ export class BorrowTransactionsController {
       req.user._id,
     );
   }
-
   @Patch('confirm/:id')
   @ApiOperation({
     summary: 'Confirm a borrow transaction',
@@ -65,6 +64,85 @@ export class BorrowTransactionsController {
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
   confirm(@Param('id') id: string) {
     return this.borrowTransactionsService.confirmBorrowTransaction(id);
+  }
+
+  @Get('business')
+  @ApiOperation({ summary: 'Get all borrow transactions for business' })
+  @ApiBearerAuth('access-token')
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'productName', required: false })
+  @ApiQuery({ name: 'serialNumber', required: false })
+  @ApiQuery({ name: 'borrowTransactionType', required: false })
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  getBusinessTransactions(
+    @Request() req: { user: { _id: string } },
+    @Query('page') page = '1',
+    @Query('limit') limit = '10',
+    @Query('status') status?: string,
+    @Query('productName') productName?: string,
+    @Query('serialNumber') serialNumber?: string,
+    @Query('borrowTransactionType') borrowTransactionType?: string,
+  ) {
+    const q = {
+      page: Number(page) || 1,
+      limit: Number(limit) || 10,
+      status,
+      productName,
+      serialNumber,
+      borrowTransactionType,
+    };
+    return this.borrowTransactionsService.getBusinessTransactions(
+      req.user._id,
+      q,
+    );
+  }
+
+  @Get('business/history')
+  @ApiOperation({ summary: 'Get borrow transaction history for business' })
+  @ApiBearerAuth('access-token')
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'productName', required: false })
+  @ApiQuery({ name: 'serialNumber', required: false })
+  @ApiQuery({ name: 'borrowTransactionType', required: false })
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  getBusinessHistory(
+    @Request() req: { user: { _id: string } },
+    @Query('status') status?: string,
+    @Query('productName') productName?: string,
+    @Query('serialNumber') serialNumber?: string,
+    @Query('borrowTransactionType') borrowTransactionType?: string,
+  ) {
+    const q = { status, productName, serialNumber, borrowTransactionType };
+    return this.borrowTransactionsService.getBusinessHistory(req.user._id, q);
+  }
+
+  @Get('business/:id')
+  @ApiOperation({ summary: 'Get borrow transaction detail (business)' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  getBusinessTransactionDetail(
+    @Request() req: { user: { _id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.borrowTransactionsService.getBusinessTransactionDetail(
+      req.user._id,
+      id,
+    );
+  }
+
+  @Get('business-pending')
+  @ApiOperation({
+    summary: 'Get pending transactions for a business',
+    description: 'Fetches all pending transactions for a specific business.',
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  getBusinessPendingTransactions(@Request() req: { user: { _id: string } }) {
+    return this.borrowTransactionsService.getBusinessPendingTransactions(
+      req.user._id,
+    );
   }
 
   @Get('customer-history')
@@ -111,16 +189,31 @@ export class BorrowTransactionsController {
     );
   }
 
-  @Get('business-pending')
-  @ApiOperation({
-    summary: 'Get pending transactions for a business',
-    description: 'Fetches all pending transactions for a specific business.',
-  })
+  @Get('customer/:id')
+  @ApiOperation({ summary: 'Get borrow transaction detail (customer)' })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
-  getBusinessPendingTransactions(@Request() req: { user: { _id: string } }) {
-    return this.borrowTransactionsService.getBusinessPendingTransactions(
+  @UseGuards(AuthGuard('jwt'))
+  getCustomerTransactionDetail(
+    @Request() req: { user: { _id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.borrowTransactionsService.getCustomerTransactionDetail(
       req.user._id,
+      id,
+    );
+  }
+
+  @Patch('customer/cancel/:id')
+  @ApiOperation({ summary: 'Cancel a pending borrow transaction (customer)' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'))
+  cancelCustomerPending(
+    @Request() req: { user: { _id: string } },
+    @Param('id') id: string,
+  ) {
+    return this.borrowTransactionsService.cancelCustomerPendingTransaction(
+      req.user._id,
+      id,
     );
   }
 }
