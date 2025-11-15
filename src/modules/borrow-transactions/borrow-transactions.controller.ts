@@ -174,7 +174,7 @@ export class BorrowTransactionsController {
     name: 'borrowTransactionType',
     required: false,
     description: 'Filter by borrowTransactionType',
-    enum: ['borrow', 'return'],
+    enum: ['borrow', 'return_success', 'return_failed'],
   })
   @UseGuards(AuthGuard('jwt'))
   getCustomerHistory(
