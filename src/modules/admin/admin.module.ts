@@ -58,6 +58,10 @@ import {
 } from '../eco-reward-policies/schemas/eco-reward-policy.schema';
 import { AdminEcoRewardPoliciesController } from './controllers/admin-eco-policy.controller';
 import { AdminEcoRewardPoliciesService } from './services/admin-eco-policy.service';
+import {
+  BusinessVouchers,
+  BusinessVouchersSchema,
+} from '../businesses/schemas/business-voucher.schema';
 
 @Module({
   imports: [
@@ -75,6 +79,7 @@ import { AdminEcoRewardPoliciesService } from './services/admin-eco-policy.servi
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Vouchers.name, schema: VouchersSchema },
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
+      { name: BusinessVouchers.name, schema: BusinessVouchersSchema },
       { name: EcoRewardPolicy.name, schema: EcoRewardPolicySchema },
     ]),
     BusinessesModule,
