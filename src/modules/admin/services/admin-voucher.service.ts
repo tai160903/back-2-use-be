@@ -31,6 +31,12 @@ import {
   EcoRewardPolicyDocument,
 } from 'src/modules/eco-reward-policies/schemas/eco-reward-policy.schema';
 import { UpdateVoucherDto } from '../dto/admin-voucher/update-voucher.dto';
+import {
+  BusinessVoucherDocument,
+  BusinessVouchers,
+} from 'src/modules/businesses/schemas/business-voucher.schema';
+import { GetBusinessVoucherByVoucherIdQueryDto } from '../dto/admin-voucher/get-business-voucher-from-vouchers-query.dto';
+import { GetVoucherCodesByBusinessVoucherIdQueryDto } from '../dto/admin-voucher/get-voucher-codes-from-business-voucher-query.dto';
 
 @Injectable()
 export class AdminVoucherService {
@@ -40,6 +46,9 @@ export class AdminVoucherService {
 
     @InjectModel(VoucherCodes.name)
     private readonly voucherCodeModel: Model<VoucherCodesDocument>,
+
+    @InjectModel(BusinessVouchers.name)
+    private readonly businessVoucherModel: Model<BusinessVouchers>,
 
     @InjectModel(EcoRewardPolicy.name)
     private readonly ecoRewardPolicyModel: Model<EcoRewardPolicyDocument>,
@@ -186,47 +195,92 @@ export class AdminVoucherService {
     };
   }
 
-  // Admin update voucher
-  // async updateVoucher(
-  //   id: string,
-  //   updateDto: UpdateVoucherDto,
-  // ): Promise<APIResponseDto<Vouchers>> {
-  //   // 1️⃣ Kiểm tra voucher tồn tại
-  //   const voucher = await this.voucherModel.findById(id);
-  //   if (!voucher) {
-  //     throw new NotFoundException(`Voucher '${id}' not found.`);
-  //   }
+  // Get business voucher by voucherId
+  async getBusinessVoucherByVoucherId(
+    voucherId: string,
+    query: GetBusinessVoucherByVoucherIdQueryDto,
+  ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
+    const { page = 1, limit = 10, status, isPublished } = query;
 
-  //   // 2️⃣ Lấy danh sách field được phép cập nhật từ helper
-  //   const allowedFields = getAllowedVoucherUpdateFields(voucher);
+    const template = await this.voucherModel.findById(voucherId);
+    if (!template) {
+      throw new NotFoundException('Voucher template not found');
+    }
 
-  //   // 3️⃣ Nếu không có field nào được phép update → báo lỗi
-  //   if (allowedFields.length === 0) {
-  //     throw new BadRequestException(
-  //       `Vouchers of type '${voucher.voucherType}' with status '${voucher.status}' cannot be updated.`,
-  //     );
-  //   }
+    const filter: any = {
+      templateVoucherId: new Types.ObjectId(voucherId),
+    };
 
-  //   // 4️⃣ Loại bỏ các field không hợp lệ khỏi DTO
-  //   Object.keys(updateDto).forEach((key) => {
-  //     if (!allowedFields.includes(key)) delete updateDto[key];
-  //   });
+    if (status) filter.status = status;
+    if (typeof isPublished === 'boolean') filter.isPublished = isPublished;
 
-  //   // Nếu không còn field nào sau khi lọc → báo lỗi
-  //   if (Object.keys(updateDto).length === 0) {
-  //     throw new BadRequestException(
-  //       `No valid fields to update for voucher '${voucher.name}'.`,
-  //     );
-  //   }
+    const result = await paginate(
+      this.businessVoucherModel,
+      filter,
+      page,
+      limit,
+      undefined,
+      undefined,
+      [
+        {
+          path: 'businessId',
+          select: 'businessName businessAddress businessPhone businessLogoUrl',
+        },
+      ],
+    );
 
-  //   // 5️⃣ Cập nhật và lưu
-  //   Object.assign(voucher, updateDto);
-  //   const updated = await voucher.save();
+    return {
+      statusCode: 200,
+      message: 'Get business voucher successfully',
+      data: result.data,
+      total: result.total,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+    };
+  }
 
-  //   return {
-  //     statusCode: HttpStatus.OK,
-  //     message: `Updated voucher '${updated.name}' successfully.`,
-  //     data: updated,
-  //   };
-  // }
+  // Get voucherCode by business voucher id
+  async getVoucherCodesByBusinessVoucherId(
+    businessVoucherId: string,
+    query: GetVoucherCodesByBusinessVoucherIdQueryDto,
+  ): Promise<APIPaginatedResponseDto<VoucherCodes[]>> {
+    const { page = 1, limit = 10, status } = query;
+
+    // Check businessVoucher tồn tại
+    const businessVoucher =
+      await this.businessVoucherModel.findById(businessVoucherId);
+    if (!businessVoucher) {
+      throw new NotFoundException('Business voucher not found');
+    }
+
+    const filter: any = {
+      voucherId: new Types.ObjectId(businessVoucherId),
+    };
+
+    if (status) filter.status = status;
+
+    const result = await paginate(
+      this.voucherCodeModel,
+      filter,
+      page,
+      limit,
+      undefined,
+      { createdAt: -1 },
+      [
+        {
+          path: 'redeemedBy',
+          select: 'fullName phone',
+        },
+      ],
+    );
+
+    return {
+      statusCode: 200,
+      message: 'Get voucher codes successfully',
+      data: result.data,
+      total: result.total,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
+    };
+  }
 }

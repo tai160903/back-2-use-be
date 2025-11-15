@@ -26,6 +26,9 @@ import { CreateBusinessVoucherDto } from '../dto/admin-voucher/create-voucher/cr
 import { CreateLeaderboardVoucherDto } from '../dto/admin-voucher/create-voucher/create-leaderboard-voucher.dto';
 import { CreateVoucherUnion } from '../dto/admin-voucher/create-voucher/create-voucher-union';
 import { UpdateVoucherDto } from '../dto/admin-voucher/update-voucher.dto';
+import { BusinessVouchers } from 'src/modules/businesses/schemas/business-voucher.schema';
+import { GetBusinessVoucherByVoucherIdQueryDto } from '../dto/admin-voucher/get-business-voucher-from-vouchers-query.dto';
+import { GetVoucherCodesByBusinessVoucherIdQueryDto } from '../dto/admin-voucher/get-voucher-codes-from-business-voucher-query.dto';
 
 @ApiTags('Voucher (Admin)')
 @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.ADMIN]))
@@ -62,21 +65,32 @@ export class AdminVoucherController {
     return this.voucherService.getAllVoucher(query);
   }
 
-  // GET /admin/vouchers/:id
-  @Get(':id')
+  // GET /admin/vouchers/:voucherId
+  @Get(':voucherId')
   async getVoucherById(
-    @Param('id') id: string,
+    @Param('voucherId') voucherId: string,
   ): Promise<APIResponseDto<Vouchers>> {
-    return this.voucherService.getVoucherById(id);
+    return this.voucherService.getVoucherById(voucherId);
   }
 
-  // PATCH /admin/vouchers/:id
-  // @Patch(':id')
-  // @ApiBody({ type: UpdateVoucherDto })
-  // async updateVoucher(
-  //   @Param('id') id: string,
-  //   @Body() updateDto: UpdateVoucherDto,
-  // ): Promise<APIResponseDto<Vouchers>> {
-  //   return this.voucherService.updateVoucher(id, updateDto);
-  // }
+  //  GET /admin/vouchers/:voucherId/businessVoucher
+  @Get(':voucherId/businessVoucher')
+  async getBusinessVoucherByVoucherId(
+    @Param('voucherId') voucherId: string,
+    @Query() query: GetBusinessVoucherByVoucherIdQueryDto,
+  ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
+    return this.voucherService.getBusinessVoucherByVoucherId(voucherId, query);
+  }
+
+  //  GET /admin/vouchers/businessVoucher/:businessVoucherId/codes
+  @Get('businessVoucher/:businessVoucherId/codes')
+  async getVoucherCodesByBusinessVoucherId(
+    @Param('businessVoucherId') businessVoucherId: string,
+    @Query() query: GetVoucherCodesByBusinessVoucherIdQueryDto,
+  ): Promise<APIPaginatedResponseDto<VoucherCodes[]>> {
+    return this.voucherService.getVoucherCodesByBusinessVoucherId(
+      businessVoucherId,
+      query,
+    );
+  }
 }
