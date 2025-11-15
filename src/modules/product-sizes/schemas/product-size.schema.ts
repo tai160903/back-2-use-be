@@ -20,6 +20,9 @@ export class ProductSize {
   @Prop({ type: Number, required: true })
   depositValue: number;
 
+  @Prop({ type: Number })
+  weight: number;
+
   @Prop()
   description: string;
 

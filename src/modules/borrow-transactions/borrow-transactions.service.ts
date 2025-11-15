@@ -9,6 +9,7 @@ import { Customers } from '../users/schemas/customer.schema';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 import * as QRCode from 'qrcode';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { ConfigService } from '@nestjs/config';
 import { Wallets } from '../wallets/schemas/wallets.schema';
 import {
   WalletTransactions,
@@ -18,6 +19,7 @@ import { TransactionType } from 'src/common/constants/transaction-type.enum';
 import { Product } from '../products/schemas/product.schema';
 import { ProductSize } from '../product-sizes/schemas/product-size.schema';
 import { Businesses } from '../businesses/schemas/businesses.schema';
+import { ProductGroup } from '../product-groups/schemas/product-group.schema';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -34,8 +36,11 @@ export class BorrowTransactionsService {
     private readonly cloudinaryService: CloudinaryService,
     @InjectModel(ProductSize.name)
     private readonly productSizeModel: Model<ProductSize>,
+    @InjectModel(ProductGroup.name)
+    private readonly productGroupModel: Model<ProductGroup>,
     @InjectModel(Businesses.name)
     private readonly businessesModel: Model<Businesses>,
+    private readonly configService: ConfigService,
   ) {}
 
   async createBorrowTransaction(
@@ -58,6 +63,25 @@ export class BorrowTransactionsService {
       const product = await this.productModel
         .findById(dto.productId)
         .session(session);
+
+      // Enforce max concurrent borrows per customer
+      const maxConcurrent =
+        this.configService.get<number>(
+          'borrowTransactions.maxConcurrentBorrows',
+        ) || 3;
+      const activeCount = await this.borrowTransactionModel
+        .countDocuments({
+          customerId: customer._id,
+          status: { $in: ['pending_pickup', 'borrowing'] },
+        })
+        .session(session as any);
+
+      if (activeCount >= maxConcurrent) {
+        throw new HttpException(
+          `Maximum concurrent borrow limit reached (${maxConcurrent})`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
       if (!product)
         throw new HttpException('Product not found', HttpStatus.BAD_REQUEST);
@@ -250,27 +274,75 @@ export class BorrowTransactionsService {
     }
   }
 
-  async getCustomerTransactionHistory(userId: string): Promise<APIResponseDto> {
+  async getCustomerTransactionHistory(
+    userId: string,
+    filters?: {
+      status?: string;
+      productName?: string;
+      borrowTransactionType?: string;
+    },
+  ): Promise<APIResponseDto> {
     try {
-      const customer = await this.customerModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
+      const customer = await this.customerModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .lean();
+
       if (!customer) {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
       }
+
+      const query: any = {
+        customerId: customer._id,
+      };
+
+      if (filters?.status) query.status = filters.status;
+      if (filters?.borrowTransactionType)
+        query.borrowTransactionType = filters.borrowTransactionType;
+
+      if (filters?.productName) {
+        const regex = new RegExp(filters.productName, 'i');
+
+        const matchedGroupIds = await this.productGroupModel
+          .find({ name: regex })
+          .distinct('_id');
+
+        const matchedProductIds = await this.productModel
+          .find({
+            $or: [
+              // { serialNumber: regex },
+              { productGroupId: { $in: matchedGroupIds } },
+            ],
+          })
+          .distinct('_id');
+
+        query.productId = { $in: matchedProductIds };
+      }
+
       const transactions = await this.borrowTransactionModel
-        .find({
-          customerId: new Types.ObjectId(customer._id),
-        })
+        .find(query)
         .populate({
           path: 'productId',
+          select:
+            'qrCode serialNumber status reuseCount productGroupId productSizeId',
           populate: [
-            { path: 'productGroupId', populate: 'materialId' },
-            { path: 'productSizeId' },
+            {
+              path: 'productGroupId',
+              select: 'name imageUrl materialId',
+              populate: {
+                path: 'materialId',
+                select: 'materialName',
+              },
+            },
+            { path: 'productSizeId', select: 'sizeName' },
           ],
         })
-        .populate('businessId')
-        .sort({ createdAt: -1 });
+        .populate({
+          path: 'businessId',
+          select:
+            'businessName businessPhone businessAddress businessType businessLogoUrl',
+        })
+        .sort({ createdAt: -1 })
+        .lean(); // nhẹ hơn 40–70%
 
       return {
         statusCode: HttpStatus.OK,
@@ -279,8 +351,7 @@ export class BorrowTransactionsService {
       };
     } catch (error) {
       throw new HttpException(
-        (error as Error).message ||
-          'Failed to fetch customer transaction history.',
+        error?.message || 'Failed to fetch customer transaction history.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -319,9 +390,14 @@ export class BorrowTransactionsService {
   @Cron(CronExpression.EVERY_MINUTE, { timeZone: 'Asia/Ho_Chi_Minh' })
   async cancelExpiredBorrowTransactions() {
     const now = new Date();
+    const autoCancelHours =
+      this.configService.get<number>('borrowTransactions.autoCancelHours') ||
+      24;
+    const cutoff = new Date(now.getTime() - autoCancelHours * 60 * 60 * 1000);
+
     const expiredTransactions = await this.borrowTransactionModel.find({
       status: 'pending_pickup',
-      borrowDate: { $lte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+      borrowDate: { $lte: cutoff },
     });
 
     for (const transaction of expiredTransactions) {
