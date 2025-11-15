@@ -1,4 +1,12 @@
-import { IsInt, IsMongoId, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsInt,
+  IsMongoId,
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsNumber,
+  Min,
+} from 'class-validator';
 
 export class CreateProductSizeDto {
   @IsNotEmpty()
@@ -15,4 +23,9 @@ export class CreateProductSizeDto {
 
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'Weight must be a number' })
+  @Min(0, { message: 'Weight must be non-negative' })
+  weight?: number;
 }

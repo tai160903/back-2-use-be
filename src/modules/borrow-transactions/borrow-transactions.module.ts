@@ -22,6 +22,10 @@ import {
   Businesses,
   BusinessesSchema,
 } from '../businesses/schemas/businesses.schema';
+import {
+  ProductGroup,
+  ProductGroupSchema,
+} from '../product-groups/schemas/product-group.schema';
 
 @Module({
   imports: [
@@ -31,6 +35,7 @@ import {
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
       { name: Product.name, schema: ProductSchema },
       { name: ProductSize.name, schema: ProductSizeSchema },
+      { name: ProductGroup.name, schema: ProductGroupSchema },
       { name: Businesses.name, schema: BusinessesSchema },
     ]),
     UsersModule,

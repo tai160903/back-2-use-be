@@ -7,6 +7,7 @@ import {
   Get,
   Patch,
   Param,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -14,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { CreateBorrowTransactionDto } from './dto/create-borrow-transaction.dto';
 import { BorrowTransactionsService } from './borrow-transactions.service';
@@ -71,10 +73,41 @@ export class BorrowTransactionsController {
     description: 'Fetches the transaction history for a specific customer.',
   })
   @ApiBearerAuth('access-token')
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by transaction status.',
+    enum: [
+      'pending_pickup',
+      'borrowing',
+      'returned',
+      'return_late',
+      'rejected',
+      'lost',
+      'canceled',
+    ],
+  })
+  @ApiQuery({
+    name: 'productName',
+    required: false,
+    description: 'Search by product name (case-insensitive, partial match)',
+  })
+  @ApiQuery({
+    name: 'borrowTransactionType',
+    required: false,
+    description: 'Filter by borrowTransactionType',
+    enum: ['borrow', 'return'],
+  })
   @UseGuards(AuthGuard('jwt'))
-  getCustomerHistory(@Request() req: { user: { _id: string } }) {
+  getCustomerHistory(
+    @Request() req: { user: { _id: string } },
+    @Query('status') status?: string,
+    @Query('productName') productName?: string,
+    @Query('borrowTransactionType') borrowTransactionType?: string,
+  ) {
     return this.borrowTransactionsService.getCustomerTransactionHistory(
       req.user._id,
+      { status, productName, borrowTransactionType },
     );
   }
 

@@ -7,6 +7,7 @@ import {
   Get,
   Query,
   Param,
+  Patch,
   // Patch, // temporarily disabled update endpoint
   // Delete, // temporarily disabled delete endpoint
 } from '@nestjs/common';
@@ -24,7 +25,7 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
-// import { UpdateProductDto } from './dto/update-product.dto'; // disabled with update endpoint
+import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
 
 @ApiTags('Products')
@@ -258,70 +259,40 @@ export class ProductsController {
     return this.productsService.getProductById(id);
   }
 
-  // @Patch(':id')
-  // @ApiOperation({
-  //   summary: 'Update product',
-  //   description: 'Update product status, condition note, or condition image',
-  // })
-  // @ApiParam({
-  //   name: 'id',
-  //   description: 'Product ID',
-  //   example: '67305e0a8a2a4b228c2f1a13',
-  // })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'Product updated successfully',
-  // })
-  // @ApiResponse({
-  //   status: 400,
-  //   description: 'Invalid product ID or data',
-  // })
-  // @ApiResponse({
-  //   status: 404,
-  //   description: 'Product not found',
-  // })
-  // @UseGuards(
-  //   AuthGuard('jwt'),
-  //   BusinessSubscriptionGuard,
-  //   RoleCheckGuard.withRoles([RolesEnum.BUSINESS]),
-  // )
-  // updateProduct(
-  //   @Param('id') id: string,
-  //   @Body() updateProductDto: UpdateProductDto,
-  // ) {
-  //   return this.productsService.updateProduct(id, updateProductDto);
-  // }
-
-  // @Delete(':id')
-  // @ApiOperation({
-  //   summary: 'Soft delete product',
-  //   description: 'Mark product as deleted (soft delete)',
-  // })
-  // @ApiParam({
-  //   name: 'id',
-  //   description: 'Product ID',
-  //   example: '67305e0a8a2a4b228c2f1a13',
-  // })
-  // @ApiResponse({
-  //   status: 200,
-  //   description: 'Product deleted successfully',
-  // })
-  // @ApiResponse({
-  //   status: 400,
-  //   description: 'Invalid product ID',
-  // })
-  // @ApiResponse({
-  //   status: 404,
-  //   description: 'Product not found',
-  // })
-  // @UseGuards(
-  //   AuthGuard('jwt'),
-  //   BusinessSubscriptionGuard,
-  //   RoleCheckGuard.withRoles([RolesEnum.BUSINESS]),
-  // )
-  // deleteProduct(@Param('id') id: string) {
-  //   return this.productsService.softDeleteProduct(id);
-  // }
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Update product',
+    description:
+      'Update product status, condition, condition note, or condition image',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Product ID',
+    example: '67305e0a8a2a4b228c2f1a13',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Product updated successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid product ID or data',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Product not found',
+  })
+  @UseGuards(
+    AuthGuard('jwt'),
+    BusinessSubscriptionGuard,
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS]),
+  )
+  updateProduct(
+    @Param('id') id: string,
+    @Body() updateProductDto: UpdateProductDto,
+  ) {
+    return this.productsService.updateProduct(id, updateProductDto);
+  }
 
   @Get('customer/:productGroupId')
   @ApiBearerAuth('access-token')

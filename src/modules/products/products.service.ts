@@ -71,6 +71,8 @@ export class ProductsService {
       const timestamp = Date.now();
       const businessId = new Types.ObjectId(business._id.toString());
 
+      const initialCondition = createProductDto.condition || 'good';
+
       const products = await Promise.all(
         Array.from({ length: createProductDto.amount }, async (_, i) => {
           const random = Math.floor(Math.random() * 100000)
@@ -97,6 +99,7 @@ export class ProductsService {
             productSizeId,
             serialNumber,
             qrCode: uploadResult.secure_url,
+            condition: initialCondition,
           };
         }),
       );

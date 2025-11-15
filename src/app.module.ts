@@ -6,6 +6,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import jwtConfig from './config/jwt.config';
+import borrowTransactionsConfig from './config/borrow-transactions.config';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { MaterialModule } from './modules/materials/material.module';
@@ -31,7 +32,7 @@ import { CronModule } from './common/cron/cron.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [jwtConfig, vnpayConfig],
+      load: [jwtConfig, vnpayConfig, borrowTransactionsConfig],
     }),
     MongooseModule.forRoot(process.env.DATABASE_URL || ''),
     ScheduleModule.forRoot(),

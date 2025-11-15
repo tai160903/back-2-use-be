@@ -31,4 +31,16 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   lastConditionImage?: string;
+
+  @ApiProperty({
+    description: 'Product condition',
+    required: false,
+    enum: ['good', 'damaged', 'expired', 'lost'],
+    example: 'good',
+  })
+  @IsOptional()
+  @IsEnum(['good', 'damaged', 'expired', 'lost'], {
+    message: 'Condition must be one of good, damaged, expired, lost',
+  })
+  condition?: string;
 }

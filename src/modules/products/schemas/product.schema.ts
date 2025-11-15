@@ -26,6 +26,9 @@ export class Product {
   })
   status: string;
 
+  @Prop({ enum: ['good', 'damaged', 'expired', 'lost'] })
+  condition: string;
+
   @Prop({ default: 0 })
   reuseCount: number;
 

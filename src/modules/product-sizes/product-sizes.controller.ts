@@ -54,6 +54,11 @@ export class ProductSizesController {
           description: 'Base price (cost price)',
           example: 50000,
         },
+        weight: {
+          type: 'number',
+          description: 'Weight for this size (grams)',
+          example: 500,
+        },
         description: {
           type: 'string',
           description: 'Size description (optional)',
@@ -129,6 +134,7 @@ export class ProductSizesController {
       properties: {
         sizeName: { type: 'string', example: 'Large' },
         basePrice: { type: 'number', example: 60000 },
+        weight: { type: 'number', example: 750 },
         description: { type: 'string', example: '750ml bottle' },
       },
     },

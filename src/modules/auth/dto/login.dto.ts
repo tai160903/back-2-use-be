@@ -7,7 +7,6 @@ export class LoginDto {
   @IsString()
   password: string;
 
-  @IsString()
   @IsEnum(['customer', 'business'])
   type: 'customer' | 'business';
 }
