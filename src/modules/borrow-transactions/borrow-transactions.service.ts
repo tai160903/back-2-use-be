@@ -64,7 +64,6 @@ export class BorrowTransactionsService {
         .findById(dto.productId)
         .session(session);
 
-      // Enforce max concurrent borrows per customer
       const maxConcurrent =
         this.configService.get<number>(
           'borrowTransactions.maxConcurrentBorrows',
@@ -139,6 +138,13 @@ export class BorrowTransactionsService {
       if (!business)
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
 
+      if (customer.userId?.toString() === business.userId?.toString()) {
+        throw new HttpException(
+          'Cannot borrow from your own business',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const businessWallet = await this.walletsModel
         .findOne({ userId: business.userId, type: 'business' })
         .session(session);
@@ -198,8 +204,8 @@ export class BorrowTransactionsService {
 
       const walletBusiness = new this.walletTransactionsModel({
         walletId: businessWallet._id,
-        relatedUserId: user._id,
-        relatedUserType: 'customer',
+        relatedUserId: business.userId,
+        relatedUserType: 'business',
         amount: depositAmount,
         transactionType: TransactionType.BORROW_DEPOSIT,
         direction: 'in',
@@ -301,7 +307,6 @@ export class BorrowTransactionsService {
       if (options.borrowTransactionType)
         query.borrowTransactionType = options.borrowTransactionType;
 
-      // product search (by productGroup name or serialNumber)
       const productIdSet = new Set<string>();
 
       if (options.productName) {
@@ -604,7 +609,7 @@ export class BorrowTransactionsService {
             'businessName businessPhone businessAddress businessType businessLogoUrl',
         })
         .sort({ createdAt: -1 })
-        .lean(); // nhẹ hơn 40–70%
+        .lean();
 
       return {
         statusCode: HttpStatus.OK,
@@ -734,7 +739,6 @@ export class BorrowTransactionsService {
 
       await walletTx.save({ session });
 
-      // make product available again
       if (transaction.productId) {
         await this.productModel.updateOne(
           { _id: transaction.productId },
