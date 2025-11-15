@@ -155,6 +155,7 @@ export class BorrowTransactionsService {
             depositAmount,
             customerId: customer._id,
             status,
+            borrowTransactionType: 'borrow',
           },
         ],
         { session },
@@ -274,6 +275,267 @@ export class BorrowTransactionsService {
     }
   }
 
+  async getBusinessTransactions(
+    userId: string,
+    options: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      productName?: string;
+      serialNumber?: string;
+      borrowTransactionType?: string;
+    },
+  ): Promise<APIResponseDto> {
+    try {
+      const business = await this.businessesModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const query: any = { businessId: business._id };
+
+      if (options.status) query.status = options.status;
+      if (options.borrowTransactionType)
+        query.borrowTransactionType = options.borrowTransactionType;
+
+      // product search (by productGroup name or serialNumber)
+      const productIdSet = new Set<string>();
+
+      if (options.productName) {
+        const regex = new RegExp(options.productName, 'i');
+        const matchedGroupIds = await this.productGroupModel
+          .find({ name: regex })
+          .distinct('_id');
+
+        const matchedProductIds = await this.productModel
+          .find({ productGroupId: { $in: matchedGroupIds } })
+          .distinct('_id');
+
+        matchedProductIds.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (options.serialNumber) {
+        const regex = new RegExp(options.serialNumber, 'i');
+        const matchedBySerial = await this.productModel
+          .find({ serialNumber: regex })
+          .distinct('_id');
+        matchedBySerial.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (productIdSet.size > 0) {
+        query.productId = {
+          $in: Array.from(productIdSet).map((s) => new Types.ObjectId(s)),
+        };
+      }
+
+      const page = options.page && options.page > 0 ? options.page : 1;
+      const limit = options.limit && options.limit > 0 ? options.limit : 10;
+
+      const total = await this.borrowTransactionModel.countDocuments(query);
+
+      const transactions = await this.borrowTransactionModel
+        .find(query)
+        .populate({
+          path: 'productId',
+          select:
+            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          populate: [
+            { path: 'productGroupId', select: 'name imageUrl' },
+            { path: 'productSizeId', select: 'sizeName' },
+          ],
+        })
+        .populate({ path: 'customerId', select: 'userId fullName phone' })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business transactions fetched successfully.',
+        data: {
+          items: transactions,
+          total,
+          page,
+          limit,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to fetch business transactions.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getBusinessHistory(
+    userId: string,
+    options: {
+      status?: string;
+      productName?: string;
+      serialNumber?: string;
+      borrowTransactionType?: string;
+    },
+  ): Promise<APIResponseDto> {
+    try {
+      const business = await this.businessesModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const query: any = { businessId: business._id };
+      if (options.status) query.status = options.status;
+      if (options.borrowTransactionType)
+        query.borrowTransactionType = options.borrowTransactionType;
+
+      const productIdSet = new Set<string>();
+
+      if (options.productName) {
+        const regex = new RegExp(options.productName, 'i');
+        const matchedGroupIds = await this.productGroupModel
+          .find({ name: regex })
+          .distinct('_id');
+
+        const matchedProductIds = await this.productModel
+          .find({ productGroupId: { $in: matchedGroupIds } })
+          .distinct('_id');
+
+        matchedProductIds.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (options.serialNumber) {
+        const regex = new RegExp(options.serialNumber, 'i');
+        const matchedBySerial = await this.productModel
+          .find({ serialNumber: regex })
+          .distinct('_id');
+        matchedBySerial.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (productIdSet.size > 0) {
+        query.productId = {
+          $in: Array.from(productIdSet).map((s) => new Types.ObjectId(s)),
+        };
+      }
+
+      const transactions = await this.borrowTransactionModel
+        .find(query)
+        .populate({
+          path: 'productId',
+          select:
+            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          populate: [
+            { path: 'productGroupId', select: 'name imageUrl' },
+            { path: 'productSizeId', select: 'sizeName' },
+          ],
+        })
+        .populate({ path: 'customerId', select: 'userId fullName phone' })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business transaction history fetched successfully.',
+        data: transactions,
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message ||
+          'Failed to fetch business transaction history.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getBusinessTransactionDetail(
+    userId: string,
+    transactionId: string,
+  ): Promise<APIResponseDto> {
+    try {
+      const business = await this.businessesModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const transaction = await this.borrowTransactionModel
+        .findOne({
+          _id: new Types.ObjectId(transactionId),
+          businessId: business._id,
+        })
+        .populate({
+          path: 'productId',
+          select:
+            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          populate: [
+            {
+              path: 'productGroupId',
+              select: 'name imageUrl materialId',
+              populate: { path: 'materialId', select: 'materialName' },
+            },
+            { path: 'productSizeId', select: 'sizeName' },
+          ],
+        })
+        .populate({
+          path: 'customerId',
+          select: 'userId fullName phone',
+        })
+        .lean();
+
+      if (!transaction) {
+        throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business transaction detail fetched successfully.',
+        data: transaction,
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to fetch transaction detail.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getBusinessPendingTransactions(
+    businessId: string,
+  ): Promise<APIResponseDto> {
+    try {
+      const transactions = await this.borrowTransactionModel
+        .find({
+          businessId: new Types.ObjectId(businessId),
+          status: 'pending_pickup',
+        })
+        .populate({
+          path: 'productId',
+          populate: [{ path: 'productGroupId' }, { path: 'productSizeId' }],
+        })
+        .populate('customerId')
+        .sort({ createdAt: -1 });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Pending transactions for business fetched successfully.',
+        data: transactions,
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message ||
+          'Failed to fetch pending transactions for business.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async getCustomerTransactionHistory(
     userId: string,
     filters?: {
@@ -357,33 +619,148 @@ export class BorrowTransactionsService {
     }
   }
 
-  async getBusinessPendingTransactions(
-    businessId: string,
+  async getCustomerTransactionDetail(
+    userId: string,
+    transactionId: string,
   ): Promise<APIResponseDto> {
     try {
-      const transactions = await this.borrowTransactionModel
-        .find({
-          businessId: new Types.ObjectId(businessId),
-          status: 'pending_pickup',
+      const customer = await this.customerModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!customer) {
+        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      }
+
+      const transaction = await this.borrowTransactionModel
+        .findOne({
+          _id: new Types.ObjectId(transactionId),
+          customerId: customer._id,
         })
         .populate({
           path: 'productId',
-          populate: [{ path: 'productGroupId' }, { path: 'productSizeId' }],
+          select:
+            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          populate: [
+            {
+              path: 'productGroupId',
+              select: 'name imageUrl materialId',
+              populate: { path: 'materialId', select: 'materialName' },
+            },
+            { path: 'productSizeId', select: 'sizeName' },
+          ],
+        })
+        .populate({
+          path: 'businessId',
+          select:
+            'businessName businessPhone businessAddress businessType businessLogoUrl',
         })
         .populate('customerId')
-        .sort({ createdAt: -1 });
+        .lean();
+
+      if (!transaction) {
+        throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+      }
 
       return {
         statusCode: HttpStatus.OK,
-        message: 'Pending transactions for business fetched successfully.',
-        data: transactions,
+        message: 'Customer transaction detail fetched successfully.',
+        data: transaction,
       };
     } catch (error) {
       throw new HttpException(
-        (error as Error).message ||
-          'Failed to fetch pending transactions for business.',
+        (error as Error).message || 'Failed to fetch transaction detail.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  async cancelCustomerPendingTransaction(
+    userId: string,
+    transactionId: string,
+  ): Promise<APIResponseDto> {
+    const session = await this.borrowTransactionModel.db.startSession();
+    session.startTransaction();
+    try {
+      const customer = await this.customerModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .session(session);
+
+      if (!customer) {
+        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      }
+
+      const transaction = await this.borrowTransactionModel
+        .findOne({
+          _id: new Types.ObjectId(transactionId),
+          customerId: customer._id,
+          status: 'pending_pickup',
+        })
+        .session(session);
+
+      if (!transaction) {
+        throw new HttpException(
+          'Pending transaction not found or not cancellable',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const wallet = await this.walletsModel
+        .findOne({ userId: customer.userId, type: 'customer' })
+        .session(session);
+
+      if (!wallet) {
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
+      }
+
+      const amount = transaction.depositAmount || 0;
+      wallet.holdingBalance = Math.max(0, wallet.holdingBalance - amount);
+      wallet.availableBalance += amount;
+      await wallet.save({ session });
+
+      const walletTx = new this.walletTransactionsModel({
+        walletId: wallet._id,
+        relatedUserId: customer.userId,
+        relatedUserType: 'customer',
+        amount,
+        transactionType: TransactionType.RETURN_REFUND,
+        direction: 'in',
+        status: 'completed',
+        description: 'Refund deposit due to customer cancellation',
+        referenceType: 'borrow',
+        referenceId: transaction._id,
+        fromBalanceType: 'available',
+      });
+
+      await walletTx.save({ session });
+
+      // make product available again
+      if (transaction.productId) {
+        await this.productModel.updateOne(
+          { _id: transaction.productId },
+          { status: 'available' },
+          { session },
+        );
+      }
+
+      transaction.status = 'canceled';
+      await transaction.save({ session });
+
+      await session.commitTransaction();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Transaction canceled successfully.',
+        data: transaction,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw new HttpException(
+        (error as Error).message || 'Failed to cancel transaction.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await session.endSession();
     }
   }
 
