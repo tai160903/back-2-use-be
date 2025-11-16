@@ -41,6 +41,7 @@ export class Notification {
       'policy',
       'eco',
       'wallet',
+      'subscription',
       'none',
       'feedback',
     ],

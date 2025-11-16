@@ -85,11 +85,11 @@ export class BorrowTransactionsService {
       if (!product)
         throw new HttpException('Product not found', HttpStatus.BAD_REQUEST);
 
-      if (product.businessId?.toString() !== dto.businessId?.toString())
-        throw new HttpException(
-          'Product does not belong to the specified business',
-          HttpStatus.BAD_REQUEST,
-        );
+      // if (ProductGroup.businessId?.toString() !== dto.businessId?.toString())
+      //   throw new HttpException(
+      //     'Product does not belong to the specified business',
+      //     HttpStatus.BAD_REQUEST,
+      //   );
 
       if (product.status !== 'available')
         throw new HttpException(
@@ -512,20 +512,53 @@ export class BorrowTransactionsService {
   }
 
   async getBusinessPendingTransactions(
-    businessId: string,
+    userId: string,
   ): Promise<APIResponseDto> {
     try {
+      const business = await this.businessesModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
       const transactions = await this.borrowTransactionModel
         .find({
-          businessId: new Types.ObjectId(businessId),
+          businessId: business._id,
+          borrowTransactionType: 'borrow',
           status: 'pending_pickup',
         })
-        .populate({
-          path: 'productId',
-          populate: [{ path: 'productGroupId' }, { path: 'productSizeId' }],
-        })
-        .populate('customerId')
+        .populate([
+          {
+            path: 'customerId',
+            select: 'userId fullName phone',
+            populate: { path: 'userId', select: 'email' },
+          },
+          {
+            path: 'productId',
+            select:
+              'qrCode serialNumber status reuseCount productGroupId productSizeId',
+            populate: [
+              {
+                path: 'productGroupId',
+                select: 'name imageUrl materialId',
+                populate: { path: 'materialId', select: 'materialName' },
+              },
+              { path: 'productSizeId', select: 'sizeName' },
+            ],
+          },
+        ])
+        .select('-businessId')
         .sort({ createdAt: -1 });
+
+      if (transactions.length === 0) {
+        return {
+          statusCode: HttpStatus.OK,
+          message: 'No pending transactions for business.',
+          data: [],
+        };
+      }
 
       return {
         statusCode: HttpStatus.OK,

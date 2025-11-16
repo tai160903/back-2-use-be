@@ -45,6 +45,7 @@ export class CreateNotificationDto {
     'policy',
     'eco',
     'wallet',
+    'subscription',
     'none',
     'feedback',
   ])

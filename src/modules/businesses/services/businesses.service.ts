@@ -445,17 +445,21 @@ export class BusinessesService {
       const startDate: Date =
         activeSub && activeSub.endDate > now ? activeSub.endDate : now;
 
+      console.log(startDate);
+
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + subscription.durationInDays);
+
+      const startsNowOrBefore = startDate <= now;
 
       const businessSub = new this.businessSubscriptionModel({
         businessId: business._id,
         subscriptionId: subscription._id,
         startDate,
         endDate,
-        status: startDate <= now ? 'pending' : 'active',
+        status: startsNowOrBefore ? 'active' : 'pending',
         isTrialUsed: false,
-        autoRenew: autoRenew,
+        autoRenew,
       });
 
       wallet.availableBalance -= subscription.price;
@@ -482,8 +486,6 @@ export class BusinessesService {
       });
       await transaction.save({ session });
 
-      await session.commitTransaction();
-
       await this.notificationsService.create({
         receiverId: userId,
         receiverType: 'business',
@@ -497,9 +499,6 @@ export class BusinessesService {
       });
 
       const user = await this.usersModel.findById(userId);
-      this.logger.log(
-        `Preparing to send purchase email to: ${user?.email || 'NO EMAIL'} for business: ${business.businessName}`,
-      );
 
       if (user?.email) {
         try {
@@ -514,21 +513,15 @@ export class BusinessesService {
               !!activeSub,
             ),
           });
-          this.logger.log(`Successfully sent purchase email to ${user.email}`);
         } catch (emailError) {
-          const errMsg =
-            emailError instanceof Error
-              ? emailError.message
-              : String(emailError);
-          this.logger.error(
-            `Failed to send purchase email to ${user.email}: ${errMsg}`,
+          throw new HttpException(
+            (emailError as Error).message || 'Failed to send purchase email',
+            HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
-      } else {
-        this.logger.warn(
-          `No email found for user ${userId}, business: ${business.businessName}`,
-        );
       }
+
+      await session.commitTransaction();
 
       return {
         statusCode: HttpStatus.CREATED,
@@ -693,12 +686,11 @@ export class BusinessesService {
               relatedTransaction?.amount || 0,
             ),
           });
-          this.logger.log(
-            `Successfully sent cancelation email to ${user.email}`,
-          );
         } catch (emailError) {
-          this.logger.error(
-            `Failed to send cancelation email: ${emailError instanceof Error ? emailError.message : String(emailError)}`,
+          throw new HttpException(
+            (emailError as Error).message ||
+              'Failed to send cancellation email',
+            HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
       }
@@ -818,8 +810,9 @@ export class BusinessesService {
             };
           }
         } catch (geocodeError) {
-          this.logger.warn(
-            `Failed to geocode new address: ${(geocodeError as Error).message}`,
+          throw new HttpException(
+            (geocodeError as Error).message || 'Failed to geocode address',
+            HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
       }

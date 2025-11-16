@@ -31,12 +31,4 @@ export class CreateProductDto {
   @Min(1, { message: 'Amount must be at least 1' })
   @Max(1000, { message: 'Amount must not exceed 1000' })
   amount: number;
-
-  @ApiProperty({
-    description: 'Initial condition for created products',
-    required: false,
-    enum: ['good', 'damaged', 'expired', 'lost'],
-    example: 'good',
-  })
-  condition?: string;
 }
