@@ -47,15 +47,19 @@ export class BusinessVoucherController {
     return this.businessesVoucherService.claimVoucher(userId, voucherId, dto);
   }
 
-  // POST business-vouchers/:id/setup
-  @Post(':id/setup')
+  // POST business-vouchers/:businessVoucherId/setup
+  @Post(':businessVoucherId/setup')
   async setupClaimedVoucher(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('businessVoucherId') businessVoucherId: string,
     @Body() dto: SetupBusinessVoucherDto,
   ): Promise<APIResponseDto<BusinessVouchers>> {
     const userId = req.user._id;
-    return this.businessesVoucherService.setupClaimedVoucher(userId, id, dto);
+    return this.businessesVoucherService.setupClaimedVoucher(
+      userId,
+      businessVoucherId,
+      dto,
+    );
   }
 
   // POST business-vouchers/voucher-codes/use
@@ -69,14 +73,18 @@ export class BusinessVoucherController {
   }
 
   // PATCH business-vouchers/:id
-  @Patch(':id')
+  @Patch(':businessVoucherId')
   async updateMyVoucher(
     @Req() req: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('businessVoucherId') businessVoucherId: string,
     @Body() dto: UpdateBusinessVoucherDto,
   ): Promise<APIResponseDto<BusinessVouchers>> {
     const userId = req.user._id;
-    return this.businessesVoucherService.updateMyVoucher(userId, id, dto);
+    return this.businessesVoucherService.updateMyVoucher(
+      userId,
+      businessVoucherId,
+      dto,
+    );
   }
 
   // GET business-vouchers
@@ -99,6 +107,7 @@ export class BusinessVoucherController {
     return this.businessesVoucherService.getMyClaimedVouchers(userId, query);
   }
 
+  // GET business-vouchers/:businessVoucherId/detail
   @Get(':businessVoucherId/detail')
   async getBusinessVoucherDetail(
     @Req() req: AuthenticatedRequest,
@@ -111,5 +120,13 @@ export class BusinessVoucherController {
       businessVoucherId,
       query,
     );
+  }
+
+  // GET business-vouchers/voucher-codes/:voucherCodeId
+  @Get('voucher-codes/:voucherCodeId')
+  async getVoucherCodeDetail(
+    @Param('voucherCodeId') voucherCodeId: string,
+  ): Promise<APIResponseDto<VoucherCodes>> {
+    return this.businessesVoucherService.getVoucherCodeDetail(voucherCodeId);
   }
 }

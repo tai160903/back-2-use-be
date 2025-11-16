@@ -93,4 +93,13 @@ export class AdminVoucherController {
       query,
     );
   }
+
+  // PATCH /admin/vouchers/:voucherId
+  @Patch('businessVoucher/:voucherId/is-disabled')
+  async updateIsDisabled(
+    @Param('voucherId') voucherId: string,
+    @Body() dto: UpdateVoucherDto,
+  ) {
+    return this.voucherService.updateVoucherTypeBusiness(voucherId, dto);
+  }
 }

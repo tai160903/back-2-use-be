@@ -246,7 +246,6 @@ export class AdminVoucherService {
   ): Promise<APIPaginatedResponseDto<VoucherCodes[]>> {
     const { page = 1, limit = 10, status } = query;
 
-    // Check businessVoucher tồn tại
     const businessVoucher =
       await this.businessVoucherModel.findById(businessVoucherId);
     if (!businessVoucher) {
@@ -281,6 +280,39 @@ export class AdminVoucherService {
       total: result.total,
       currentPage: result.currentPage,
       totalPages: result.totalPages,
+    };
+  }
+
+  // Admin update isDisable of voucher
+  async updateVoucherTypeBusiness(
+    voucherId: string,
+    dto: UpdateVoucherDto,
+  ): Promise<APIResponseDto<Vouchers>> {
+    if (!isValidObjectId(voucherId)) {
+      throw new BadRequestException(`Invalid voucher ID '${voucherId}'.`);
+    }
+
+    const voucher = await this.voucherModel.findById(voucherId);
+
+    if (!voucher) {
+      throw new NotFoundException(`Voucher with id '${voucherId}' not found.`);
+    }
+
+    // ❗ Only allow updates for BUSINESS voucher type
+    if (voucher.voucherType !== VoucherType.BUSINESS) {
+      throw new BadRequestException(
+        `Only vouchers with type BUSINESS can be updated. Current type: '${voucher.voucherType}'.`,
+      );
+    }
+
+    voucher.isDisabled = dto.isDisabled;
+
+    const saved = await voucher.save();
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: `Voucher '${saved.name}' updated successfully.`,
+      data: saved,
     };
   }
 }
