@@ -37,6 +37,8 @@ import {
   BusinessDocument,
   Businesses,
 } from '../businesses/schemas/businesses.schema';
+import * as QRCode from 'qrcode';
+import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 
 @Injectable()
 export class VouchersService {
@@ -58,6 +60,8 @@ export class VouchersService {
 
     @InjectConnection()
     private readonly connection: Connection,
+
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   // Customer redeem voucher
@@ -133,7 +137,7 @@ export class VouchersService {
         const fullCode = `${voucher.baseCode}-${randomSuffix}`;
 
         try {
-          voucherCode = new this.voucherCodeModel({
+          const voucherCodeTemp = new this.voucherCodeModel({
             voucherId: voucher._id,
             voucherType: VoucherType.BUSINESS,
             businessId: voucher.businessId ?? undefined,
@@ -143,10 +147,31 @@ export class VouchersService {
             redeemedAt: now,
           });
 
-          await voucherCode.save({ session });
+          const voucherCodeId = (
+            voucherCodeTemp._id as Types.ObjectId
+          ).toString();
+
+          const qrCodeBuffer = await QRCode.toBuffer(voucherCodeId, {
+            errorCorrectionLevel: 'M',
+            type: 'png',
+            width: 300,
+            margin: 1,
+          });
+
+          const uploadResult = await this.cloudinaryService.uploadQRCode(
+            qrCodeBuffer,
+            voucherCodeId,
+            'vouchers/qrcodes',
+          );
+
+          voucherCodeTemp.qrCode = uploadResult.secure_url;
+
+          voucherCode = await voucherCodeTemp.save({ session });
+
           break;
-        } catch (err) {
+        } catch (err: any) {
           if (err.code === 11000 && err.keyPattern?.fullCode) continue;
+
           throw err;
         }
       }

@@ -486,6 +486,8 @@ export class BusinessVoucherService {
       });
     }
 
+    pipeline.push({ $sort: { createdAt: -1 } });
+
     // 8️⃣ Paginate
     pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
 
@@ -663,6 +665,35 @@ export class BusinessVoucherService {
         },
         stats,
       },
+    };
+  }
+
+  // Business get voucher code detail
+  async getVoucherCodeDetail(
+    voucherCodeId: string,
+  ): Promise<APIResponseDto<VoucherCodes>> {
+    const voucherCode = await this.voucherCodeModel
+      .findById(voucherCodeId)
+      .populate([
+        {
+          path: 'redeemedBy',
+          select: 'fullName phone yob',
+        },
+        {
+          path: 'businessId',
+          select:
+            'businessName businessAddress businessPhone businessMail businessLogoUrl',
+        },
+      ]);
+
+    if (!voucherCode) {
+      throw new NotFoundException(`Voucher code '${voucherCodeId}' not found`);
+    }
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Voucher code detail fetched successfully',
+      data: voucherCode,
     };
   }
 }

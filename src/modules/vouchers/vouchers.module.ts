@@ -12,7 +12,11 @@ import {
   BusinessVouchers,
   BusinessVouchersSchema,
 } from '../businesses/schemas/business-voucher.schema';
-import { Businesses, BusinessesSchema } from '../businesses/schemas/businesses.schema';
+import {
+  Businesses,
+  BusinessesSchema,
+} from '../businesses/schemas/businesses.schema';
+import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -23,6 +27,7 @@ import { Businesses, BusinessesSchema } from '../businesses/schemas/businesses.s
       { name: Businesses.name, schema: BusinessesSchema },
       { name: BusinessVouchers.name, schema: BusinessVouchersSchema },
     ]),
+    CloudinaryModule,
   ],
   controllers: [VouchersController],
   providers: [VouchersService],
