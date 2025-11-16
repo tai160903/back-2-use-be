@@ -42,6 +42,7 @@ export class UpdateNotificationDto {
     'policy',
     'eco',
     'wallet',
+    'subscription',
     'none',
     'feedback',
   ])

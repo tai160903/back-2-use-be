@@ -69,9 +69,6 @@ export class ProductsService {
 
       const prefix = productGroup.name.slice(0, 3).toUpperCase();
       const timestamp = Date.now();
-      const businessId = new Types.ObjectId(business._id.toString());
-
-      const initialCondition = createProductDto.condition || 'good';
 
       const products = await Promise.all(
         Array.from({ length: createProductDto.amount }, async (_, i) => {
@@ -94,12 +91,11 @@ export class ProductsService {
           );
 
           return {
-            businessId,
             productGroupId,
             productSizeId,
             serialNumber,
             qrCode: uploadResult.secure_url,
-            condition: initialCondition,
+            condition: 'good',
           };
         }),
       );

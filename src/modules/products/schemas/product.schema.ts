@@ -5,9 +5,6 @@ export type ProductDocument = HydratedDocument<Product>;
 
 @Schema({ timestamps: true })
 export class Product {
-  @Prop({ ref: 'Businesses', type: Types.ObjectId, required: true })
-  businessId: Types.ObjectId;
-
   @Prop({ ref: 'ProductGroup', type: Types.ObjectId, required: true })
   productGroupId: Types.ObjectId;
 

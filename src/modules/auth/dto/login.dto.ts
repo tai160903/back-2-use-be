@@ -8,5 +8,5 @@ export class LoginDto {
   password: string;
 
   @IsEnum(['customer', 'business'])
-  type: 'customer' | 'business';
+  type?: 'customer' | 'business';
 }
