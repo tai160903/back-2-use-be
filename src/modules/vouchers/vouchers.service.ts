@@ -151,6 +151,7 @@ export class VouchersService {
             voucherCodeTemp._id as Types.ObjectId
           ).toString();
 
+          // PNG
           const qrCodeBuffer = await QRCode.toBuffer(voucherCodeId, {
             errorCorrectionLevel: 'M',
             type: 'png',
@@ -163,6 +164,20 @@ export class VouchersService {
             voucherCodeId,
             'vouchers/qrcodes',
           );
+
+          // SVG
+          // const svgString = await QRCode.toString(voucherCodeId, {
+          //   type: 'svg',
+          //   errorCorrectionLevel: 'M',
+          // });
+
+          // const svgBuffer = Buffer.from(svgString, 'utf-8');
+
+          // const uploadResult = await this.cloudinaryService.uploadQRCode(
+          //   svgBuffer,
+          //   voucherCodeId,
+          //   'vouchers/qrcodes',
+          // );
 
           voucherCodeTemp.qrCode = uploadResult.secure_url;
 

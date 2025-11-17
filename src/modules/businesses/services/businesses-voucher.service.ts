@@ -677,6 +677,7 @@ export class BusinessVoucherService {
       .populate([
         {
           path: 'redeemedBy',
+          
           select: 'fullName phone yob',
         },
         {

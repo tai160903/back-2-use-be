@@ -4,7 +4,10 @@ import { IsBoolean, IsOptional, IsInt, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
 export class GetEcoRewardPoliciesQueryDto {
-  @ApiPropertyOptional({ example: true })
+  @ApiPropertyOptional({
+    description: 'Filter by policy active status (true/false)',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) =>
@@ -12,14 +15,20 @@ export class GetEcoRewardPoliciesQueryDto {
   )
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: 1 })
+  @ApiPropertyOptional({
+    description: 'Page number for pagination (default: 1)',
+    example: 1,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ example: 10 })
+  @ApiPropertyOptional({
+    description: 'Number of items per page (default: 10)',
+    example: 10,
+  })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
