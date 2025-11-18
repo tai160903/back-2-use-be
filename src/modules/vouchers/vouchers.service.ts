@@ -165,20 +165,6 @@ export class VouchersService {
             'vouchers/qrcodes',
           );
 
-          // SVG
-          // const svgString = await QRCode.toString(voucherCodeId, {
-          //   type: 'svg',
-          //   errorCorrectionLevel: 'M',
-          // });
-
-          // const svgBuffer = Buffer.from(svgString, 'utf-8');
-
-          // const uploadResult = await this.cloudinaryService.uploadQRCode(
-          //   svgBuffer,
-          //   voucherCodeId,
-          //   'vouchers/qrcodes',
-          // );
-
           voucherCodeTemp.qrCode = uploadResult.secure_url;
 
           voucherCode = await voucherCodeTemp.save({ session });
@@ -282,44 +268,64 @@ export class VouchersService {
     }
 
     const filter: any = {
-      redeemedBy: new Types.ObjectId(customer._id),
+      redeemedBy: customer._id,
     };
 
-    // Thêm filter theo voucher code status nếu có truyền
-    if (status) {
-      filter.status = status;
-    }
+    if (status) filter.status = status;
 
-    const populate = [
-      {
-        path: 'voucherId',
-        model: 'BusinessVouchers',
-        select:
-          'customName customDescription discountPercent maxUsage redeemedCount startDate endDate',
-      },
-      {
-        path: 'businessId',
-        model: 'Businesses',
-        select:
-          'businessName businessAddress businessPhone openTime closeTime businessLogoUrl',
-      },
-    ];
+    // Lấy voucherCodes raw trước
+    const {
+      data: voucherCodes,
+      total,
+      currentPage,
+      totalPages,
+    } = await paginate<VoucherCodesDocument>(
+      this.voucherCodeModel,
+      filter,
+      page,
+      limit,
+      undefined,
+      undefined,
+      undefined,
+    );
 
-    const { data, total, currentPage, totalPages } =
-      await paginate<VoucherCodesDocument>(
-        this.voucherCodeModel,
-        filter,
-        page,
-        limit,
-        undefined,
-        undefined,
-        populate,
-      );
+    // Populate thủ công tùy theo voucherType
+    const enriched = await Promise.all(
+      voucherCodes.map(async (vcDoc: any) => {
+        // Convert sang plain object để có thể gắn field mới
+        const vc = vcDoc.toObject();
+
+        if (vc.voucherType === 'BUSINESS') {
+          vc.voucherInfo = await this.businessVoucherModel
+            .findById(vc.voucherId)
+            .select(
+              'customName customDescription discountPercent maxUsage redeemedCount startDate endDate',
+            )
+            .lean();
+        } else {
+          vc.voucherInfo = await this.voucherModel
+            .findById(vc.voucherId)
+            .select('name description discountPercent endDate baseCode')
+            .lean();
+        }
+
+        if (vc.businessId) {
+          vc.businessInfo = await this.businessModel
+            .findById(vc.businessId)
+            .select(
+              'businessName businessAddress businessPhone openTime closeTime businessLogoUrl',
+            )
+            .lean();
+        }
+
+        return vc;
+      }),
+    );
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Get my vouchers successfully',
-      data,
+      data: enriched,
       total,
       currentPage,
       totalPages,

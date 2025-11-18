@@ -27,6 +27,7 @@ import { ProductGroupsModule } from './modules/product-groups/product-groups.mod
 import { ProductSizesModule } from './modules/product-sizes/product-sizes.module';
 import { BorrowTransactionsModule } from './modules/borrow-transactions/borrow-transactions.module';
 import { CronModule } from './common/cron/cron.module';
+import { MonthlyLeaderboardsModule } from './modules/monthly-leaderboards/monthly-leaderboard.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { CronModule } from './common/cron/cron.module';
     ProductGroupsModule,
     ProductSizesModule,
     BorrowTransactionsModule,
+    MonthlyLeaderboardsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

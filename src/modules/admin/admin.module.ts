@@ -62,12 +62,12 @@ import {
   BusinessVouchers,
   BusinessVouchersSchema,
 } from '../businesses/schemas/business-voucher.schema';
-import { AdminMonthlyLeaderboardsController } from './controllers/admin-monthly-leaderboards.controller';
-import { AdminMonthlyLeaderboardsService } from './services/admin-monthly-leaderboards.service';
+import { AdminLeaderboardPolicyController } from './controllers/admin-leaderboard-policy.controller';
+import { AdminLeaderboardPolicyService } from './services/admin-leaderboard-policy.service';
 import {
-  MonthlyLeaderboard,
-  MonthlyLeaderboardSchema,
-} from '../monthly-leaderboards/schemas/monthly-leaderboards.schema';
+  LeaderboardRewardPolicy,
+  LeaderboardRewardPolicySchema,
+} from '../leaderboard-reward-policies/schema/leaderboard-reward-policies.schema';
 
 @Module({
   imports: [
@@ -87,7 +87,10 @@ import {
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
       { name: BusinessVouchers.name, schema: BusinessVouchersSchema },
       { name: EcoRewardPolicy.name, schema: EcoRewardPolicySchema },
-      { name: MonthlyLeaderboard.name, schema: MonthlyLeaderboardSchema },
+      {
+        name: LeaderboardRewardPolicy.name,
+        schema: LeaderboardRewardPolicySchema,
+      },
     ]),
     BusinessesModule,
     MailerModule,
@@ -100,7 +103,7 @@ import {
     AdminBusinessController,
     AdminVoucherController,
     AdminEcoRewardPoliciesController,
-    AdminMonthlyLeaderboardsController,
+    AdminLeaderboardPolicyController,
   ],
   providers: [
     AdminBusinessFormService,
@@ -109,7 +112,7 @@ import {
     AdminBusinessService,
     AdminVoucherService,
     AdminEcoRewardPoliciesService,
-    AdminMonthlyLeaderboardsService,
+    AdminLeaderboardPolicyService,
   ],
 })
 export class AdminModule {}

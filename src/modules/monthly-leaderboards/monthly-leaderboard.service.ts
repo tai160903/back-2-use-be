@@ -1,22 +1,14 @@
 import { Model } from 'mongoose';
-import {
-  Injectable,
-  Inject,
-  BadRequestException,
-  HttpStatus,
-} from '@nestjs/common';
+import { Injectable, Inject, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import {
-  MonthlyLeaderboard,
-  MonthlyLeaderboardDocument,
-} from 'src/modules/monthly-leaderboards/schemas/monthly-leaderboards.schema';
-import { GetMonthlyLeaderboardQueryDto } from '../dto/admin-leaderboard/get-monthly-leaderboard-query.dto';
-import { paginate } from 'src/common/utils/pagination.util';
+import { MonthlyLeaderboard } from './schemas/monthly-leaderboards.schema';
+import { GetMonthlyLeaderboardQueryDto } from './dto/get-monthly-leaderboard-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { paginate } from 'src/common/utils/pagination.util';
 
 @Injectable()
-export class AdminMonthlyLeaderboardsService {
+export class MonthlyLeaderboardsService {
   constructor(
     @InjectModel(MonthlyLeaderboard.name)
     private readonly monthlyLeaderboardModel: Model<MonthlyLeaderboard>,

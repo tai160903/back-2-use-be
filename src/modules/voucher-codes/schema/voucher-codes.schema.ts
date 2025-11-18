@@ -46,6 +46,9 @@ export class VoucherCodes {
 
   @Prop()
   expiredAt?: Date;
+
+  @Prop()
+  leaderboardExpireAt?: Date;
 }
 
 export const VoucherCodesSchema = SchemaFactory.createForClass(VoucherCodes);

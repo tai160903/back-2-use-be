@@ -18,16 +18,12 @@ export class MonthlyLeaderboardService {
     @InjectConnection() private connection: Connection,
   ) {}
 
-  /**
-   * Chạy lúc 00:05 ngày đầu tiên mỗi tháng
-   * Ví dụ: 01/12/2025 00:05 => chốt leaderboard tháng 11
-   */
   @Cron(CronExpression.EVERY_MINUTE)
   async createMonthlyLeaderboardCron() {
     const now = new Date();
 
     let year = now.getFullYear();
-    let month = now.getMonth() + 1;
+    let month = now.getMonth();
 
     if (month === 0) {
       month = 12;
