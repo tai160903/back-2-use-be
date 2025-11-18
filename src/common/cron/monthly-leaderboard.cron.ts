@@ -18,6 +18,7 @@ export class MonthlyLeaderboardService {
     @InjectConnection() private connection: Connection,
   ) {}
 
+  // @Cron('0 0 1 * *')
   @Cron(CronExpression.EVERY_MINUTE)
   async createMonthlyLeaderboardCron() {
     const now = new Date();

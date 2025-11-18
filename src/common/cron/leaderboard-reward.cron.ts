@@ -35,7 +35,8 @@ export class LeaderboardRewardCron {
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  @Cron('*/2 * * * *')
+  // @Cron('7 0 1 * *')
+  @Cron('*/5 * * * *')
   async distributeRewards() {
     this.logger.log('🔥 Leaderboard Reward Cron Running...');
 
@@ -48,38 +49,43 @@ export class LeaderboardRewardCron {
       year -= 1;
     }
 
-    this.logger.log(`Processing reward for ${month}/${year}`);
+    this.logger.log(`📌 Processing rewards for ${month}/${year}`);
 
-    // 1. Lấy toàn bộ policy tháng đó
     const policies = await this.rewardPolicyModel.find({ month, year });
     if (policies.length === 0) {
-      this.logger.log('⛔ No reward policies for this month');
+      this.logger.log('⛔ No policies found for this month');
       return;
     }
 
     for (const policy of policies) {
       this.logger.log(
-        `⏳ Policy: voucher=${policy.voucherId}, rank ${policy.rankFrom}-${policy.rankTo}`,
+        `➡ Policy ${policy._id}: rank ${policy.rankFrom}-${policy.rankTo}`,
       );
 
-      // 2. Lấy top customer theo range
+      // A. Skip nếu đã distribute
+      if (policy.isDistributed) {
+        this.logger.log(`✔ Policy already distributed → skip`);
+        continue;
+      }
+
+      // B. Lấy danh sách leader theo rank range
       const leaders = await this.monthlyLeaderboardModel.find({
         month,
         year,
         rank: { $gte: policy.rankFrom, $lte: policy.rankTo },
       });
 
-      // 3. Lấy voucher
+      // C. Lấy voucher
       const voucher = await this.voucherModel.findById(policy.voucherId);
       if (!voucher) {
-        this.logger.error(`Voucher not found: ${policy.voucherId}`);
+        this.logger.error(`❌ Voucher not found: ${policy.voucherId}`);
         continue;
       }
 
       for (const leader of leaders) {
         const customerId = leader.customerId as Types.ObjectId;
 
-        // 4. Check tránh phát trùng
+        // D. Check tránh phát trùng
         const exist = await this.rewardModel.findOne({
           leaderboardId: leader._id,
           rewardPolicyId: policy._id,
@@ -92,12 +98,10 @@ export class LeaderboardRewardCron {
           continue;
         }
 
-        // 5. Generate voucher code
+        // E. Create voucher code
         let voucherCode;
-        const now = new Date();
-
         const leaderboardExpireAt = new Date();
-        leaderboardExpireAt.setDate(leaderboardExpireAt.getDate() + 7);
+        leaderboardExpireAt.setDate(leaderboardExpireAt.getDate() + 14);
 
         for (let i = 0; i < 3; i++) {
           const suffix = generateRandomString(6);
@@ -115,7 +119,7 @@ export class LeaderboardRewardCron {
             });
             break;
           } catch (err: any) {
-            if (err.code === 11000) continue; // retry code duplicate
+            if (err.code === 11000) continue;
             throw err;
           }
         }
@@ -125,28 +129,23 @@ export class LeaderboardRewardCron {
           continue;
         }
 
-        // 6. Generate QR
-        const voucherCodeId = voucherCode._id.toString();
-
-        const qrCodeBuffer = await QRCode.toBuffer(voucherCodeId, {
+        // F. Generate QR Code
+        const qrBuffer = await QRCode.toBuffer(voucherCode._id.toString(), {
           errorCorrectionLevel: 'M',
-          type: 'png',
           width: 300,
           margin: 1,
         });
 
-        // upload lên Cloudinary
-        const uploadResult = await this.cloudinaryService.uploadQRCode(
-          qrCodeBuffer,
-          voucherCodeId,
+        const upload = await this.cloudinaryService.uploadQRCode(
+          qrBuffer,
+          voucherCode._id.toString(),
           'vouchers/qrcodes',
         );
 
-        // Lưu URL
-        voucherCode.qrCode = uploadResult.secure_url;
+        voucherCode.qrCode = upload.secure_url;
         await voucherCode.save();
 
-        // 7. Lưu record LeaderboardReward
+        // G. Save kết quả reward
         await this.rewardModel.create({
           leaderboardId: leader._id,
           rewardPolicyId: policy._id,
@@ -156,9 +155,16 @@ export class LeaderboardRewardCron {
         });
 
         this.logger.log(
-          `🎁 Rewarded customer ${customerId} with voucherCode ${voucherCode.fullCode}`,
+          `🎁 Rewarded customer ${customerId} with ${voucherCode.fullCode}`,
         );
       }
+
+      // H. Đánh dấu policy đã phát xong
+      policy.isDistributed = true;
+      policy.distributedAt = new Date();
+      await policy.save();
+
+      this.logger.log(`✔ Policy ${policy._id} marked as distributed`);
     }
 
     this.logger.log('🎉 Leaderboard Reward Cron Finished');

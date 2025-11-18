@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsOptional, IsInt, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsOptional, IsInt, Min, IsBoolean } from 'class-validator';
 
 export class GetLeaderboardRewardPolicyQueryDto {
   @ApiPropertyOptional({
@@ -18,6 +18,17 @@ export class GetLeaderboardRewardPolicyQueryDto {
   @IsOptional()
   @IsInt()
   year?: number;
+
+  @ApiPropertyOptional({
+    description: 'Filter by isDistribute (true/false)',
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) =>
+    value === 'true' ? true : value === 'false' ? false : undefined,
+  )
+  isDistributed?: boolean;
 
   @ApiPropertyOptional({
     description: 'Filter by minimum starting rank',
