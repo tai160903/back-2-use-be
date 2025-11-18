@@ -23,6 +23,12 @@ export class LeaderboardRewardPolicy {
 
   @Prop({ type: String })
   note: string;
+
+  @Prop({ type: Boolean, default: false })
+  isDistributed: boolean;
+
+  @Prop({ type: Date, default: null })
+  distributedAt: Date;
 }
 
 export const LeaderboardRewardPolicySchema = SchemaFactory.createForClass(

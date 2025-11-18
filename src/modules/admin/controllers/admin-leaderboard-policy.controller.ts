@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { AdminLeaderboardPolicyService } from '../services/admin-leaderboard-policy.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from 'src/common/guards/auth.guard';
@@ -9,6 +9,7 @@ import { LeaderboardRewardPolicy } from 'src/modules/leaderboard-reward-policies
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { GetLeaderboardRewardPolicyQueryDto } from '../dto/admin-leaderboard/get-leaderboard-policy-query.dto';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
+import { UpdateLeaderboardRewardPolicyDto } from '../dto/admin-leaderboard/update-leaderboard-policy.dto';
 
 @ApiTags('Leaderboard Reward Policies (Admin)')
 @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.ADMIN]))
@@ -25,6 +26,15 @@ export class AdminLeaderboardPolicyController {
     @Body() dto: CreateLeaderboardRewardPolicyDto,
   ): Promise<APIResponseDto<LeaderboardRewardPolicy>> {
     return this.leaderboardPolicyService.createPolicy(dto);
+  }
+
+  // POST admin/leaderboard-policy/:id
+  @Patch(':id')
+  async updatePolicy(
+    @Param('id') id: string,
+    @Body() dto: UpdateLeaderboardRewardPolicyDto,
+  ) {
+    return this.leaderboardPolicyService.updatePolicy(id, dto);
   }
 
   // GET admin/leaderboard-policy

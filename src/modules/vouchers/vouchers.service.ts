@@ -258,7 +258,7 @@ export class VouchersService {
     userId: string,
     query: GetMyVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<any>> {
-    const { page = 1, limit = 10, status } = query;
+    const { page = 1, limit = 10, status, voucherType } = query;
 
     const customer = await this.customerModel.findOne({
       userId: new Types.ObjectId(userId),
@@ -272,6 +272,7 @@ export class VouchersService {
     };
 
     if (status) filter.status = status;
+    if (voucherType) filter.voucherType = voucherType;
 
     // Lấy voucherCodes raw trước
     const {
