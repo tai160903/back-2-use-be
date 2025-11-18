@@ -3,3 +3,4 @@ export enum VoucherCodeStatus {
   USED = 'used',
   EXPIRED = 'expired',
 }
+  

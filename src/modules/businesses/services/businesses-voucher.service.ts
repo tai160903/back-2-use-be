@@ -354,7 +354,7 @@ export class BusinessVoucherService {
   ): Promise<APIResponseDto<VoucherCodes>> {
     const { code } = dto;
 
-    // Tìm business theo userId
+    // 1. Tìm business theo userId
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(userId),
     });
@@ -365,16 +365,53 @@ export class BusinessVoucherService {
 
     const businessId = business._id.toString();
 
-    // Tìm voucher code
+    // 2. Tìm voucher code
     const voucherCode = await this.voucherCodeModel.findOne({ fullCode: code });
 
     if (!voucherCode) throw new NotFoundException('Invalid voucher code');
 
-    // Chỉ voucher BUSINESS mới được dùng ở cửa hàng
+    // 3. Nếu là LEADERBOARD → không check businessId
+    if (voucherCode.voucherType === VoucherType.LEADERBOARD) {
+      // Check trạng thái hợp lệ
+      if (voucherCode.status === VoucherCodeStatus.USED)
+        throw new BadRequestException('Voucher already used');
+
+      if (voucherCode.status === VoucherCodeStatus.EXPIRED)
+        throw new BadRequestException('Voucher expired');
+
+      // Check expiry riêng của leaderboard (leaderboardExpireAt)
+      if (
+        voucherCode.leaderboardExpireAt &&
+        voucherCode.leaderboardExpireAt < new Date()
+      ) {
+        throw new BadRequestException('Leaderboard voucher expired');
+      }
+
+      // Update
+      const updated = await this.voucherCodeModel.findOneAndUpdate(
+        { _id: voucherCode._id },
+        {
+          $set: {
+            status: VoucherCodeStatus.USED,
+            usedByBusinessId: business._id, // business nào cũng được
+            usedAt: new Date(),
+          },
+        },
+        { new: true },
+      );
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Leaderboard voucher used successfully',
+        data: updated,
+      };
+    }
+
+    // 4. BUSINESS voucher -> phải dùng đúng business
     if (voucherCode.voucherType !== VoucherType.BUSINESS)
       throw new BadRequestException('This voucher cannot be used at store');
 
-    // Kiểm tra voucher có thuộc business này không
+    // Kiểm tra đúng business
     if (
       voucherCode.businessId &&
       voucherCode.businessId.toString() !== businessId
@@ -382,15 +419,13 @@ export class BusinessVoucherService {
       throw new ForbiddenException('This voucher belongs to another business');
     }
 
-    // Đã dùng
     if (voucherCode.status === VoucherCodeStatus.USED)
       throw new BadRequestException('Voucher already used');
 
-    // Hết hạn
     if (voucherCode.status === VoucherCodeStatus.EXPIRED)
       throw new BadRequestException('Voucher expired');
 
-    // Update + return kết quả đúng bản ghi mới
+    // Update BUSINESS voucher
     const updated = await this.voucherCodeModel.findOneAndUpdate(
       { _id: voucherCode._id },
       {
@@ -402,10 +437,6 @@ export class BusinessVoucherService {
       },
       { new: true },
     );
-
-    if (!updated) {
-      throw new InternalServerErrorException('Failed to update voucher');
-    }
 
     return {
       statusCode: HttpStatus.OK,
@@ -677,7 +708,7 @@ export class BusinessVoucherService {
       .populate([
         {
           path: 'redeemedBy',
-          
+
           select: 'fullName phone yob',
         },
         {
