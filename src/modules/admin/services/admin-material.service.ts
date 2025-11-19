@@ -48,7 +48,6 @@ export class AdminMaterialService {
     adminId: string,
   ): Promise<APIResponseDto<Material>> {
     const { materialName } = createMaterialDto;
-
     const trimmedName = materialName.trim();
 
     const existed = await this.materialModel.findOne({
@@ -201,7 +200,7 @@ export class AdminMaterialService {
       throw new BadRequestException('Only pending requests can be reviewed');
     }
 
-    // ----- REJECT FLOW -----
+    // -------------------- REJECT FLOW --------------------
     if (dto.decision === RequestDecision.REJECT) {
       if (!dto.adminNote) {
         throw new BadRequestException('adminNote is required when rejecting');
@@ -218,15 +217,26 @@ export class AdminMaterialService {
       };
     }
 
-    // ----- APPROVE FLOW -----
-    const { reuseLimit, depositPercent } = dto.materialData || {};
-    if (reuseLimit == null || depositPercent == null) {
+    // -------------------- APPROVE FLOW --------------------
+    const {
+      reuseLimit,
+      depositPercent,
+      plasticEquivalentMultiplier,
+      co2EmissionPerKg,
+    } = dto.materialData || {};
+
+    if (
+      reuseLimit == null ||
+      depositPercent == null ||
+      plasticEquivalentMultiplier == null ||
+      co2EmissionPerKg == null
+    ) {
       throw new BadRequestException(
-        'reuseLimit and depositPercent are required when approving',
+        'reuseLimit, depositPercent, plasticEquivalentMultiplier, and co2EmissionPerKg are required when approving',
       );
     }
 
-    // Check duplicate approved material
+    // Check duplicate material name
     const existingMaterial = await this.materialModel.findOne({
       materialName: {
         $regex: new RegExp(`^${request.requestedMaterialName}$`, 'i'),
@@ -238,24 +248,25 @@ export class AdminMaterialService {
       );
     }
 
-    // Create new material
+    // Create new Material
     const newMaterial = await this.materialModel.create({
       materialName: request.requestedMaterialName,
       reuseLimit,
       depositPercent,
+      plasticEquivalentMultiplier,
+      co2EmissionPerKg,
       description: request.description,
       isActive: true,
     });
 
-    // Approve current request
+    // Mark request as approved
     request.status = MaterialRequestStatus.APPROVED;
     request.approvedMaterialId = newMaterial._id;
-
     request.adminNote =
       dto.adminNote?.trim() || 'Material approved and added to system.';
     await request.save();
 
-    // Reject all other pending requests with same name
+    // Reject all duplicate pending requests
     await this.materialRequestModel.updateMany(
       {
         _id: { $ne: request._id },
@@ -268,7 +279,7 @@ export class AdminMaterialService {
         $set: {
           status: MaterialRequestStatus.REJECTED,
           adminNote:
-            'This material was approved from another business request and already show in the system.',
+            'This material was approved from another business request and already exists in the system.',
         },
       },
     );

@@ -23,6 +23,9 @@ export class ProductSize {
   @Prop({ type: Number })
   weight: number;
 
+  @Prop({ type: Number })
+  plasticEquivalentWeight: number;
+
   @Prop()
   description: string;
 
