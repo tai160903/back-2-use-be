@@ -18,8 +18,11 @@ export class Material {
   @Prop({ required: true })
   description: string;
 
-  // @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Users', required: true })
-  // createdBy: Types.ObjectId;
+  @Prop({ required: true })
+  plasticEquivalentMultiplier: number;
+
+  @Prop({ required: true })
+  co2EmissionPerKg: number;
 
   @Prop({ type: Boolean, default: true })
   isActive: boolean;

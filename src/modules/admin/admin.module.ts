@@ -74,6 +74,12 @@ import {
   LeaderboardReward,
   LeaderboardRewardSchema,
 } from '../leaderboard-reward/schema/leaderboard-rewards.schema';
+import {
+  RewardSetting,
+  RewardSettingSchema,
+} from '../reward-settings/schema/reward-setting.schema';
+import { AdminRewardSettingController } from './controllers/admin-reward-setting.controller';
+import { AdminRewardSettingService } from './services/admin-reward-setting.service';
 
 @Module({
   imports: [
@@ -98,6 +104,10 @@ import {
         name: LeaderboardRewardPolicy.name,
         schema: LeaderboardRewardPolicySchema,
       },
+      {
+        name: RewardSetting.name,
+        schema: RewardSettingSchema,
+      },
     ]),
     BusinessesModule,
     MailerModule,
@@ -112,6 +122,7 @@ import {
     AdminEcoRewardPoliciesController,
     AdminLeaderboardPolicyController,
     AdminLeaderboardRewardController,
+    AdminRewardSettingController,
   ],
   providers: [
     AdminBusinessFormService,
@@ -122,6 +133,7 @@ import {
     AdminEcoRewardPoliciesService,
     AdminLeaderboardPolicyService,
     AdminLeaderboardRewardService,
+    AdminRewardSettingService,
   ],
 })
 export class AdminModule {}

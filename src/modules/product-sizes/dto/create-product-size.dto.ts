@@ -25,7 +25,7 @@ export class CreateProductSizeDto {
   description?: string;
 
   @IsOptional()
-  @IsNumber({}, { message: 'Weight must be a number' })
+  @IsNumber({}, { message: 'Weight must be a number ' })
   @Min(0, { message: 'Weight must be non-negative' })
   weight?: number;
 }

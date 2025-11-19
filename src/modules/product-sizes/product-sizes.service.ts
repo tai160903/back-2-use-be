@@ -19,6 +19,7 @@ export class ProductSizesService {
     private productGroupModel: Model<ProductGroup>,
     @InjectModel(Material.name) private materialModel: Model<Material>,
   ) {}
+
   async createProductSize(
     createProductSizeDto: CreateProductSizeDto,
     userId: string,
@@ -81,11 +82,19 @@ export class ProductSizesService {
       const depositValue =
         createProductSizeDto.basePrice * material.depositPercent * 0.01;
 
+      if (!createProductSizeDto.weight || createProductSizeDto.weight <= 0) {
+        throw new HttpException('Weight is required', HttpStatus.BAD_REQUEST);
+      }
+
+      const plasticEquivalentWeight =
+        createProductSizeDto.weight * material.plasticEquivalentMultiplier;
+
       const newProductSize = await this.productSizeModel.create({
         ...createProductSizeDto,
         businessId: new Types.ObjectId(business._id),
         productGroupId: new Types.ObjectId(createProductSizeDto.productGroupId),
         depositValue,
+        plasticEquivalentWeight,
       });
       return {
         statusCode: HttpStatus.CREATED,
@@ -274,12 +283,28 @@ export class ProductSizesService {
         newDeposit = updateDto.basePrice * material.depositPercent * 0.01;
       }
 
+      let newPlasticEquivalent: number | undefined = undefined;
+
+      if (typeof updateDto.weight === 'number') {
+        if (updateDto.weight <= 0) {
+          throw new HttpException(
+            'Weight must be greater than 0',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+        newPlasticEquivalent =
+          updateDto.weight * material.plasticEquivalentMultiplier;
+      }
+
       const updated = await this.productSizeModel.findByIdAndUpdate(
         sizeId,
         {
           $set: {
             ...updateDto,
             ...(newDeposit !== undefined ? { depositValue: newDeposit } : {}),
+            ...(newPlasticEquivalent !== undefined
+              ? { plasticEquivalentWeight: newPlasticEquivalent }
+              : {}),
           },
         },
         { new: true },
