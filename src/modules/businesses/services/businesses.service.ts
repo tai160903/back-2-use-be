@@ -474,8 +474,6 @@ export class BusinessesService {
 
       const transaction = new this.walletTransactionsModel({
         walletId: wallet._id,
-        relatedUserId: new Types.ObjectId(userId),
-        relatedUserType: 'business',
         amount: subscription.price,
         transactionType: 'subscription_fee',
         direction: 'out',
@@ -483,6 +481,7 @@ export class BusinessesService {
         description: `Purchase subscription ${subscription.name}`,
         referenceType: 'subscription',
         referenceId: businessSub._id,
+        balanceType: 'available',
       });
       await transaction.save({ session });
 

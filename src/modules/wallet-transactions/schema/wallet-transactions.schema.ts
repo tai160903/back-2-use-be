@@ -9,11 +9,11 @@ export class WalletTransactions {
   @Prop({ type: Types.ObjectId, required: true, ref: 'Wallets' })
   walletId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, required: true, ref: 'Users' })
-  relatedUserId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId })
+  relatedUserId?: Types.ObjectId;
 
-  @Prop({ enum: ['customer', 'business'], required: true })
-  relatedUserType: string;
+  @Prop({ enum: ['customer', 'business'] })
+  relatedUserType?: string;
 
   @Prop({
     required: true,
@@ -36,11 +36,11 @@ export class WalletTransactions {
   })
   referenceType?: string;
 
-  @Prop({
-    enum: ['available', 'holding'],
-    default: 'available',
-  })
-  fromBalanceType?: string;
+  @Prop({ type: String, enum: ['available', 'holding'], default: null })
+  balanceType?: string | null;
+
+  @Prop({ type: String, enum: ['available', 'holding'], default: null })
+  toBalanceType?: string | null;
 
   @Prop()
   description?: string;

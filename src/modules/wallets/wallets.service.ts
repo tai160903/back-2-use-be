@@ -164,13 +164,12 @@ export class WalletsService {
 
       const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
-        relatedUserId: new Types.ObjectId(performingUserId as string),
-        relatedUserType: wallet.type,
         amount,
         transactionType: TransactionType.TOP_UP,
         direction: 'in',
         status: 'processing',
         referenceType: 'manual',
+        balanceType: 'available',
         description: `VNPay Top-up #${Date.now()}`,
       });
 
@@ -228,13 +227,12 @@ export class WalletsService {
 
       const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
-        relatedUserId: new Types.ObjectId(userId),
-        relatedUserType: wallet.type,
         amount,
         transactionType: TransactionType.WITHDRAWAL,
         direction: 'out',
         status: 'completed',
         referenceType: 'manual',
+        balanceType: 'available',
         description: `Manual withdrawal #${Date.now()}`,
       });
 
