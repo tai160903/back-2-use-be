@@ -75,11 +75,11 @@ import {
   LeaderboardRewardSchema,
 } from '../leaderboard-reward/schema/leaderboard-rewards.schema';
 import {
-  RewardSetting,
-  RewardSettingSchema,
-} from '../reward-settings/schema/reward-setting.schema';
-import { AdminRewardSettingController } from './controllers/admin-reward-setting.controller';
-import { AdminRewardSettingService } from './services/admin-reward-setting.service';
+  SystemSetting,
+  SystemSettingSchema,
+} from '../system-settings/schemas/system-setting.schema';
+import { AdminSystemSettingController } from './controllers/admin-system-setting.controller';
+import { AdminSystemSettingService } from './services/admin-system-setting.service';
 
 @Module({
   imports: [
@@ -105,8 +105,8 @@ import { AdminRewardSettingService } from './services/admin-reward-setting.servi
         schema: LeaderboardRewardPolicySchema,
       },
       {
-        name: RewardSetting.name,
-        schema: RewardSettingSchema,
+        name: SystemSetting.name,
+        schema: SystemSettingSchema,
       },
     ]),
     BusinessesModule,
@@ -122,7 +122,7 @@ import { AdminRewardSettingService } from './services/admin-reward-setting.servi
     AdminEcoRewardPoliciesController,
     AdminLeaderboardPolicyController,
     AdminLeaderboardRewardController,
-    AdminRewardSettingController,
+    AdminSystemSettingController,
   ],
   providers: [
     AdminBusinessFormService,
@@ -133,7 +133,7 @@ import { AdminRewardSettingService } from './services/admin-reward-setting.servi
     AdminEcoRewardPoliciesService,
     AdminLeaderboardPolicyService,
     AdminLeaderboardRewardService,
-    AdminRewardSettingService,
+    AdminSystemSettingService,
   ],
 })
 export class AdminModule {}
