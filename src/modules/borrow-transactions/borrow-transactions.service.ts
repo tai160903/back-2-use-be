@@ -181,8 +181,8 @@ export class BorrowTransactionsService {
 
       const walletCustomer = new this.walletTransactionsModel({
         walletId: customerWallet._id,
-        relatedUserId: user._id,
-        relatedUserType: 'customer',
+        relatedUserId: business._id,
+        relatedUserType: 'business',
         amount: depositAmount,
         transactionType: TransactionType.BORROW_DEPOSIT,
         direction: 'out',
@@ -190,7 +190,7 @@ export class BorrowTransactionsService {
         description: 'Deposit for borrow transaction',
         referenceType: 'borrow',
         referenceId: transaction._id,
-        fromBalanceType: 'available',
+        balanceType: 'available',
       });
 
       await walletCustomer.save({ session });
@@ -204,8 +204,8 @@ export class BorrowTransactionsService {
 
       const walletBusiness = new this.walletTransactionsModel({
         walletId: businessWallet._id,
-        relatedUserId: business.userId,
-        relatedUserType: 'business',
+        relatedUserId: customer._id,
+        relatedUserType: 'customer',
         amount: depositAmount,
         transactionType: TransactionType.BORROW_DEPOSIT,
         direction: 'in',
@@ -213,7 +213,7 @@ export class BorrowTransactionsService {
         description: 'Deposit received for borrow transaction',
         referenceType: 'borrow',
         referenceId: transaction._id,
-        fromBalanceType: 'available',
+        balanceType: 'holding',
       });
 
       await walletBusiness.save({ session });
