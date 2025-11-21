@@ -28,6 +28,9 @@ export class Customers {
 
   @Prop({ default: 0 })
   returnSuccessCount: number;
+
+  @Prop({ default: 0 })
+  returnFailedCount: number;
 }
 
 export const CustomersSchema = SchemaFactory.createForClass(Customers);

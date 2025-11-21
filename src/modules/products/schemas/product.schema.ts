@@ -32,8 +32,8 @@ export class Product {
   @Prop()
   lastConditionNote: string;
 
-  @Prop()
-  lastConditionImage: string;
+  @Prop({ type: [String], default: [] })
+  lastConditionImages: string[];
 
   @Prop({ default: false })
   isDeleted: boolean;

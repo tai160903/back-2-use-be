@@ -31,7 +31,7 @@ export class GetWalletTransactionsQueryDto {
   @ApiPropertyOptional({
     enum: TransactionFilterGroup,
     description:
-      'Group: personal (top_up, withdraw, subscription_fee), deposit_refund (borrow_deposit, return_refund), penalty',
+      'Group: personal (top_up, withdraw, subscription_fee), deposit_refund (borrow_deposit, return_refund, deposit_forfeited), penalty',
     example: 'personal',
   })
   @IsOptional()
