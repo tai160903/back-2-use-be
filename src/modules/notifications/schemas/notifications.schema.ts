@@ -7,8 +7,8 @@ export class Notification {
   @Prop({ required: true, ref: 'User' })
   receiverId: Types.ObjectId;
 
-  @Prop({ enum: ['customer', 'business'], required: true })
-  receiverType: string;
+  // @Prop({ enum: ['customer', 'business'], required: true })
+  // receiverType: string;
 
   @Prop({
     enum: [

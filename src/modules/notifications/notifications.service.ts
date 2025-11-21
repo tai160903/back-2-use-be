@@ -37,8 +37,43 @@ export class NotificationsService {
     }
   }
 
-  async findAll() {
-    return this.notificationModel.find().sort({ createdAt: -1 }).exec();
+  async findAll(userId: string, mode: 'customer' | 'business') {
+    console.log('userId', userId);
+    const customerTypes = [
+      'borrow',
+      'return',
+      'penalty',
+      'voucher',
+      'reward',
+      'ranking',
+      'eco',
+      'manual',
+    ];
+    const businessTypes = [
+      'borrow',
+      'return',
+      'voucher',
+      'policy',
+      'eco',
+      'wallet',
+      'subscription',
+      'none',
+      'feedback',
+    ];
+
+    let allowedTypes: string[];
+
+    if (mode === 'customer') allowedTypes = customerTypes;
+    else if (mode === 'business') allowedTypes = businessTypes;
+    else allowedTypes = [];
+
+    return this.notificationModel
+      .find({
+        receiverId: new Types.ObjectId(userId),
+        // type: { $in: allowedTypes },
+      })
+      .sort({ createdAt: -1 })
+      .exec();
   }
 
   async findByReceiverId(receiverId: string) {
@@ -53,6 +88,21 @@ export class NotificationsService {
       id,
       { isRead: true, ReadAt: new Date() },
       { new: true },
+    );
+  }
+
+  async markAsUnread(id: string) {
+    return this.notificationModel.findByIdAndUpdate(
+      id,
+      { isRead: false, ReadAt: null },
+      { new: true },
+    );
+  }
+
+  async markAllAsRead(userId: string) {
+    return this.notificationModel.updateMany(
+      { receiverId: new Types.ObjectId(userId), isRead: false },
+      { isRead: true, ReadAt: new Date() },
     );
   }
 

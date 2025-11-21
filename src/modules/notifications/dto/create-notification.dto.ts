@@ -10,8 +10,8 @@ export class CreateNotificationDto {
   @IsMongoId()
   receiverId: string;
 
-  @IsEnum(['customer', 'business'])
-  receiverType: string;
+  // @IsEnum(['customer', 'business'])
+  // receiverType: string;
 
   @IsString()
   @IsNotEmpty()

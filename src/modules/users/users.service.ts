@@ -125,6 +125,7 @@ export class UsersService {
       }
 
       const data = {
+        _id: user._id,
         email: user.email,
         avatar: user.avatar || '',
         wallet: {

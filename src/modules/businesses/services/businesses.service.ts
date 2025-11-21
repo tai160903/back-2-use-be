@@ -334,7 +334,7 @@ export class BusinessesService {
 
     await this.notificationsService.create({
       receiverId: userId,
-      receiverType: 'business',
+      // receiverType: 'business',
       title: 'Trial Activated',
       message: `Your ${trialSub.name} trial has been activated from ${now.toDateString()} to ${endDate.toDateString()}.`,
       type: 'manual',
@@ -488,7 +488,7 @@ export class BusinessesService {
 
       await this.notificationsService.create({
         receiverId: userId,
-        receiverType: 'business',
+        // receiverType: 'business',
         title: 'Subscription Purchased',
         message: activeSub
           ? `You have successfully purchased the ${subscription.name} subscription. It will activate after your current plan expires on ${activeSub.endDate.toDateString()}.`
@@ -664,7 +664,7 @@ export class BusinessesService {
 
       await this.notificationsService.create({
         receiverId: userId,
-        receiverType: 'business',
+        // receiverType: 'business',
         title: 'Subscription Canceled',
         message: subscription
           ? `Your pending ${subscription.name} subscription has been canceled and refunded.`
@@ -1034,7 +1034,7 @@ export class BusinessesService {
 
         await this.notificationsService.create({
           receiverId: business.userId.toString(),
-          receiverType: 'business',
+          // receiverType: 'business',
           title: 'Subscription Expiring Soon',
           message: `Your ${subscription.name} subscription will expire on ${sub.endDate.toDateString()}. Please renew soon to avoid interruption.`,
           type: 'manual',
@@ -1125,7 +1125,7 @@ export class BusinessesService {
 
           await this.notificationsService.create({
             receiverId: business.userId.toString(),
-            receiverType: 'business',
+            // receiverType: 'business',
             title: 'Subscription Expired',
             message:
               'Your subscription has expired. Please renew to continue using our services.',
@@ -1177,7 +1177,7 @@ export class BusinessesService {
 
             await this.notificationsService.create({
               receiverId: business.userId.toString(),
-              receiverType: 'business',
+              // receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your new subscription has been activated.',
               type: 'manual',
@@ -1237,7 +1237,7 @@ export class BusinessesService {
 
             await this.notificationsService.create({
               receiverId: business.userId.toString(),
-              receiverType: 'business',
+              // receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your subscription has been activated.',
               type: 'manual',
@@ -1344,7 +1344,7 @@ export class BusinessesService {
 
           await this.notificationsService.create({
             receiverId: business.userId.toString(),
-            receiverType: 'business',
+            // receiverType: 'business',
             title: 'Auto-Renewal Failed',
             message: `Auto-renewal failed for ${subscription.name}. Insufficient wallet balance. Please add funds to your wallet.`,
             type: 'manual',
@@ -1426,7 +1426,7 @@ export class BusinessesService {
 
           await this.notificationsService.create({
             receiverId: business.userId.toString(),
-            receiverType: 'business',
+            // receiverType: 'business',
             title: 'Subscription Auto-Renewed',
             message: `Your ${subscription.name} subscription has been automatically renewed and will activate on ${startDate.toDateString()}.`,
             type: 'manual',
