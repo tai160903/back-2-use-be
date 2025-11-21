@@ -25,7 +25,7 @@ export class NotificationsService {
         createNotificationDto,
       );
       this.gateway.sendNotificationToUser(
-        createNotificationDto.receiverId,
+        createNotificationDto.receiverId.toString(),
         createdNotification,
       );
       return createdNotification;

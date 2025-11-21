@@ -333,13 +333,13 @@ export class BusinessesService {
     await businessTrial.save();
 
     await this.notificationsService.create({
-      receiverId: userId,
+      receiverId: new Types.ObjectId(userId),
       // receiverType: 'business',
       title: 'Trial Activated',
       message: `Your ${trialSub.name} trial has been activated from ${now.toDateString()} to ${endDate.toDateString()}.`,
       type: 'manual',
       referenceType: 'subscription',
-      referenceId: businessTrial._id?.toString(),
+      referenceId: businessTrial._id,
     });
 
     const user = await this.usersModel.findById(userId);
@@ -487,7 +487,7 @@ export class BusinessesService {
       await transaction.save({ session });
 
       await this.notificationsService.create({
-        receiverId: userId,
+        receiverId: new Types.ObjectId(userId),
         // receiverType: 'business',
         title: 'Subscription Purchased',
         message: activeSub
@@ -495,7 +495,7 @@ export class BusinessesService {
           : `You have successfully purchased the ${subscription.name} subscription.`,
         type: 'manual',
         referenceType: 'subscription',
-        referenceId: businessSub._id?.toString(),
+        referenceId: businessSub._id,
       });
 
       const user = await this.usersModel.findById(userId);
@@ -663,7 +663,7 @@ export class BusinessesService {
       );
 
       await this.notificationsService.create({
-        receiverId: userId,
+        receiverId: new Types.ObjectId(userId),
         // receiverType: 'business',
         title: 'Subscription Canceled',
         message: subscription
@@ -671,7 +671,7 @@ export class BusinessesService {
           : 'Your pending subscription has been canceled and refunded.',
         type: 'manual',
         referenceType: 'subscription',
-        referenceId: businessSub._id?.toString(),
+        referenceId: businessSub._id,
       });
 
       const user = await this.usersModel.findById(userId);
@@ -1033,13 +1033,13 @@ export class BusinessesService {
         );
 
         await this.notificationsService.create({
-          receiverId: business.userId.toString(),
+          receiverId: new Types.ObjectId(business.userId),
           // receiverType: 'business',
           title: 'Subscription Expiring Soon',
           message: `Your ${subscription.name} subscription will expire on ${sub.endDate.toDateString()}. Please renew soon to avoid interruption.`,
           type: 'manual',
           referenceType: 'subscription',
-          referenceId: sub._id?.toString(),
+          referenceId: sub._id,
         });
 
         const user = await this.usersModel.findById(business.userId);
@@ -1124,14 +1124,14 @@ export class BusinessesService {
           );
 
           await this.notificationsService.create({
-            receiverId: business.userId.toString(),
+            receiverId: new Types.ObjectId(business.userId),
             // receiverType: 'business',
             title: 'Subscription Expired',
             message:
               'Your subscription has expired. Please renew to continue using our services.',
             type: 'manual',
             referenceType: 'subscription',
-            referenceId: sub._id?.toString(),
+            referenceId: sub._id,
           });
 
           const user = await this.usersModel.findById(business.userId);
@@ -1176,13 +1176,13 @@ export class BusinessesService {
             );
 
             await this.notificationsService.create({
-              receiverId: business.userId.toString(),
+              receiverId: new Types.ObjectId(business.userId),
               // receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your new subscription has been activated.',
               type: 'manual',
               referenceType: 'subscription',
-              referenceId: nextSub._id?.toString(),
+              referenceId: nextSub._id,
             });
 
             const user = await this.usersModel.findById(business.userId);
@@ -1236,13 +1236,13 @@ export class BusinessesService {
             );
 
             await this.notificationsService.create({
-              receiverId: business.userId.toString(),
+              receiverId: new Types.ObjectId(business.userId),
               // receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your subscription has been activated.',
               type: 'manual',
               referenceType: 'subscription',
-              referenceId: sub._id?.toString(),
+              referenceId: sub._id,
             });
 
             const user = await this.usersModel.findById(business.userId);
@@ -1343,13 +1343,13 @@ export class BusinessesService {
           await sub.save();
 
           await this.notificationsService.create({
-            receiverId: business.userId.toString(),
+            receiverId: new Types.ObjectId(business.userId),
             // receiverType: 'business',
             title: 'Auto-Renewal Failed',
             message: `Auto-renewal failed for ${subscription.name}. Insufficient wallet balance. Please add funds to your wallet.`,
             type: 'manual',
             referenceType: 'subscription',
-            referenceId: sub._id?.toString(),
+            referenceId: sub._id,
           });
 
           const user = await this.usersModel.findById(business.userId);
@@ -1425,13 +1425,13 @@ export class BusinessesService {
           );
 
           await this.notificationsService.create({
-            receiverId: business.userId.toString(),
+            receiverId: new Types.ObjectId(business.userId),
             // receiverType: 'business',
             title: 'Subscription Auto-Renewed',
             message: `Your ${subscription.name} subscription has been automatically renewed and will activate on ${startDate.toDateString()}.`,
             type: 'manual',
             referenceType: 'subscription',
-            referenceId: sub._id?.toString(),
+            referenceId: sub._id,
           });
 
           const user = await this.usersModel.findById(business.userId);
