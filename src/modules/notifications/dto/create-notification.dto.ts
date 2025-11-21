@@ -5,13 +5,14 @@ import {
   IsEnum,
   IsOptional,
 } from 'class-validator';
+import { Types } from 'mongoose';
 
 export class CreateNotificationDto {
   @IsMongoId()
-  receiverId: string;
+  receiverId: Types.ObjectId;
 
-  @IsEnum(['customer', 'business'])
-  receiverType: string;
+  // @IsEnum(['customer', 'business'])
+  // receiverType: string;
 
   @IsString()
   @IsNotEmpty()
@@ -35,7 +36,7 @@ export class CreateNotificationDto {
 
   @IsOptional()
   @IsString()
-  referenceId?: string;
+  referenceId?: Types.ObjectId;
 
   @IsOptional()
   @IsEnum([

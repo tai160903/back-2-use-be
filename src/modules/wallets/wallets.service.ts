@@ -9,6 +9,7 @@ import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { Request } from 'express';
 import { WalletTransactions } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { TransactionType } from 'src/common/constants/transaction-type.enum';
+import { NotificationsService } from 'src/modules/notifications/notifications.service';
 
 @Injectable()
 export class WalletsService {
@@ -16,6 +17,7 @@ export class WalletsService {
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
     @InjectModel(WalletTransactions.name)
     private transactionsModel: Model<WalletTransactions>,
+    private readonly notificationsService: NotificationsService,
     private readonly vnpayService: VnpayService,
   ) {}
 
@@ -173,6 +175,22 @@ export class WalletsService {
         description: `VNPay Top-up #${Date.now()}`,
       });
 
+      try {
+        await (this.notificationsService as any).create({
+          receiverId: new Types.ObjectId(String(performingUserId)),
+          title: 'Wallet Top-up Initiated',
+          message: `A top-up of ${amount} VND has been initiated. Please complete the payment to finish.`,
+          type: 'manual',
+          referenceId: transaction._id?.toString(),
+          referenceType: 'wallet',
+        });
+      } catch (err) {
+        console.warn(
+          'Failed to send top-up notification',
+          (err as Error)?.message || err,
+        );
+      }
+
       const paymentUrl = this.vnpayService.createPaymentUrl(
         transaction._id.toString(),
         amount,
@@ -235,6 +253,25 @@ export class WalletsService {
         balanceType: 'available',
         description: `Manual withdrawal #${Date.now()}`,
       });
+
+      // notify user about successful withdrawal (non-blocking)
+      try {
+        if (wallet.userId) {
+          await this.notificationsService.create({
+            receiverId: new Types.ObjectId(String(wallet.userId)),
+            title: 'Withdrawal Successful',
+            message: `Your withdrawal of ${amount} VND has been processed.`,
+            type: 'manual',
+            referenceId: transaction._id,
+            referenceType: 'wallet',
+          });
+        }
+      } catch (err) {
+        console.warn(
+          'Failed to send withdrawal notification',
+          (err as Error)?.message || err,
+        );
+      }
 
       return {
         statusCode: HttpStatus.OK,

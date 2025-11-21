@@ -3,7 +3,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { Response } from 'express';
 import { VnpayService } from './vnpay.service';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Wallets } from '../../modules/wallets/schemas/wallets.schema';
 import { WalletTransactions } from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
 import { NotificationsGateway } from 'src/modules/notifications/notifications.gateway';
@@ -57,23 +57,23 @@ export class VnpayController {
 
         if (wallet && wallet.userId) {
           await this.notificationsService.create({
-            receiverId: wallet.userId.toString(),
-            receiverType: wallet.type || 'customer',
+            receiverId: wallet.userId,
+            // receiverType: wallet.type || 'customer',
             title: 'Wallet Top-up Successful',
             message: `Your wallet has been topped up with ${transaction.amount} VND.`,
             type: 'manual',
-            referenceId: transaction._id?.toString(),
+            referenceId: transaction._id,
             referenceType: 'wallet',
           });
 
           this.sendRealtimeNotification(
-            wallet.userId.toString(),
+            wallet.userId,
             `Your wallet has been topped up with ${transaction.amount} VND.`,
           );
         }
 
         return res.redirect(
-          `${process.env.CLIENT_RETURN_URL}/payment-success?txnRef=${transaction._id.toString()}`,
+          `${process.env.CLIENT_RETURN_URL}/payment-success?txnRef=${transaction._id}`,
         );
       }
 
@@ -82,7 +82,7 @@ export class VnpayController {
 
       if (wallet && wallet.userId) {
         this.sendRealtimeNotification(
-          wallet.userId.toString(),
+          wallet.userId,
           `Your wallet top-up of ${transaction.amount} VND has failed.`,
         );
       }
@@ -126,23 +126,23 @@ export class VnpayController {
 
           // persist notification
           await this.notificationsService.create({
-            receiverId: wallet.userId.toString(),
-            receiverType: wallet.type || 'customer',
+            receiverId: wallet.userId,
+            // receiverType: wallet.type || 'customer',
             title: 'Wallet Top-up Successful',
             message: `Your wallet has been topped up with ${amount} VND.`,
             type: 'manual',
-            referenceId: transaction?._id?.toString(),
+            referenceId: transaction?._id,
             referenceType: 'wallet',
           });
 
           this.sendRealtimeNotification(
-            wallet.userId.toString(),
+            wallet.userId,
             `Your wallet has been topped up with ${amount} VND.`,
           );
         }
 
         return res.redirect(
-          `http://192.168.0.199:8081/payment-success/?txnRef=${transaction?._id.toString()}`,
+          `http://192.168.0.199:8081/payment-success/?txnRef=${transaction?._id}`,
         );
       }
 
@@ -160,11 +160,15 @@ export class VnpayController {
     }
   }
 
-  private sendRealtimeNotification(userId: string, message: string) {
+  private sendRealtimeNotification(
+    userId: Types.ObjectId | string,
+    message: string,
+  ) {
     try {
       const gatewayAny = this.notificationsGateway as any;
       if (gatewayAny && typeof gatewayAny.sendNotification === 'function') {
-        gatewayAny.sendNotification(userId, message);
+        const id = typeof userId === 'string' ? userId : userId.toString();
+        gatewayAny.sendNotification(id, message);
       }
     } catch (err) {
       // don't let realtime send block main flow

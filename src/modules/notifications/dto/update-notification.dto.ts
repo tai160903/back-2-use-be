@@ -5,9 +5,9 @@ export class UpdateNotificationDto {
   @IsMongoId()
   receiverId?: string;
 
-  @IsOptional()
-  @IsEnum(['customer', 'business'])
-  receiverType?: string;
+  // @IsOptional()
+  // @IsEnum(['customer', 'business'])
+  // receiverType?: string;
 
   @IsOptional()
   @IsString()

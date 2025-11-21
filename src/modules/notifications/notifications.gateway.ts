@@ -5,6 +5,7 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
   WebSocketServer,
+  ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { NotificationsService } from './notifications.service';
@@ -15,28 +16,32 @@ import { CreateNotificationDto } from './dto/create-notification.dto';
   cors: {
     origin: '*',
   },
+  emitResponse: true,
 })
 export class NotificationsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer() server: Server;
-  private connectedUsers: Map<string, string> = new Map();
+  private connectedUsers: Map<
+    string,
+    { userId: string; mode?: 'customer' | 'business' }
+  > = new Map();
 
   handleConnection(client: Socket) {
     console.log(`Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    const userId = this.connectedUsers.get(client.id);
-    if (userId) {
+    const mapping = this.connectedUsers.get(client.id);
+    if (mapping) {
       this.connectedUsers.delete(client.id);
-      console.log(`User ${userId} disconnected`);
+      console.log(`User ${mapping.userId} disconnected`);
     }
   }
 
   sendNotificationToUser(userId: string, payload: any) {
-    for (const [socketId, uid] of this.connectedUsers.entries()) {
-      if (uid === userId) {
+    for (const [socketId, mapping] of this.connectedUsers.entries()) {
+      if (mapping.userId === userId) {
         this.server.to(socketId).emit('notification', payload);
       }
     }
@@ -47,10 +52,25 @@ export class NotificationsGateway
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  @SubscribeMessage('test')
+  test(@ConnectedSocket() client: Socket) {
+    console.log(`Received test message from client ${client.id}:`);
+    return { message: 'Test successful' };
+  }
+
   @SubscribeMessage('register')
-  register(@MessageBody() userId: string, client: Socket) {
-    this.connectedUsers.set(client.id, userId);
-    console.log(`User ${userId} registered with client ID: ${client.id}`);
+  register(
+    @MessageBody()
+    payload: { userId: string; mode: 'customer' | 'business' },
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.connectedUsers.set(client.id, {
+      userId: payload.userId,
+      mode: payload.mode,
+    });
+    console.log(
+      `User ${payload.userId} registered with client ID: ${client.id}`,
+    );
   }
 
   @SubscribeMessage('createNotification')
@@ -59,12 +79,55 @@ export class NotificationsGateway
   }
 
   @SubscribeMessage('findAllNotifications')
-  findAll() {
-    return this.notificationsService.findAll();
+  findAll(
+    @MessageBody() payload: { userId: string; mode: 'customer' | 'business' },
+    @ConnectedSocket() client: Socket,
+  ) {
+    const mapping = this.connectedUsers.get(client.id);
+    if (!mapping) {
+      return [];
+    }
+    const { mode } = payload;
+    if (!mode) {
+      return [];
+    }
+
+    return this.notificationsService.findAll(mapping.userId, mode);
   }
 
   @SubscribeMessage('markAsRead')
   markAsRead(@MessageBody() id: string) {
+    console.log(id);
     return this.notificationsService.markAsRead(id);
+  }
+
+  @SubscribeMessage('markAllAsRead')
+  markAllAsRead(@MessageBody() userId: string) {
+    return this.notificationsService.markAllAsRead(userId);
+  }
+
+  @SubscribeMessage('markAsUnread')
+  markAsUnread(@MessageBody() id: string) {
+    return this.notificationsService.markAsUnread(id);
+  }
+
+  @SubscribeMessage('findByReceiver')
+  findByReceiver(@MessageBody() receiverId: string) {
+    return this.notificationsService.findByReceiverId(receiverId);
+  }
+
+  @SubscribeMessage('findNotification')
+  findOne(@MessageBody() id: string) {
+    return this.notificationsService.findOne(id);
+  }
+
+  @SubscribeMessage('updateNotification')
+  update(@MessageBody() payload: { id: string; data: Partial<any> }) {
+    return this.notificationsService.update(payload.id, payload.data);
+  }
+
+  @SubscribeMessage('deleteNotification')
+  remove(@MessageBody() id: string) {
+    return this.notificationsService.remove(id);
   }
 }
