@@ -12,6 +12,7 @@ import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.serv
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
+import { BorrowTransaction } from '../borrow-transactions/schemas/borrow-transactions.schema';
 
 @Injectable()
 export class ProductsService {
@@ -22,6 +23,8 @@ export class ProductsService {
     private productGroupModel: Model<ProductGroup>,
     @InjectModel(ProductSize.name) private productSizeModel: Model<ProductSize>,
     @InjectModel(Product.name) private productModel: Model<Product>,
+    @InjectModel(BorrowTransaction.name)
+    private borrowTransactionModel: Model<BorrowTransaction>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -183,23 +186,37 @@ export class ProductsService {
     try {
       const product = await this.productModel
         .findOne({ serialNumber, isDeleted: false })
-        .populate('productGroupId', 'name description image')
-        .populate('productSizeId', 'name description');
+        .select('_id serialNumber qrCode status condition')
+        .populate('productGroupId', 'name description imageUrl')
+        .populate(
+          'productSizeId',
+          'sizeName depositValue weight plasticEquivalentWeight description',
+        );
 
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
       }
 
+      const activeTransaction = await this.borrowTransactionModel
+        .findOne({
+          productId: product._id,
+          status: { $in: ['pending_pickup', 'borrowing'] },
+        })
+        .select('_id borrowDate dueDate status depositAmount')
+        .populate('customerId', 'fullName phone yob address');
+
       return {
         success: true,
-        data: product,
+        data: {
+          product,
+          transaction: activeTransaction || null,
+        },
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      if (error instanceof HttpException) throw error;
+
       throw new HttpException(
-        (error as Error).message || 'Failed to get product',
+        error.message || 'Failed to get product',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

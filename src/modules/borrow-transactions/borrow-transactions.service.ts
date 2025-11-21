@@ -20,26 +20,39 @@ import { Product } from '../products/schemas/product.schema';
 import { ProductSize } from '../product-sizes/schemas/product-size.schema';
 import { Businesses } from '../businesses/schemas/businesses.schema';
 import { ProductGroup } from '../product-groups/schemas/product-group.schema';
+import { SystemSetting } from '../system-settings/schemas/system-setting.schema';
 
 @Injectable()
 export class BorrowTransactionsService {
   constructor(
     @InjectModel(BorrowTransaction.name)
     private readonly borrowTransactionModel: Model<BorrowTransaction>,
+
     @InjectModel(Users.name) private readonly userModel: Model<Users>,
+
     @InjectModel(Customers.name)
     private readonly customerModel: Model<Customers>,
+
     @InjectModel(Wallets.name) private readonly walletsModel: Model<Wallets>,
+
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
+
     @InjectModel(Product.name) private readonly productModel: Model<Product>,
     private readonly cloudinaryService: CloudinaryService,
+
     @InjectModel(ProductSize.name)
     private readonly productSizeModel: Model<ProductSize>,
+
     @InjectModel(ProductGroup.name)
     private readonly productGroupModel: Model<ProductGroup>,
+
     @InjectModel(Businesses.name)
     private readonly businessesModel: Model<Businesses>,
+
+    @InjectModel(SystemSetting.name)
+    private readonly systemSettingsModel: Model<SystemSetting>,
+
     private readonly configService: ConfigService,
   ) {}
 
@@ -106,6 +119,29 @@ export class BorrowTransactionsService {
           'Invalid deposit value',
           HttpStatus.BAD_REQUEST,
         );
+
+      const borrowPolicy = await this.systemSettingsModel
+        .findOne({
+          key: 'borrow_policy',
+          category: 'borrow',
+        })
+        .session(session);
+
+      if (!borrowPolicy) {
+        throw new HttpException(
+          'Borrow policy settings not found',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const maxDaysBorrowAllowed = borrowPolicy.value.maxDaysBorrowAllowed;
+
+      if (dto.durationInDays > maxDaysBorrowAllowed) {
+        throw new HttpException(
+          `Duration exceeds maximum allowed days (${maxDaysBorrowAllowed})`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
 
       const borrowDate = new Date();
       const dueDate = new Date(borrowDate);
