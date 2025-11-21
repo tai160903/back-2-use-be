@@ -9,6 +9,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications.service';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
@@ -35,6 +36,22 @@ export class NotificationsController {
     return this.notificationsService.findByReceiverId(receiverId);
   }
 
+  @UseGuards(AuthGuard('jwt'))
+  @Delete('receiver/:receiverId')
+  async removeAll(
+    @Param('receiverId') receiverId: string,
+    @Request() req: any,
+  ) {
+    // allow only the owner or admin
+    if (
+      String(req.user?._id) !== String(receiverId) &&
+      req.user?.role !== 'admin'
+    ) {
+      throw new ForbiddenException('Forbidden');
+    }
+    return this.notificationsService.removeAll(receiverId);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.notificationsService.findOne(id);
@@ -43,11 +60,6 @@ export class NotificationsController {
   @Patch(':id/read')
   markAsRead(@Param('id') id: string) {
     return this.notificationsService.markAsRead(id);
-  }
-
-  @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateNotificationDto) {
-    return this.notificationsService.update(id, dto);
   }
 
   @Delete(':id')

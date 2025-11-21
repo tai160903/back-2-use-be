@@ -7,11 +7,18 @@ import {
   Notification,
   NotificationsSchema,
 } from './schemas/notifications.schema';
+import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
+import {
+  Businesses,
+  BusinessesSchema,
+} from '../businesses/schemas/businesses.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationsSchema },
+      { name: Customers.name, schema: CustomersSchema },
+      { name: Businesses.name, schema: BusinessesSchema },
     ]),
   ],
   controllers: [NotificationsController],
