@@ -26,6 +26,10 @@ import {
   ProductGroup,
   ProductGroupSchema,
 } from '../product-groups/schemas/product-group.schema';
+import {
+  SystemSetting,
+  SystemSettingSchema,
+} from '../system-settings/schemas/system-setting.schema';
 
 @Module({
   imports: [
@@ -37,6 +41,7 @@ import {
       { name: ProductSize.name, schema: ProductSizeSchema },
       { name: ProductGroup.name, schema: ProductGroupSchema },
       { name: Businesses.name, schema: BusinessesSchema },
+      { name: SystemSetting.name, schema: SystemSettingSchema },
     ]),
     UsersModule,
     CloudinaryModule,
