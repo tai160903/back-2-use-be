@@ -30,6 +30,7 @@ import {
   SystemSetting,
   SystemSettingSchema,
 } from '../system-settings/schemas/system-setting.schema';
+import { Material, MaterialSchema } from '../materials/schemas/material.schema';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import {
       { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
       { name: Wallets.name, schema: WalletsSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
+      { name: Material.name, schema: MaterialSchema },
       { name: Product.name, schema: ProductSchema },
       { name: ProductSize.name, schema: ProductSizeSchema },
       { name: ProductGroup.name, schema: ProductGroupSchema },

@@ -1,9 +1,15 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateBorrowTransactionDto } from './dto/create-borrow-transaction.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { BorrowTransaction } from './schemas/borrow-transactions.schema';
-import { Model, Types } from 'mongoose';
-import { InjectModel } from '@nestjs/mongoose';
+import { Connection, Model, Types } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Users } from '../users/schemas/users.schema';
 import { Customers } from '../users/schemas/customer.schema';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
@@ -21,6 +27,16 @@ import { ProductSize } from '../product-sizes/schemas/product-size.schema';
 import { Businesses } from '../businesses/schemas/businesses.schema';
 import { ProductGroup } from '../product-groups/schemas/product-group.schema';
 import { SystemSetting } from '../system-settings/schemas/system-setting.schema';
+import { UpdateProductConditionDto } from './dto/update-product-condition.dto';
+import { loadEntities } from './helpers/load-entities.helper';
+import { processImages } from './helpers/process-image.helper';
+import { applyConditionChange } from './helpers/apply-conditon-change.helper';
+import { handleRefund } from './helpers/handle-refund.helpter';
+import { handleForfeit } from './helpers/handle-forfeit.helper';
+import { handleReuseLimit } from './helpers/handle-reuse-limit.helper';
+import { applyRewardPointChange } from './helpers/apply-reward-points-change.helper';
+import { Material } from '../materials/schemas/material.schema';
+import { applyEcoPointChange } from './helpers/apply-eco-point-change.helper';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -38,8 +54,9 @@ export class BorrowTransactionsService {
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
 
+    @InjectModel(Material.name) private readonly materialModel: Model<Material>,
+
     @InjectModel(Product.name) private readonly productModel: Model<Product>,
-    private readonly cloudinaryService: CloudinaryService,
 
     @InjectModel(ProductSize.name)
     private readonly productSizeModel: Model<ProductSize>,
@@ -53,6 +70,9 @@ export class BorrowTransactionsService {
     @InjectModel(SystemSetting.name)
     private readonly systemSettingsModel: Model<SystemSetting>,
 
+    @InjectConnection() private readonly connection: Connection,
+
+    private readonly cloudinaryService: CloudinaryService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -185,6 +205,12 @@ export class BorrowTransactionsService {
         .findOne({ userId: business.userId, type: 'business' })
         .session(session);
 
+      if (!businessWallet)
+        throw new HttpException(
+          'Business wallet not found',
+          HttpStatus.NOT_FOUND,
+        );
+
       const status = type === 'online' ? 'pending_pickup' : 'borrowing';
 
       const [transaction] = await this.borrowTransactionModel.create(
@@ -213,7 +239,7 @@ export class BorrowTransactionsService {
       transaction.qrCode = uploadResult.secure_url as string;
 
       customerWallet.availableBalance -= depositAmount;
-      customerWallet.holdingBalance += depositAmount;
+      businessWallet.holdingBalance += depositAmount;
 
       const walletCustomer = new this.walletTransactionsModel({
         walletId: customerWallet._id,
@@ -263,6 +289,7 @@ export class BorrowTransactionsService {
       await Promise.all([
         transaction.save({ session }),
         customerWallet.save({ session }),
+        businessWallet.save({ session }),
       ]);
 
       await session.commitTransaction();
@@ -834,6 +861,114 @@ export class BorrowTransactionsService {
       );
     } finally {
       await session.endSession();
+    }
+  }
+
+  // Business check product when return
+  async confirmReturnCondition(
+    serialNumber: string,
+    userId: string,
+    dto: UpdateProductConditionDto,
+    images: Express.Multer.File[],
+  ) {
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      const {
+        business,
+        customer,
+        product,
+        productGroup,
+        productSize,
+        material,
+        borrowTransaction,
+        customerWallet,
+        businessWallet,
+        rewardPolicy,
+      } = await loadEntities(serialNumber, userId, session, {
+        businessesModel: this.businessesModel,
+        productModel: this.productModel,
+        productGroupModel: this.productGroupModel,
+        productSizeModel: this.productSizeModel,
+        materialModel: this.materialModel,
+        borrowTransactionModel: this.borrowTransactionModel,
+        customerModel: this.customerModel,
+        walletsModel: this.walletsModel,
+        systemSettingsModel: this.systemSettingsModel,
+      });
+
+      const uploadedUrls = await processImages(images, this.cloudinaryService);
+
+      applyConditionChange(product, borrowTransaction, dto, uploadedUrls);
+
+      // handle reuse limit
+      handleReuseLimit(product, productGroup.materialId);
+
+      const { addedRewardPoints, addedRankingPoints } = applyRewardPointChange(
+        customer,
+        borrowTransaction.status,
+        rewardPolicy,
+      );
+
+      const { addedEcoPoints, addedCo2, plasticPrevented } =
+        applyEcoPointChange(
+          business,
+          productSize,
+          material,
+          borrowTransaction.status,
+        );
+
+      await Promise.all([
+        product.save({ session }),
+        borrowTransaction.save({ session }),
+        customer.save({ session }),
+        business.save({ session }),
+      ]);
+
+      if (borrowTransaction.status === 'returned') {
+        await handleRefund(
+          borrowTransaction,
+          businessWallet,
+          customerWallet,
+          session,
+          this.walletTransactionsModel,
+        );
+      } else {
+        await handleForfeit(
+          borrowTransaction,
+          businessWallet,
+          session,
+          this.walletTransactionsModel,
+        );
+      }
+
+      await session.commitTransaction();
+
+      return {
+        success: true,
+        message: 'Return condition confirmed successfully',
+        data: {
+          product,
+          borrowTransaction,
+
+          customer: {
+            addedRewardPoints,
+            addedRankingPoints,
+          },
+
+          business: {
+            addedEcoPoints,
+            addedCo2,
+            plasticPrevented,
+          },
+        },
+      };
+    } catch (err) {
+      await session.abortTransaction();
+      throw new HttpException(err.message, HttpStatus.INTERNAL_SERVER_ERROR);
+    } finally {
+      session.endSession();
     }
   }
 

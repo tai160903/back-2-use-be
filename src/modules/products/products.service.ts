@@ -186,7 +186,9 @@ export class ProductsService {
     try {
       const product = await this.productModel
         .findOne({ serialNumber, isDeleted: false })
-        .select('_id serialNumber qrCode status condition')
+        .select(
+          '_id serialNumber qrCode status condition reuseCount lastConditionImages lastConditionNote',
+        )
         .populate('productGroupId', 'name description imageUrl')
         .populate(
           'productSizeId',
@@ -200,9 +202,11 @@ export class ProductsService {
       const activeTransaction = await this.borrowTransactionModel
         .findOne({
           productId: product._id,
-          status: { $in: ['pending_pickup', 'borrowing'] },
+          status: { $in: ['pending_pickup', 'borrowing', 'rejected', 'lost'] },
         })
-        .select('_id borrowDate dueDate status depositAmount')
+        .select(
+          '_id borrowDate dueDate returnDate status depositAmount borrowTransactionType qrCode ',
+        )
         .populate('customerId', 'fullName phone yob address');
 
       return {

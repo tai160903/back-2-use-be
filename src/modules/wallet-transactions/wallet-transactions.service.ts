@@ -117,7 +117,11 @@ export class WalletTransactionsService {
 
       case TransactionFilterGroup.DEPOSIT_REFUND:
         filter.transactionType = {
-          $in: [TransactionType.BORROW_DEPOSIT, TransactionType.RETURN_REFUND],
+          $in: [
+            TransactionType.BORROW_DEPOSIT,
+            TransactionType.RETURN_REFUND,
+            TransactionType.DEPOSIT_FORFEITED,
+          ],
         };
         break;
 

@@ -41,6 +41,7 @@ export class BorrowTransaction {
     ],
   })
   status: string;
+  
   @Prop()
   qrCode: string;
 }

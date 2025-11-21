@@ -8,6 +8,8 @@ import {
   Patch,
   Param,
   Query,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -16,11 +18,16 @@ import {
   ApiBody,
   ApiParam,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { CreateBorrowTransactionDto } from './dto/create-borrow-transaction.dto';
 import { BorrowTransactionsService } from './borrow-transactions.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { UpdateProductConditionDto } from './dto/update-product-condition.dto';
+import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @ApiTags('Borrow Transactions')
 @Controller('borrow-transactions')
@@ -214,6 +221,42 @@ export class BorrowTransactionsController {
     return this.borrowTransactionsService.cancelCustomerPendingTransaction(
       req.user._id,
       id,
+    );
+  }
+
+  // POST borrow-transactions/:serialNumber/return-check
+  @Post(':serialNumber/return-check')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
+  @ApiBearerAuth('access-token')
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Return condition data including note and images',
+    schema: {
+      type: 'object',
+      properties: {
+        condition: { type: 'string', enum: ['good', 'damaged'] },
+        note: { type: 'string' },
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+      required: ['condition', 'note'],
+    },
+  })
+  @UseInterceptors(FilesInterceptor('images', 3))
+  async confirmReturnCondition(
+    @Param('serialNumber') serialNumber: string,
+    @Body() dto: UpdateProductConditionDto,
+    @UploadedFiles() images: Express.Multer.File[],
+    @Request() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?._id;
+    return this.borrowTransactionsService.confirmReturnCondition(
+      serialNumber,
+      userId,
+      dto,
+      images,
     );
   }
 }
