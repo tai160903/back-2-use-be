@@ -145,11 +145,7 @@ export class AuthService {
     }
   }
   // Login
-  async login(
-    username: string,
-    password: string,
-    type?: string,
-  ): Promise<APIResponseDto> {
+  async login(username: string, password: string): Promise<APIResponseDto> {
     if (!username || !password) {
       throw new HttpException(
         'Username and password are required',
@@ -196,41 +192,16 @@ export class AuthService {
     if (user.role === RolesEnum.ADMIN) {
       userRole = RolesEnum.ADMIN;
     } else {
-      if (!type) {
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
+      if (!customer) {
         throw new HttpException(
-          'Type is required for non-admin users',
-          HttpStatus.BAD_REQUEST,
+          'Customer account not found',
+          HttpStatus.NOT_FOUND,
         );
       }
-
-      if (type === 'business') {
-        const business = await this.businessModel.findOne({
-          userId: new Types.ObjectId(user._id),
-        });
-        if (!business) {
-          throw new HttpException(
-            'Business account not found',
-            HttpStatus.NOT_FOUND,
-          );
-        }
-        userRole = 'business';
-      } else if (type === 'customer') {
-        const customer = await this.customersModel.findOne({
-          userId: new Types.ObjectId(user._id),
-        });
-        if (!customer) {
-          throw new HttpException(
-            'Customer account not found',
-            HttpStatus.NOT_FOUND,
-          );
-        }
-        userRole = 'customer';
-      } else {
-        throw new HttpException(
-          'Invalid type. Must be either "business" or "customer"',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
+      userRole = 'customer';
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -275,6 +246,66 @@ export class AuthService {
           username: user.username,
           email: user.email,
           role: userRole,
+        },
+      },
+    };
+  }
+
+  async switchRole(userId: string, targetRole: 'customer' | 'business') {
+    const user = await this.usersModel.findById(userId);
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (targetRole === 'business') {
+      const business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
+      if (!business) {
+        throw new HttpException(
+          'Business account not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+    } else if (targetRole === 'customer') {
+      const customer = await this.customersModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
+      if (!customer) {
+        throw new HttpException(
+          'Customer account not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+    } else {
+      throw new HttpException('Invalid role', HttpStatus.BAD_REQUEST);
+    }
+
+    const payload = { _id: user._id, role: targetRole };
+    const accessToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('jwt.accessToken.secret'),
+      expiresIn: this.configService.get(
+        'jwt.accessToken.signOptions.expiresIn',
+      ),
+    });
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      secret: this.configService.get('jwt.refreshToken.secret'),
+      expiresIn: this.configService.get(
+        'jwt.refreshToken.signOptions.expiresIn',
+      ),
+    });
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Role switched successfully',
+      data: {
+        accessToken,
+        refreshToken,
+        user: {
+          _id: user._id,
+          username: user.username,
+          email: user.email,
+          role: targetRole,
         },
       },
     };

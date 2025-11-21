@@ -46,19 +46,14 @@ export class AuthController {
       properties: {
         username: { type: 'string', example: 'johndoe' },
         password: { type: 'string', example: 'password123' },
-        type: { type: 'string', example: 'customer' },
       },
-      required: ['username', 'password', 'type'],
+      required: ['username', 'password'],
     },
     required: true,
   })
   @Post('login')
   login(@Body() loginDto: LoginDto) {
-    return this.authService.login(
-      loginDto.username,
-      loginDto.password,
-      loginDto.type,
-    );
+    return this.authService.login(loginDto.username, loginDto.password);
   }
 
   //Active account (OTP + email)
@@ -218,5 +213,23 @@ export class AuthController {
   @Post('refresh-token')
   async refreshToken(@Body() body: { refreshToken: string }) {
     return this.authService.refreshToken(body.refreshToken);
+  }
+
+  @ApiOperation({ summary: 'Switch role for authenticated user' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { role: { type: 'string', example: 'customer' } },
+      required: ['role'],
+    },
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard)
+  @Post('switch-role')
+  switchRole(
+    @Body() body: { role: 'customer' | 'business' },
+    @Request() req: any,
+  ) {
+    return this.authService.switchRole(req.user._id, body.role);
   }
 }

@@ -10,12 +10,18 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Notification } from './schemas/notifications.schema';
 import { Model, Types } from 'mongoose';
 import { NotificationsGateway } from './notifications.gateway';
+import { Customers } from '../users/schemas/customer.schema';
+import { Businesses } from '../businesses/schemas/businesses.schema';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     @InjectModel(Notification.name)
     private readonly notificationModel: Model<Notification>,
+    @InjectModel(Customers.name)
+    private readonly customerModel: Model<Customers>,
+    @InjectModel(Businesses.name)
+    private readonly businessModel: Model<Businesses>,
     @Inject(forwardRef(() => NotificationsGateway))
     private readonly gateway: NotificationsGateway,
   ) {}
@@ -38,7 +44,6 @@ export class NotificationsService {
   }
 
   async findAll(userId: string, mode: 'customer' | 'business') {
-    console.log('userId', userId);
     const customerTypes = [
       'borrow',
       'return',
@@ -110,19 +115,6 @@ export class NotificationsService {
     return this.notificationModel.findById(id).exec();
   }
 
-  async update(id: string, payload: Partial<any>) {
-    try {
-      return this.notificationModel.findByIdAndUpdate(id, payload, {
-        new: true,
-      });
-    } catch (error) {
-      throw new HttpException(
-        (error as Error).message || 'Failed to update notification',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
   async remove(id: string) {
     try {
       const doc = await this.notificationModel.findByIdAndDelete(id).exec();
@@ -130,6 +122,34 @@ export class NotificationsService {
     } catch (error) {
       throw new HttpException(
         (error as Error).message || 'Failed to delete notification',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async removeAll(userId: string, mode?: 'customer' | 'business') {
+    try {
+      console.log('userId', userId);
+      console.log('mode', mode);
+      let receiver: any;
+      if (mode === 'customer') {
+        receiver = await this.customerModel.findOne({ userId: userId });
+      } else if (mode === 'business') {
+        receiver = await this.businessModel.findOne({ userId: userId });
+      }
+      if (!receiver) {
+        throw new HttpException('Receiver not found', HttpStatus.NOT_FOUND);
+      }
+
+      console.log('receiver', receiver);
+
+      const res = await this.notificationModel.deleteMany({
+        receiverId: receiver?._id,
+      });
+      return res;
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to delete notifications',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

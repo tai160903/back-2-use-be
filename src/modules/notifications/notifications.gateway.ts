@@ -6,6 +6,7 @@ import {
   OnGatewayDisconnect,
   WebSocketServer,
   ConnectedSocket,
+  WsException,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { NotificationsService } from './notifications.service';
@@ -121,13 +122,25 @@ export class NotificationsGateway
     return this.notificationsService.findOne(id);
   }
 
-  @SubscribeMessage('updateNotification')
-  update(@MessageBody() payload: { id: string; data: Partial<any> }) {
-    return this.notificationsService.update(payload.id, payload.data);
-  }
-
   @SubscribeMessage('deleteNotification')
   remove(@MessageBody() id: string) {
     return this.notificationsService.remove(id);
+  }
+
+  @SubscribeMessage('deleteAllNotifications')
+  async removeAll(
+    @MessageBody() payload: { userId?: string; mode?: 'customer' | 'business' },
+    @ConnectedSocket() client: Socket,
+  ) {
+    console.log('payload', payload);
+    const mapping = this.connectedUsers.get(client.id);
+    const targetId = payload?.userId || mapping?.userId;
+    if (!targetId) {
+      throw new WsException('Invalid user id');
+    }
+    if (mapping && payload?.userId && mapping.userId !== payload.userId) {
+      throw new WsException('Forbidden');
+    }
+    return this.notificationsService.removeAll(targetId, mapping?.mode);
   }
 }
