@@ -305,6 +305,9 @@ export class WalletTransactionsService {
                 qrCode: 1,
                 productGroupId: 1,
                 productSizeId: 1,
+                reuseCount: 1,
+                lastConditionNote: 1,
+                lastConditionImages: 1,
               },
             },
 

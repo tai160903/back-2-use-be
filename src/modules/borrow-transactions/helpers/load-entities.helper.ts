@@ -55,6 +55,12 @@ export async function loadEntities(
 
   if (!productGroup) throw new NotFoundException('Product group not found');
 
+  if (productGroup.businessId.toString() !== business._id.toString()) {
+    throw new BadRequestException(
+      'This product does not belong to your business.',
+    );
+  }
+
   // --- Product Size ---
   const productSize = await productSizeModel
     .findById(product.productSizeId)
@@ -115,6 +121,12 @@ export async function loadEntities(
 
   if (!rewardPolicy) throw new NotFoundException('Reward policy not found');
 
+  const borrowPolicy = await systemSettingsModel
+    .findOne({ category: 'borrow', key: 'borrow_policy' })
+    .session(session);
+
+  if (!borrowPolicy) throw new NotFoundException('Borrow policy not found');
+
   return {
     business,
     customer,
@@ -126,5 +138,6 @@ export async function loadEntities(
     customerWallet,
     businessWallet,
     rewardPolicy: rewardPolicy.value,
+    borrowPolicy: borrowPolicy.value,
   };
 }

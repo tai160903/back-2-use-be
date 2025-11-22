@@ -41,9 +41,12 @@ export class BorrowTransaction {
     ],
   })
   status: string;
-  
+
   @Prop()
   qrCode: string;
+
+  @Prop({ default: false })
+  isLateProcessed: boolean;
 }
 
 export const BorrowTransactionSchema =
