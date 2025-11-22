@@ -26,6 +26,7 @@ import {
   BorrowTransaction,
   BorrowTransactionSchema,
 } from '../borrow-transactions/schemas/borrow-transactions.schema';
+import { SystemSetting, SystemSettingSchema } from '../system-settings/schemas/system-setting.schema';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import {
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
       { name: Users.name, schema: UsersSchema },
       { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
+      { name: SystemSetting.name, schema: SystemSettingSchema },
     ]),
     CloudinaryModule,
   ],

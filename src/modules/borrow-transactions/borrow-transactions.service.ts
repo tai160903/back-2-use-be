@@ -301,8 +301,15 @@ export class BorrowTransactionsService {
       };
     } catch (error) {
       await session.abortTransaction();
+
+      // Nếu là HttpException → ném nguyên xi ra
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      // Lỗi khác → 500
       throw new HttpException(
-        (error as Error).message || 'Failed to create borrow transaction',
+        error.message || 'Failed to create borrow transaction',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     } finally {
@@ -886,6 +893,7 @@ export class BorrowTransactionsService {
         customerWallet,
         businessWallet,
         rewardPolicy,
+        borrowPolicy,
       } = await loadEntities(serialNumber, userId, session, {
         businessesModel: this.businessesModel,
         productModel: this.productModel,
