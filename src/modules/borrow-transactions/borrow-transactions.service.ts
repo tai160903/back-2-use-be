@@ -371,16 +371,28 @@ export class BorrowTransactionsService {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
       }
 
+      const businessWallet = await this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+        type: 'business',
+      });
+
+      if (!businessWallet) {
+        throw new NotFoundException('Business wallet not found');
+      }
+
+      // ===== BUILD QUERY =====
       const query: any = { businessId: business._id };
 
       if (options.status) query.status = options.status;
       if (options.borrowTransactionType)
         query.borrowTransactionType = options.borrowTransactionType;
 
+      // ===== FILTER PRODUCT =====
       const productIdSet = new Set<string>();
 
       if (options.productName) {
         const regex = new RegExp(options.productName, 'i');
+
         const matchedGroupIds = await this.productGroupModel
           .find({ name: regex })
           .distinct('_id');
@@ -394,9 +406,11 @@ export class BorrowTransactionsService {
 
       if (options.serialNumber) {
         const regex = new RegExp(options.serialNumber, 'i');
+
         const matchedBySerial = await this.productModel
           .find({ serialNumber: regex })
           .distinct('_id');
+
         matchedBySerial.forEach((id) => productIdSet.add(id.toString()));
       }
 
@@ -406,11 +420,13 @@ export class BorrowTransactionsService {
         };
       }
 
+      // ===== PAGINATION =====
       const page = options.page && options.page > 0 ? options.page : 1;
       const limit = options.limit && options.limit > 0 ? options.limit : 10;
 
       const total = await this.borrowTransactionModel.countDocuments(query);
 
+      // ===== FETCH BORROW TRANSACTIONS =====
       const transactions = await this.borrowTransactionModel
         .find(query)
         .populate({
@@ -428,11 +444,49 @@ export class BorrowTransactionsService {
         .limit(limit)
         .lean();
 
+      const borrowIds = transactions.map((t) => t._id);
+
+      // ===== FETCH WALLET TXS OF BUSINESS WALLET =====
+      const walletTxs = await this.walletTransactionsModel
+        .find({
+          referenceId: { $in: borrowIds },
+          referenceType: 'borrow',
+          status: 'completed',
+          walletId: businessWallet._id,
+        })
+        .lean();
+
+      // ===== MAPPING status -> transactionType =====
+      const statusToWalletType: Record<string, string> = {
+        borrowing: 'borrow_deposit',
+        returned: 'return_refund',
+        rejected: 'deposit_forfeited',
+        lost: 'deposit_forfeited',
+      };
+
+      // ===== MERGE - ONLY 1 WALLET TRANSACTION =====
+      const finalData = transactions.map((t) => {
+        const expectedTxType = statusToWalletType[t.status] || null;
+
+        const matchedTx =
+          expectedTxType &&
+          walletTxs.find(
+            (w) =>
+              w.referenceId?.toString() === t._id.toString() &&
+              w.transactionType === expectedTxType,
+          );
+
+        return {
+          ...t,
+          walletTransaction: matchedTx || null,
+        };
+      });
+
       return {
         statusCode: HttpStatus.OK,
         message: 'Business transactions fetched successfully.',
         data: {
-          items: transactions,
+          items: finalData,
           total,
           page,
           limit,
@@ -440,7 +494,7 @@ export class BorrowTransactionsService {
       };
     } catch (error) {
       throw new HttpException(
-        (error as Error).message || 'Failed to fetch business transactions.',
+        error?.message || 'Failed to fetch business transactions.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -540,6 +594,17 @@ export class BorrowTransactionsService {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
       }
 
+      // Lấy business wallet
+      const businessWallet = await this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+        type: 'business',
+      });
+
+      if (!businessWallet) {
+        throw new NotFoundException('Business wallet not found');
+      }
+
+      // Lấy transaction
       const transaction = await this.borrowTransactionModel
         .findOne({
           _id: new Types.ObjectId(transactionId),
@@ -568,10 +633,23 @@ export class BorrowTransactionsService {
         throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
       }
 
+      // Lấy toàn bộ wallet transactions của business wallet liên quan tới transactionId
+      const walletTransactions = await this.walletTransactionsModel
+        .find({
+          referenceId: new Types.ObjectId(transactionId),
+          referenceType: 'borrow',
+          walletId: businessWallet._id,
+        })
+        .sort({ createdAt: 1 }) // để xem theo thứ tự thời gian
+        .lean();
+
       return {
         statusCode: HttpStatus.OK,
         message: 'Business transaction detail fetched successfully.',
-        data: transaction,
+        data: {
+          ...transaction,
+          walletTransactions,
+        },
       };
     } catch (error) {
       throw new HttpException(
@@ -646,48 +724,82 @@ export class BorrowTransactionsService {
 
   async getCustomerTransactionHistory(
     userId: string,
-    filters?: {
+    options: {
+      page?: number;
+      limit?: number;
       status?: string;
       productName?: string;
+      serialNumber?: string;
       borrowTransactionType?: string;
     },
   ): Promise<APIResponseDto> {
     try {
-      const customer = await this.customerModel
-        .findOne({ userId: new Types.ObjectId(userId) })
-        .lean();
+      // ===== GET CUSTOMER =====
+      const customer = await this.customerModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
 
       if (!customer) {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
       }
 
-      const query: any = {
-        customerId: customer._id,
-      };
+      // ===== GET CUSTOMER WALLET =====
+      const customerWallet = await this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+        type: 'customer',
+      });
 
-      if (filters?.status) query.status = filters.status;
-      if (filters?.borrowTransactionType)
-        query.borrowTransactionType = filters.borrowTransactionType;
+      if (!customerWallet) {
+        throw new NotFoundException('Customer wallet not found');
+      }
 
-      if (filters?.productName) {
-        const regex = new RegExp(filters.productName, 'i');
+      // ===== BUILD QUERY =====
+      const query: any = { customerId: customer._id };
+
+      if (options.status) query.status = options.status;
+      if (options.borrowTransactionType)
+        query.borrowTransactionType = options.borrowTransactionType;
+
+      // ===== FILTER PRODUCT =====
+      const productIdSet = new Set<string>();
+
+      if (options.productName) {
+        const regex = new RegExp(options.productName, 'i');
 
         const matchedGroupIds = await this.productGroupModel
           .find({ name: regex })
           .distinct('_id');
 
         const matchedProductIds = await this.productModel
-          .find({
-            $or: [
-              // { serialNumber: regex },
-              { productGroupId: { $in: matchedGroupIds } },
-            ],
-          })
+          .find({ productGroupId: { $in: matchedGroupIds } })
           .distinct('_id');
 
-        query.productId = { $in: matchedProductIds };
+        matchedProductIds.forEach((id) => productIdSet.add(id.toString()));
       }
 
+      if (options.serialNumber) {
+        const regex = new RegExp(options.serialNumber, 'i');
+
+        const matchedBySerial = await this.productModel
+          .find({ serialNumber: regex })
+          .distinct('_id');
+
+        matchedBySerial.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (productIdSet.size > 0) {
+        query.productId = {
+          $in: Array.from(productIdSet).map((s) => new Types.ObjectId(s)),
+        };
+      }
+
+      // ===== PAGINATION =====
+      const page = options.page && options.page > 0 ? options.page : 1;
+      const limit = options.limit && options.limit > 0 ? options.limit : 10;
+
+      const total = await this.borrowTransactionModel.countDocuments(query);
+
+      // ===== FETCH TRANSACTIONS =====
       const transactions = await this.borrowTransactionModel
         .find(query)
         .populate({
@@ -698,10 +810,7 @@ export class BorrowTransactionsService {
             {
               path: 'productGroupId',
               select: 'name imageUrl materialId',
-              populate: {
-                path: 'materialId',
-                select: 'materialName',
-              },
+              populate: { path: 'materialId', select: 'materialName' },
             },
             { path: 'productSizeId', select: 'sizeName' },
           ],
@@ -712,16 +821,61 @@ export class BorrowTransactionsService {
             'businessName businessPhone businessAddress businessType businessLogoUrl',
         })
         .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
         .lean();
+
+      // ===== GET WALLET TXS (CUSTOMER WALLET) =====
+      const borrowIds = transactions.map((t) => t._id);
+
+      const walletTxs = await this.walletTransactionsModel
+        .find({
+          referenceId: { $in: borrowIds },
+          referenceType: 'borrow',
+          status: 'completed',
+          walletId: customerWallet._id,
+        })
+        .lean();
+
+      // ===== MAPPING status -> transactionType =====
+      const statusToWalletType: Record<string, string> = {
+        borrowing: 'borrow_deposit', // khi mượn trừ tiền customer
+        returned: 'return_refund', // khi trả nhận lại tiền
+        // rejected: 'deposit_forfeited', 
+        // lost: 'deposit_forfeited',  
+      };
+
+      // ===== MERGE ONLY 1 walletTransaction LIKE BUSINESS API =====
+      const finalData = transactions.map((t) => {
+        const expectedTx = statusToWalletType[t.status] || null;
+
+        const matchedTx =
+          expectedTx &&
+          walletTxs.find(
+            (w) =>
+              w.referenceId?.toString() === t._id.toString() &&
+              w.transactionType === expectedTx,
+          );
+
+        return {
+          ...t,
+          walletTransaction: matchedTx || null,
+        };
+      });
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Customer transaction history fetched successfully.',
-        data: transactions,
+        data: {
+          items: finalData,
+          total,
+          page,
+          limit,
+        },
       };
     } catch (error) {
       throw new HttpException(
-        error?.message || 'Failed to fetch customer transaction history.',
+        error?.message || 'Failed to fetch customer transactions.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -732,6 +886,7 @@ export class BorrowTransactionsService {
     transactionId: string,
   ): Promise<APIResponseDto> {
     try {
+      // ===== GET CUSTOMER =====
       const customer = await this.customerModel.findOne({
         userId: new Types.ObjectId(userId),
       });
@@ -740,6 +895,17 @@ export class BorrowTransactionsService {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
       }
 
+      // ===== GET CUSTOMER WALLET =====
+      const customerWallet = await this.walletsModel.findOne({
+        userId: new Types.ObjectId(userId),
+        type: 'customer',
+      });
+
+      if (!customerWallet) {
+        throw new NotFoundException('Customer wallet not found');
+      }
+
+      // ===== GET TRANSACTION =====
       const transaction = await this.borrowTransactionModel
         .findOne({
           _id: new Types.ObjectId(transactionId),
@@ -763,21 +929,38 @@ export class BorrowTransactionsService {
           select:
             'businessName businessPhone businessAddress businessType businessLogoUrl',
         })
-        .populate('customerId')
+        .populate({
+          path: 'customerId',
+          select: 'userId fullName phone',
+        })
         .lean();
 
       if (!transaction) {
         throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
       }
 
+      // ===== GET ALL WALLET TRANSACTIONS (CUSTOMER WALLET) =====
+      const walletTransactions = await this.walletTransactionsModel
+        .find({
+          referenceId: new Types.ObjectId(transactionId),
+          referenceType: 'borrow',
+          walletId: customerWallet._id,
+        })
+        .sort({ createdAt: 1 }) // order by timeline
+        .lean();
+
       return {
         statusCode: HttpStatus.OK,
         message: 'Customer transaction detail fetched successfully.',
-        data: transaction,
+        data: {
+          ...transaction,
+          walletTransactions,
+        },
       };
     } catch (error) {
       throw new HttpException(
-        (error as Error).message || 'Failed to fetch transaction detail.',
+        (error as Error).message ||
+          'Failed to fetch customer transaction detail.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
