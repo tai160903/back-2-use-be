@@ -2,7 +2,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import * as qs from 'qs';
-import { dateFormat } from 'vnpay';
+import * as moment from 'moment-timezone';
 @Injectable()
 export class VnpayService {
   private vnp_TmnCode: string;
@@ -34,42 +34,40 @@ export class VnpayService {
     if (!amount || amount <= 0) {
       throw new BadRequestException('Amount must be greater than 0');
     }
-    const date = new Date();
-    const tzOffset = 7 * 60 * 60 * 1000; // VN timezone
-    const vnTime = new Date(date.getTime() + tzOffset);
 
     const vnp_Params: Record<string, string | number> = {
-      vnp_TmnCode: this.vnp_TmnCode,
       vnp_Version: '2.1.0',
       vnp_Command: 'pay',
-      vnp_Amount: Math.round(amount * 100),
+      vnp_TmnCode: this.vnp_TmnCode,
+      vnp_Locale: 'vn',
       vnp_CurrCode: 'VND',
-      vnp_IpAddr: ipAddr,
       vnp_TxnRef: orderId,
       vnp_OrderInfo: orderInfo,
       vnp_OrderType: 'other',
+      vnp_Amount: amount * 100,
       vnp_ReturnUrl: this.vnp_ReturnUrl,
-      vnp_Locale: 'vn',
-      vnp_CreateDate: dateFormat(vnTime, 'yyyyMMddHHmmss'),
-      vnp_ExpireDate: dateFormat(
-        new Date(vnTime.getTime() + 15 * 60 * 1000),
-        'yyyyMMddHHmmss',
-      ), // 15 minutes expiration
+      vnp_IpAddr: ipAddr,
+      vnp_CreateDate: moment().tz('Asia/Ho_Chi_Minh').format('YYYYMMDDHHmmss'),
     };
 
     const sortedParams = this.sortObject(vnp_Params);
     const signData = qs.stringify(sortedParams, { encode: true });
     const hmac = crypto.createHmac('sha512', this.vnp_HashSecret);
-    const secureHash = hmac.update(signData, 'utf-8').digest('hex');
-    const querystring = qs.stringify(sortedParams, { encode: true });
-
-    const finalUrl = `${this.vnp_Url}?${querystring}&vnp_SecureHash=${secureHash}`;
-
+    const secureHash = hmac
+      .update(Buffer.from(signData, 'utf-8'))
+      .digest('hex');
+    const finalParams = { ...sortedParams, vnp_SecureHash: secureHash };
+    const finalQuery = qs.stringify(finalParams, { encode: true });
+    console.log('sortedParams', sortedParams);
+    console.log('secureHash', secureHash);
+    const finalUrl = `${this.vnp_Url}?${finalQuery}`;
+    console.log('finalUrl', finalUrl);
     return finalUrl;
   }
 
   verifyVnpayReturn(query: Record<string, any>): boolean {
-    const vnp_Params = { ...query };
+    let vnp_Params = { ...query };
+    console.log(vnp_Params);
     const receivedHash = vnp_Params['vnp_SecureHash'];
 
     if (!receivedHash) {
@@ -79,14 +77,20 @@ export class VnpayService {
     delete vnp_Params['vnp_SecureHash'];
     delete vnp_Params['vnp_SecureHashType'];
 
-    const signData = qs.stringify(this.sortObject(vnp_Params), {
-      encode: false,
+    vnp_Params = this.sortObject(vnp_Params);
+    console.log('sortedParams', vnp_Params);
+
+    const signData = qs.stringify(vnp_Params, {
+      encode: true,
     });
 
     const expectedHash = crypto
       .createHmac('sha512', this.vnp_HashSecret)
-      .update(signData)
+      .update(Buffer.from(signData, 'utf-8'))
       .digest('hex');
+
+    console.log('expectedHash', expectedHash);
+    console.log('receivedHash', receivedHash);
 
     return expectedHash === receivedHash;
   }

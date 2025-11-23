@@ -155,7 +155,6 @@ export class WalletsService {
       if (!ipAddr || ipAddr === '::1') {
         ipAddr = '127.0.0.1';
       }
-      // determine performing user id (from param or authenticated request)
       const performingUserId = userId ?? (req as any)?.user?._id ?? null;
       if (!performingUserId) {
         throw new HttpException(
