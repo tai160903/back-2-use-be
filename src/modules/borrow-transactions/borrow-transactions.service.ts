@@ -841,8 +841,8 @@ export class BorrowTransactionsService {
       const statusToWalletType: Record<string, string> = {
         borrowing: 'borrow_deposit', // khi mượn trừ tiền customer
         returned: 'return_refund', // khi trả nhận lại tiền
-        // rejected: 'deposit_forfeited', 
-        // lost: 'deposit_forfeited',  
+        // rejected: 'deposit_forfeited',
+        // lost: 'deposit_forfeited',
       };
 
       // ===== MERGE ONLY 1 walletTransaction LIKE BUSINESS API =====
