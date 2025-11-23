@@ -37,6 +37,8 @@ import { handleReuseLimit } from './helpers/handle-reuse-limit.helper';
 import { applyRewardPointChange } from './helpers/apply-reward-points-change.helper';
 import { Material } from '../materials/schemas/material.schema';
 import { applyEcoPointChange } from './helpers/apply-eco-point-change.helper';
+import { calculateLateReturnInfo } from './utils/calculate-late-return';
+import { handlePartialRefund } from './helpers/handle-partial-refund.helper';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -1091,7 +1093,15 @@ export class BorrowTransactionsService {
 
       const uploadedUrls = await processImages(images, this.cloudinaryService);
 
-      applyConditionChange(product, borrowTransaction, dto, uploadedUrls);
+      const lateInfo = calculateLateReturnInfo(borrowTransaction, borrowPolicy);
+
+      applyConditionChange(
+        product,
+        borrowTransaction,
+        dto,
+        uploadedUrls,
+        lateInfo.isLate,
+      );
 
       // handle reuse limit
       handleReuseLimit(product, productGroup.materialId);
@@ -1102,13 +1112,17 @@ export class BorrowTransactionsService {
         rewardPolicy,
       );
 
-      const { addedEcoPoints, addedCo2, plasticPrevented } =
-        applyEcoPointChange(
-          business,
-          productSize,
-          material,
-          borrowTransaction.status,
-        );
+      const { addedEcoPoints, addedCo2 } = applyEcoPointChange(
+        business,
+        productSize,
+        material,
+        borrowTransaction.status,
+      );
+
+      borrowTransaction.rewardPointChanged = addedRewardPoints;
+      borrowTransaction.rankingPointChanged = addedRankingPoints;
+      borrowTransaction.ecoPointChanged = addedEcoPoints;
+      borrowTransaction.co2Changed = addedCo2;
 
       await Promise.all([
         product.save({ session }),
@@ -1118,6 +1132,7 @@ export class BorrowTransactionsService {
       ]);
 
       if (borrowTransaction.status === 'returned') {
+        // Trả đúng hạn → full refund
         await handleRefund(
           borrowTransaction,
           businessWallet,
@@ -1125,7 +1140,18 @@ export class BorrowTransactionsService {
           session,
           this.walletTransactionsModel,
         );
-      } else {
+      } else if (borrowTransaction.status === 'return_late') {
+        // Trả trễ trong giới hạn → partial refund
+        await handlePartialRefund(
+          borrowTransaction,
+          businessWallet,
+          customerWallet,
+          session,
+          this.walletTransactionsModel,
+          lateInfo.lateFee, // business giữ lại phần này
+        );
+      } else if (borrowTransaction.status === 'rejected') {
+        // Hư hỏng → forfeit full
         await handleForfeit(
           borrowTransaction,
           businessWallet,
@@ -1151,7 +1177,6 @@ export class BorrowTransactionsService {
           business: {
             addedEcoPoints,
             addedCo2,
-            plasticPrevented,
           },
         },
       };

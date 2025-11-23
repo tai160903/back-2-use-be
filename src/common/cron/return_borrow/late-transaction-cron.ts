@@ -256,6 +256,9 @@ export class LateTransactionCron {
         rewardPolicy,
       );
 
+      borrowTransaction.rewardPointChanged = rewardResult.addedRewardPoints;
+      borrowTransaction.rankingPointChanged = rewardResult.addedRankingPoints;
+
       await this.customerModel.updateOne(
         { _id: customer._id },
         {
@@ -275,6 +278,9 @@ export class LateTransactionCron {
         material,
         'lost',
       );
+
+      borrowTransaction.ecoPointChanged = ecoResult.addedEcoPoints;
+      borrowTransaction.co2Changed = ecoResult.addedCo2;
 
       await this.businessModel.updateOne(
         { _id: business._id },

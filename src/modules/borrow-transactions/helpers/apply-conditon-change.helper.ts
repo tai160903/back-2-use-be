@@ -3,6 +3,7 @@ export function applyConditionChange(
   transaction,
   dto,
   urls: string[],
+  isLate: boolean,
 ) {
   product.lastConditionNote = dto.note;
   product.lastConditionImages = urls;
@@ -14,13 +15,15 @@ export function applyConditionChange(
     product.status = 'available';
     product.reuseCount += 1;
 
-    transaction.status = 'returned';
+    // SUCCESS — nhưng trạng thái có thể là returned hoặc return_late
     transaction.borrowTransactionType = 'return_success';
+    transaction.status = isLate ? 'return_late' : 'returned';
   } else {
     product.condition = 'damaged';
     product.status = 'non-available';
 
-    transaction.status = 'rejected';
+    // FAILED
     transaction.borrowTransactionType = 'return_failed';
+    transaction.status = 'rejected';
   }
 }

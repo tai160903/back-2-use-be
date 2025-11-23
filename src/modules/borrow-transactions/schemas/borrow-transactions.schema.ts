@@ -45,6 +45,18 @@ export class BorrowTransaction {
   @Prop()
   qrCode: string;
 
+  @Prop()
+  rewardPointChanged?: number;
+
+  @Prop()
+  rankingPointChanged?: number;
+
+  @Prop()
+  ecoPointChanged?: number;
+
+  @Prop()
+  co2Changed?: number;
+
   @Prop({ default: false })
   isLateProcessed: boolean;
 }
