@@ -198,12 +198,12 @@ export class ProductsService {
       const product = await this.productModel
         .findOne({ serialNumber, isDeleted: false })
         .select(
-          '_id serialNumber qrCode status condition reuseCount lastConditionImages lastConditionNote',
+          '_id serialNumber  qrCode status condition reuseCount lastConditionImages lastConditionNote',
         )
-        .populate('productGroupId', 'name description imageUrl')
+        .populate('productGroupId', 'name businessId description imageUrl')
         .populate(
           'productSizeId',
-          'sizeName depositValue weight plasticEquivalentWeight description',
+          'sizeName businessId depositValue weight plasticEquivalentWeight description',
         );
 
       if (!product) {
