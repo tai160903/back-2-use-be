@@ -67,15 +67,28 @@ export class NotificationsService {
     ];
 
     let allowedTypes: string[];
+    let receiver: { _id: any } | null;
 
-    if (mode === 'customer') allowedTypes = customerTypes;
-    else if (mode === 'business') allowedTypes = businessTypes;
-    else allowedTypes = [];
+    if (mode === 'customer') {
+      allowedTypes = customerTypes;
+      receiver = await this.customerModel.findOne({ userId: userId });
+      if (!receiver) {
+        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      }
+    } else if (mode === 'business') {
+      allowedTypes = businessTypes;
+      receiver = await this.businessModel.findOne({ userId: userId });
+      if (!receiver) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+    } else {
+      throw new HttpException('Invalid mode', HttpStatus.BAD_REQUEST);
+    }
 
     return this.notificationModel
       .find({
-        receiverId: new Types.ObjectId(userId),
-        // type: { $in: allowedTypes },
+        receiverId: receiver?._id,
+        type: { $in: allowedTypes },
       })
       .sort({ createdAt: -1 })
       .exec();
@@ -140,8 +153,6 @@ export class NotificationsService {
       if (!receiver) {
         throw new HttpException('Receiver not found', HttpStatus.NOT_FOUND);
       }
-
-      console.log('receiver', receiver);
 
       const res = await this.notificationModel.deleteMany({
         receiverId: receiver?._id,
