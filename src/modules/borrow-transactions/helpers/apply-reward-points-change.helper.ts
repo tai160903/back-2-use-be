@@ -16,8 +16,17 @@ export function applyRewardPointChange(
       customer.returnSuccessCount += 1;
       break;
 
+    case 'return_late':
+      addedRewardPoints = rewardPolicy.rewardLate;
+      addedRankingPoints = rewardPolicy.rankingLate;
+
+      customer.rewardPoints += addedRewardPoints;
+      customer.rankingPoints += addedRankingPoints;
+      customer.returnSuccessCount += 1;
+      break;
+
     case 'rejected':
-    case 'lost': 
+    case 'lost':
       addedRewardPoints = rewardPolicy.rewardFailed;
       addedRankingPoints = rewardPolicy.rankingFailedPenalty;
 

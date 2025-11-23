@@ -16,6 +16,7 @@ export function applyEcoPointChange(
 
   switch (borrowStatus) {
     case 'returned':
+    case 'return_late':
       // +eco, +co2
       addedEcoPoints = ecoPoint;
       addedCo2 = co2Reduced;
