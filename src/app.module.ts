@@ -28,6 +28,7 @@ import { ProductSizesModule } from './modules/product-sizes/product-sizes.module
 import { BorrowTransactionsModule } from './modules/borrow-transactions/borrow-transactions.module';
 import { CronModule } from './common/cron/cron.module';
 import { MonthlyLeaderboardsModule } from './modules/monthly-leaderboards/monthly-leaderboard.module';
+import { MomoModule } from './infrastructure/momo/momo.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { MonthlyLeaderboardsModule } from './modules/monthly-leaderboards/monthl
     ProductSizesModule,
     BorrowTransactionsModule,
     MonthlyLeaderboardsModule,
+    MomoModule,
   ],
   controllers: [AppController],
   providers: [AppService],

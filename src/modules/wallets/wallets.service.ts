@@ -5,7 +5,7 @@ import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Wallets, WalletsDocument } from './schemas/wallets.schema';
-import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
+import { MomoService } from '../../infrastructure/momo/momo.service';
 import { Request } from 'express';
 import { WalletTransactions } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { TransactionType } from 'src/common/constants/transaction-type.enum';
@@ -18,7 +18,7 @@ export class WalletsService {
     @InjectModel(WalletTransactions.name)
     private transactionsModel: Model<WalletTransactions>,
     private readonly notificationsService: NotificationsService,
-    private readonly vnpayService: VnpayService,
+    private readonly momoService: MomoService,
   ) {}
 
   async create(createWalletDto: CreateWalletDto): Promise<APIResponseDto> {
@@ -132,19 +132,24 @@ export class WalletsService {
         status: 'processing',
         referenceType: 'manual',
         balanceType: 'available',
-        description: `VNPay Top-up #${Date.now()}`,
+        description: `MoMo Top-up #${Date.now()}`,
       });
 
-      const orderInfo = `Payment_${walletId}`;
-      const returnUrl = process.env.VNP_RETURN_URL || '';
-      const paymentUrl = this.vnpayService.createPaymentUrl({
-        vnp_TxnRef: transaction._id.toString(),
-        vnp_Amount: amount,
-        vnp_OrderInfo: orderInfo,
-        vnp_ReturnUrl: returnUrl,
+      const redirectHandler = 'http://localhost:8000/momo/payment-return';
+      const ipnHandler = 'http://localhost:8000/momo/redirect';
+
+      const paymentResponse = await this.momoService.createPaymentUrl({
+        amount,
+        orderId: transaction._id.toString(),
+        orderInfo: `WalletTopUp_${walletId}`,
+        redirectUrl: redirectHandler,
+        ipnUrl: ipnHandler,
       });
 
-      return { url: paymentUrl };
+      return {
+        url: (paymentResponse as Record<string, string>).payUrl,
+        paymentResponse,
+      };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
