@@ -84,16 +84,16 @@ export class NotificationsGateway
     @MessageBody() payload: { userId: string; mode: 'customer' | 'business' },
     @ConnectedSocket() client: Socket,
   ) {
-    const mapping = this.connectedUsers.get(client.id);
-    if (!mapping) {
-      return [];
-    }
-    const { mode } = payload;
+    const { userId, mode } = payload;
     if (!mode) {
       return [];
     }
 
-    return this.notificationsService.findAll(mapping.userId, mode);
+    const response = this.notificationsService.findAll(userId, mode);
+
+    console.log('findAllNotifications response:', response);
+
+    return response;
   }
 
   @SubscribeMessage('markAsRead')
@@ -103,8 +103,13 @@ export class NotificationsGateway
   }
 
   @SubscribeMessage('markAllAsRead')
-  markAllAsRead(@MessageBody() userId: string) {
-    return this.notificationsService.markAllAsRead(userId);
+  markAllAsRead(
+    @MessageBody() payload: { userId: string; mode: 'customer' | 'business' },
+  ) {
+    return this.notificationsService.markAllAsRead(
+      payload.userId,
+      payload.mode,
+    );
   }
 
   @SubscribeMessage('markAsUnread')
@@ -113,8 +118,17 @@ export class NotificationsGateway
   }
 
   @SubscribeMessage('findByReceiver')
-  findByReceiver(@MessageBody() receiverId: string) {
-    return this.notificationsService.findByReceiverId(receiverId);
+  findByReceiver(
+    @MessageBody()
+    payload: {
+      receiverId: string;
+      mode: 'customer' | 'business';
+    },
+  ) {
+    return this.notificationsService.findByReceiverId(
+      payload.receiverId,
+      payload.mode,
+    );
   }
 
   @SubscribeMessage('findNotification')

@@ -25,6 +25,7 @@ import {
     ]),
     NotificationsModule,
   ],
+
   providers: [VnpayService],
   controllers: [VnpayController],
   exports: [VnpayService],

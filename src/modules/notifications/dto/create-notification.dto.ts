@@ -11,8 +11,9 @@ export class CreateNotificationDto {
   @IsMongoId()
   receiverId: Types.ObjectId;
 
-  // @IsEnum(['customer', 'business'])
-  // receiverType: string;
+  @IsNotEmpty()
+  @IsEnum(['customer', 'business'])
+  receiverType: string;
 
   @IsString()
   @IsNotEmpty()

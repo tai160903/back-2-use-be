@@ -237,6 +237,8 @@ export class ProductsService {
         .populate('productGroupId', 'name description image')
         .populate('productSizeId', 'name description');
 
+      console.log(product);
+
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
       }

@@ -100,7 +100,6 @@ export class WalletsService {
     }
   }
 
-  // Add fund to wallet
   async deposit(
     walletId: string,
     amount: number,
@@ -124,44 +123,6 @@ export class WalletsService {
           HttpStatus.FORBIDDEN,
         );
       }
-      // const transactionId = `${walletId}-${Date.now()}-${randomBytes(3).toString('hex')}`;
-      const orderInfo = `Payment_${walletId}`;
-
-      let ipAddr =
-        (req.headers['x-forwarded-for'] as string) ||
-        req.socket?.remoteAddress ||
-        (req.connection && req.connection.remoteAddress) ||
-        '';
-
-      if (Array.isArray(ipAddr)) {
-        ipAddr = ipAddr[0];
-      }
-
-      if (ipAddr.includes(',')) {
-        ipAddr = ipAddr.split(',')[0].trim();
-      }
-      if (
-        ipAddr === '::1' ||
-        ipAddr === '::ffff:127.0.0.1' ||
-        ipAddr.startsWith('::ffff:')
-      ) {
-        ipAddr = '127.0.0.1';
-      }
-
-      if (ipAddr.startsWith('::ffff:')) {
-        ipAddr = ipAddr.substring(7);
-      }
-
-      if (!ipAddr || ipAddr === '::1') {
-        ipAddr = '127.0.0.1';
-      }
-      const performingUserId = userId ?? (req as any)?.user?._id ?? null;
-      if (!performingUserId) {
-        throw new HttpException(
-          'Unauthorized: user id not provided',
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
 
       const transaction = await this.transactionsModel.create({
         walletId: wallet._id,
@@ -174,31 +135,16 @@ export class WalletsService {
         description: `VNPay Top-up #${Date.now()}`,
       });
 
-      try {
-        await (this.notificationsService as any).create({
-          receiverId: new Types.ObjectId(String(performingUserId)),
-          title: 'Wallet Top-up Initiated',
-          message: `A top-up of ${amount} VND has been initiated. Please complete the payment to finish.`,
-          type: 'manual',
-          referenceId: transaction._id?.toString(),
-          referenceType: 'wallet',
-        });
-      } catch (err) {
-        console.warn(
-          'Failed to send top-up notification',
-          (err as Error)?.message || err,
-        );
-      }
+      const orderInfo = `Payment_${walletId}`;
+      const returnUrl = process.env.VNP_RETURN_URL || '';
+      const paymentUrl = this.vnpayService.createPaymentUrl({
+        vnp_TxnRef: transaction._id.toString(),
+        vnp_Amount: amount,
+        vnp_OrderInfo: orderInfo,
+        vnp_ReturnUrl: returnUrl,
+      });
 
-      const paymentUrl = this.vnpayService.createPaymentUrl(
-        transaction._id.toString(),
-        amount,
-        ipAddr,
-        orderInfo,
-      );
-      return {
-        url: paymentUrl,
-      };
+      return { url: paymentUrl };
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -253,11 +199,11 @@ export class WalletsService {
         description: `Manual withdrawal #${Date.now()}`,
       });
 
-      // notify user about successful withdrawal (non-blocking)
       try {
         if (wallet.userId) {
           await this.notificationsService.create({
             receiverId: new Types.ObjectId(String(wallet.userId)),
+            receiverType: wallet.type,
             title: 'Withdrawal Successful',
             message: `Your withdrawal of ${amount} VND has been processed.`,
             type: 'manual',

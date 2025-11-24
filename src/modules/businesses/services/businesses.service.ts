@@ -323,20 +323,59 @@ export class BusinessesService {
     }
 
     const now = new Date();
-    const endDate = new Date(now);
+
+    const pendingSub = await this.businessSubscriptionModel.findOne({
+      businessId: business._id,
+      status: 'pending',
+    });
+
+    if (pendingSub) {
+      throw new HttpException(
+        'You already have a pending subscription. Only one pending subscription is allowed.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const activeSub = await this.businessSubscriptionModel.findOne({
+      businessId: business._id,
+      status: 'active',
+      endDate: { $gt: now },
+    });
+
+    if (activeSub) {
+      const daysRemaining = Math.ceil(
+        (activeSub.endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysRemaining > 3) {
+        throw new HttpException(
+          `You can only claim the free trial when your current subscription has 3 days or less remaining. Current subscription expires in ${daysRemaining} day${daysRemaining > 1 ? 's' : ''}.`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    }
+
+    const startDate =
+      activeSub && activeSub.endDate > now ? activeSub.endDate : now;
+    const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + trialSub.durationInDays);
 
-    businessTrial.startDate = now;
+    businessTrial.startDate = startDate;
     businessTrial.endDate = endDate;
-    businessTrial.status = 'active';
+    businessTrial.status = startDate <= now ? 'active' : 'pending';
     businessTrial.isTrialUsed = true;
     await businessTrial.save();
 
     await this.notificationsService.create({
       receiverId: new Types.ObjectId(userId),
-      // receiverType: 'business',
-      title: 'Trial Activated',
-      message: `Your ${trialSub.name} trial has been activated from ${now.toDateString()} to ${endDate.toDateString()}.`,
+      receiverType: 'business',
+      title:
+        businessTrial.status === 'active'
+          ? 'Trial Activated'
+          : 'Trial Scheduled',
+      message:
+        businessTrial.status === 'active'
+          ? `Your ${trialSub.name} trial has been activated from ${startDate.toDateString()} to ${endDate.toDateString()}.`
+          : `Your ${trialSub.name} trial has been scheduled and will start on ${startDate.toDateString()} after your current subscription ends, lasting until ${endDate.toDateString()}.`,
       type: 'manual',
       referenceType: 'subscription',
       referenceId: businessTrial._id,
@@ -365,7 +404,10 @@ export class BusinessesService {
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Trial activated successfully',
+      message:
+        businessTrial.status === 'active'
+          ? 'Trial activated successfully'
+          : 'Trial scheduled successfully',
       data: businessTrial,
     };
   }
@@ -406,9 +448,21 @@ export class BusinessesService {
 
     const now = moment().tz('Asia/Ho_Chi_Minh').toDate();
 
+    const pendingSub = await this.businessSubscriptionModel.findOne({
+      businessId: business._id,
+      status: 'pending',
+    });
+
+    if (pendingSub) {
+      throw new HttpException(
+        'You already have a pending subscription. Only one subscription purchase is allowed at a time.',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     const activeSub = await this.businessSubscriptionModel.findOne({
       businessId: business._id,
-      isActive: true,
+      status: 'active',
       endDate: { $gt: now },
     });
 
@@ -425,27 +479,12 @@ export class BusinessesService {
       }
     }
 
-    const pendingSub = await this.businessSubscriptionModel.findOne({
-      businessId: business._id,
-      status: 'pending',
-      endDate: { $gt: now },
-    });
-
-    if (pendingSub) {
-      throw new HttpException(
-        'You already have a pending subscription. Only one subscription purchase is allowed at a time.',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
       const startDate: Date =
         activeSub && activeSub.endDate > now ? activeSub.endDate : now;
-
-      console.log(startDate);
 
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + subscription.durationInDays);
@@ -487,7 +526,7 @@ export class BusinessesService {
 
       await this.notificationsService.create({
         receiverId: new Types.ObjectId(userId),
-        // receiverType: 'business',
+        receiverType: 'business',
         title: 'Subscription Purchased',
         message: activeSub
           ? `You have successfully purchased the ${subscription.name} subscription. It will activate after your current plan expires on ${activeSub.endDate.toDateString()}.`
@@ -663,7 +702,7 @@ export class BusinessesService {
 
       await this.notificationsService.create({
         receiverId: new Types.ObjectId(userId),
-        // receiverType: 'business',
+        receiverType: 'business',
         title: 'Subscription Canceled',
         message: subscription
           ? `Your pending ${subscription.name} subscription has been canceled and refunded.`
@@ -1033,7 +1072,7 @@ export class BusinessesService {
 
         await this.notificationsService.create({
           receiverId: new Types.ObjectId(business.userId),
-          // receiverType: 'business',
+          receiverType: 'business',
           title: 'Subscription Expiring Soon',
           message: `Your ${subscription.name} subscription will expire on ${sub.endDate.toDateString()}. Please renew soon to avoid interruption.`,
           type: 'manual',
@@ -1124,7 +1163,7 @@ export class BusinessesService {
 
           await this.notificationsService.create({
             receiverId: new Types.ObjectId(business.userId),
-            // receiverType: 'business',
+            receiverType: 'business',
             title: 'Subscription Expired',
             message:
               'Your subscription has expired. Please renew to continue using our services.',
@@ -1176,7 +1215,7 @@ export class BusinessesService {
 
             await this.notificationsService.create({
               receiverId: new Types.ObjectId(business.userId),
-              // receiverType: 'business',
+              receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your new subscription has been activated.',
               type: 'manual',
@@ -1236,7 +1275,7 @@ export class BusinessesService {
 
             await this.notificationsService.create({
               receiverId: new Types.ObjectId(business.userId),
-              // receiverType: 'business',
+              receiverType: 'business',
               title: 'Subscription Activated',
               message: 'Your subscription has been activated.',
               type: 'manual',
@@ -1343,7 +1382,7 @@ export class BusinessesService {
 
           await this.notificationsService.create({
             receiverId: new Types.ObjectId(business.userId),
-            // receiverType: 'business',
+            receiverType: 'business',
             title: 'Auto-Renewal Failed',
             message: `Auto-renewal failed for ${subscription.name}. Insufficient wallet balance. Please add funds to your wallet.`,
             type: 'manual',
@@ -1425,7 +1464,7 @@ export class BusinessesService {
 
           await this.notificationsService.create({
             receiverId: new Types.ObjectId(business.userId),
-            // receiverType: 'business',
+            receiverType: 'business',
             title: 'Subscription Auto-Renewed',
             message: `Your ${subscription.name} subscription has been automatically renewed and will activate on ${startDate.toDateString()}.`,
             type: 'manual',

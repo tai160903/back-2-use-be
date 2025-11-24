@@ -3,10 +3,9 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { Response } from 'express';
 import { VnpayService } from './vnpay.service';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { Wallets } from '../../modules/wallets/schemas/wallets.schema';
 import { WalletTransactions } from 'src/modules/wallet-transactions/schema/wallet-transactions.schema';
-import { NotificationsGateway } from 'src/modules/notifications/notifications.gateway';
 import { NotificationsService } from 'src/modules/notifications/notifications.service';
 
 @ApiExcludeController()
@@ -17,15 +16,12 @@ export class VnpayController {
     @InjectModel(WalletTransactions.name)
     private transactionsModel: Model<WalletTransactions>,
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
-    private readonly notificationsGateway: NotificationsGateway,
     private readonly notificationsService: NotificationsService,
   ) {}
-
   @Get('return')
   async vnpayReturn(@Query() query: any, @Res() res: Response) {
     try {
-      const isValid = this.vnpayService.verifyVnpayReturn(query);
-      if (!isValid) {
+      if (!this.vnpayService.verifyVnpayReturn(query)) {
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=invalid-signature`,
         );
@@ -33,6 +29,7 @@ export class VnpayController {
 
       const transactionId = query['vnp_TxnRef'];
       const responseCode = query['vnp_ResponseCode'];
+
       const transaction = await this.transactionsModel.findById(transactionId);
       if (!transaction) {
         return res.status(404).json({ message: 'Transaction not found' });
@@ -55,21 +52,16 @@ export class VnpayController {
           await wallet.save();
         }
 
-        if (wallet && wallet.userId) {
+        if (wallet?.userId) {
           await this.notificationsService.create({
             receiverId: wallet.userId,
-            // receiverType: wallet.type || 'customer',
+            receiverType: wallet.type,
             title: 'Wallet Top-up Successful',
             message: `Your wallet has been topped up with ${transaction.amount} VND.`,
             type: 'manual',
             referenceId: transaction._id,
             referenceType: 'wallet',
           });
-
-          this.sendRealtimeNotification(
-            wallet.userId,
-            `Your wallet has been topped up with ${transaction.amount} VND.`,
-          );
         }
 
         return res.redirect(
@@ -80,18 +72,13 @@ export class VnpayController {
       transaction.status = 'failed';
       await transaction.save();
 
-      if (wallet && wallet.userId) {
-        this.sendRealtimeNotification(
-          wallet.userId,
-          `Your wallet top-up of ${transaction.amount} VND has failed.`,
-        );
-      }
+      // No realtime notification required per updated requirement.
 
       return res.redirect(
         `${process.env.CLIENT_RETURN_URL}/payment-failed?code=${responseCode}`,
       );
-    } catch (err) {
-      console.error('vnpayReturn error', err?.message || err);
+    } catch (error) {
+      console.error('vnpayReturn error', error);
       return res.redirect(
         `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=server-error`,
       );
@@ -124,21 +111,15 @@ export class VnpayController {
           wallet.availableBalance += amount;
           await wallet.save();
 
-          // persist notification
           await this.notificationsService.create({
             receiverId: wallet.userId,
-            // receiverType: wallet.type || 'customer',
+            receiverType: wallet.type,
             title: 'Wallet Top-up Successful',
             message: `Your wallet has been topped up with ${amount} VND.`,
             type: 'manual',
             referenceId: transaction?._id,
             referenceType: 'wallet',
           });
-
-          this.sendRealtimeNotification(
-            wallet.userId,
-            `Your wallet has been topped up with ${amount} VND.`,
-          );
         }
 
         return res.redirect(
@@ -153,27 +134,10 @@ export class VnpayController {
       }
 
       return res.redirect('http://192.168.0.199:8081/payment-failed');
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('vnpayPaymentReturn error', err?.message || err);
+    } catch (error) {
       return res.redirect('http://192.168.0.199:8081/payment-failed');
     }
   }
 
-  private sendRealtimeNotification(
-    userId: Types.ObjectId | string,
-    message: string,
-  ) {
-    try {
-      const gatewayAny = this.notificationsGateway as any;
-      if (gatewayAny && typeof gatewayAny.sendNotification === 'function') {
-        const id = typeof userId === 'string' ? userId : userId.toString();
-        gatewayAny.sendNotification(id, message);
-      }
-    } catch (err) {
-      // don't let realtime send block main flow
-      // eslint-disable-next-line no-console
-      console.warn('sendRealtimeNotification failed', err?.message || err);
-    }
-  }
+  // Realtime notification removed as per requirement.
 }

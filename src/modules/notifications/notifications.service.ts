@@ -67,36 +67,30 @@ export class NotificationsService {
     ];
 
     let allowedTypes: string[];
-    let receiver: { _id: any } | null;
 
     if (mode === 'customer') {
       allowedTypes = customerTypes;
-      receiver = await this.customerModel.findOne({ userId: userId });
-      if (!receiver) {
-        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
-      }
     } else if (mode === 'business') {
       allowedTypes = businessTypes;
-      receiver = await this.businessModel.findOne({ userId: userId });
-      if (!receiver) {
-        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
-      }
     } else {
       throw new HttpException('Invalid mode', HttpStatus.BAD_REQUEST);
     }
 
-    return this.notificationModel
+    const notifications = await this.notificationModel
       .find({
-        receiverId: receiver?._id,
-        type: { $in: allowedTypes },
+        receiverId: new Types.ObjectId(userId),
+        receiverType: mode,
+        // type: { $in: allowedTypes },
       })
       .sort({ createdAt: -1 })
       .exec();
+
+    return notifications;
   }
 
-  async findByReceiverId(receiverId: string) {
+  async findByReceiverId(receiverId: string, mode: 'customer' | 'business') {
     return this.notificationModel
-      .find({ receiverId: new Types.ObjectId(receiverId) })
+      .find({ receiverId: new Types.ObjectId(receiverId), receiverType: mode })
       .sort({ createdAt: -1 })
       .exec();
   }
@@ -117,9 +111,13 @@ export class NotificationsService {
     );
   }
 
-  async markAllAsRead(userId: string) {
+  async markAllAsRead(userId: string, mode: 'customer' | 'business') {
     return this.notificationModel.updateMany(
-      { receiverId: new Types.ObjectId(userId), isRead: false },
+      {
+        receiverId: new Types.ObjectId(userId),
+        receiverType: mode,
+        isRead: false,
+      },
       { isRead: true, ReadAt: new Date() },
     );
   }
@@ -142,20 +140,15 @@ export class NotificationsService {
 
   async removeAll(userId: string, mode?: 'customer' | 'business') {
     try {
-      console.log('userId', userId);
-      console.log('mode', mode);
-      let receiver: any;
-      if (mode === 'customer') {
-        receiver = await this.customerModel.findOne({ userId: userId });
-      } else if (mode === 'business') {
-        receiver = await this.businessModel.findOne({ userId: userId });
+      if (!userId || !mode) {
+        throw new HttpException(
+          'UserId and mode are required to delete notifications',
+          HttpStatus.BAD_REQUEST,
+        );
       }
-      if (!receiver) {
-        throw new HttpException('Receiver not found', HttpStatus.NOT_FOUND);
-      }
-
       const res = await this.notificationModel.deleteMany({
-        receiverId: receiver?._id,
+        receiverId: new Types.ObjectId(userId),
+        receiverType: mode,
       });
       return res;
     } catch (error) {
