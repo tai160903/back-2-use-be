@@ -371,25 +371,36 @@ export class ProductsService {
     productGroupId: string,
     page: number = 1,
     limit: number = 10,
+    status?: string,
+    condition?: string,
   ): Promise<APIResponseDto> {
     try {
       const skip = (page - 1) * limit;
 
+      const filter: Record<string, any> = {
+        productGroupId: new Types.ObjectId(productGroupId),
+        isDeleted: false,
+      };
+
+      if (status) {
+        filter.status = status;
+      } else {
+        filter.status = 'available';
+      }
+
+      if (condition) {
+        filter.condition = condition;
+      }
+
       const products = await this.productModel
-        .find({
-          status: 'available',
-          productGroupId: new Types.ObjectId(productGroupId),
-        })
+        .find(filter)
         .skip(skip)
         .populate('productSizeId')
         .populate('productGroupId')
         .limit(limit)
         .sort({ createdAt: -1 });
 
-      const total = await this.productModel.countDocuments({
-        status: 'available',
-        productGroupId: new Types.ObjectId(productGroupId),
-      });
+      const total = await this.productModel.countDocuments(filter);
 
       return {
         statusCode: HttpStatus.OK,

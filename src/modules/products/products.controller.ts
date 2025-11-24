@@ -153,16 +153,32 @@ export class ProductsController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['available', 'non-available'],
+    description: 'Filter by product status',
+  })
+  @ApiQuery({
+    name: 'condition',
+    required: false,
+    enum: ['good', 'damaged', 'expired', 'lost'],
+    description: 'Filter by product condition',
+  })
   @UseGuards(AuthGuard('jwt'))
   getProductsForCustomer(
     @Param('productGroupId') productGroupId: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('status') status?: string,
+    @Query('condition') condition?: string,
   ) {
     return this.productsService.getProductsForCustomer(
       productGroupId,
       page,
       limit,
+      status,
+      condition,
     );
   }
 }
