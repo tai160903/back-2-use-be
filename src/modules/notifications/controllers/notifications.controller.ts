@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Patch,
-  Put,
   Delete,
   UseGuards,
   Request,
@@ -13,9 +12,10 @@ import {
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications.service';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
-import { UpdateNotificationDto } from '../dto/update-notification.dto';
 import { AuthGuard } from '@nestjs/passport';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
@@ -31,9 +31,13 @@ export class NotificationsController {
     return this.notificationsService.findAll(req.user._id, req.user.role);
   }
 
+  @UseGuards(AuthGuard('jwt'))
   @Get('receiver/:receiverId')
-  findByReceiver(@Param('receiverId') receiverId: string) {
-    return this.notificationsService.findByReceiverId(receiverId);
+  findByReceiver(@Param('receiverId') receiverId: string, @Request() req: any) {
+    return this.notificationsService.findByReceiverId(
+      receiverId,
+      req.user.role,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -42,13 +46,6 @@ export class NotificationsController {
     @Param('receiverId') receiverId: string,
     @Request() req: any,
   ) {
-    // allow only the owner or admin
-    if (
-      String(req.user?._id) !== String(receiverId) &&
-      req.user?.role !== 'admin'
-    ) {
-      throw new ForbiddenException('Forbidden');
-    }
     return this.notificationsService.removeAll(receiverId);
   }
 

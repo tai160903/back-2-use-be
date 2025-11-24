@@ -51,11 +51,11 @@ export class ProductsController {
     return this.productsService.createProducts(createProductDto, req.user._id);
   }
 
-  @Get(':productGroupId')
+  @Get('group/:productGroupId')
   @ApiOperation({
-    summary: 'Get all products for business',
+    summary: 'Get all products for business (by group)',
     description:
-      'Get paginated list of products for the authenticated business with filters',
+      'Get paginated list of products for the authenticated business with filters by product group ID',
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
