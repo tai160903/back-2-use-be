@@ -3,6 +3,7 @@ import { WalletsService } from './wallets.service';
 import { WalletsController } from './wallets.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Wallets, WalletsSchema } from './schemas/wallets.schema';
+import { MomoModule } from '../../infrastructure/momo/momo.module';
 import { VnpayModule } from '../../infrastructure/vnpay/vnpay.module';
 import {
   WalletTransactions,
@@ -16,6 +17,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: Wallets.name, schema: WalletsSchema },
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
+    MomoModule,
     VnpayModule,
     NotificationsModule,
   ],

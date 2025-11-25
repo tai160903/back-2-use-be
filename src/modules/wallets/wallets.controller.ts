@@ -20,6 +20,7 @@ import {
 import { WalletsService } from './wallets.service';
 import { CreateWalletDto } from './dto/create-wallet.dto';
 import { UpdateWalletDto } from './dto/update-wallet.dto';
+import { DepositWalletDto } from './dto/deposit-wallet.dto';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
@@ -56,18 +57,25 @@ export class WalletsController {
     return this.walletsService.update(walletId, updateWalletDto);
   }
 
-  @ApiOperation({ summary: 'Deposit money into wallet (via VNPAY)' })
+  @ApiOperation({ summary: 'Deposit money into wallet (via VNPAY or MoMo)' })
   @ApiParam({ name: 'walletId', type: String })
-  @ApiBody({ schema: { properties: { amount: { type: 'number' } } } })
+  @ApiBody({ type: DepositWalletDto })
   @ApiBearerAuth('access-token')
   @Post(':walletId/deposit')
   @UseGuards(AuthGuard('jwt'))
   async deposit(
     @Param('walletId') walletId: string,
-    @Body('amount') amount: number,
-    @Req() req,
+    @Body() depositDto: DepositWalletDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.walletsService.deposit(walletId, amount, req);
+    const userId = req.user?._id;
+    return this.walletsService.deposit(
+      walletId,
+      depositDto.amount,
+      depositDto.paymentMethod,
+      req,
+      userId,
+    );
   }
 
   @ApiOperation({ summary: 'Withdraw money from wallet (decrease balance)' })
@@ -83,5 +91,22 @@ export class WalletsController {
   ) {
     const userId = req.user?._id;
     return this.walletsService.withdraw(walletId, amount, userId);
+  }
+
+  @ApiOperation({
+    summary: 'Retry/Resume payment for existing transaction',
+    description:
+      'Get payment URL for an existing processing transaction. User can use this if they lost the payment link or want to continue payment later.',
+  })
+  @ApiParam({ name: 'transactionId', type: String })
+  @ApiBearerAuth('access-token')
+  @Post('transactions/:transactionId/retry')
+  @UseGuards(AuthGuard('jwt'))
+  async retryPayment(
+    @Param('transactionId') transactionId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?._id;
+    return this.walletsService.retryPayment(transactionId, userId);
   }
 }

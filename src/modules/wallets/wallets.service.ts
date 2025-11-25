@@ -5,11 +5,15 @@ import { UpdateWalletDto } from './dto/update-wallet.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Wallets, WalletsDocument } from './schemas/wallets.schema';
+import { MomoService } from '../../infrastructure/momo/momo.service';
 import { VnpayService } from '../../infrastructure/vnpay/vnpay.service';
 import { Request } from 'express';
 import { WalletTransactions } from '../wallet-transactions/schema/wallet-transactions.schema';
 import { TransactionType } from 'src/common/constants/transaction-type.enum';
 import { NotificationsService } from 'src/modules/notifications/notifications.service';
+import { PaymentMethod } from './dto/deposit-wallet.dto';
+import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class WalletsService {
@@ -18,6 +22,7 @@ export class WalletsService {
     @InjectModel(WalletTransactions.name)
     private transactionsModel: Model<WalletTransactions>,
     private readonly notificationsService: NotificationsService,
+    private readonly momoService: MomoService,
     private readonly vnpayService: VnpayService,
   ) {}
 
@@ -103,7 +108,8 @@ export class WalletsService {
   async deposit(
     walletId: string,
     amount: number,
-    req: Request,
+    paymentMethod: PaymentMethod,
+    req: AuthenticatedRequest,
     userId?: string,
   ) {
     try {
@@ -132,19 +138,59 @@ export class WalletsService {
         status: 'processing',
         referenceType: 'manual',
         balanceType: 'available',
-        description: `VNPay Top-up #${Date.now()}`,
+        description: `${paymentMethod.toUpperCase()} Top-up #${Date.now()}`,
       });
 
-      const orderInfo = `Payment_${walletId}`;
-      const returnUrl = process.env.VNP_RETURN_URL || '';
-      const paymentUrl = this.vnpayService.createPaymentUrl({
-        vnp_TxnRef: transaction._id.toString(),
-        vnp_Amount: amount,
-        vnp_OrderInfo: orderInfo,
-        vnp_ReturnUrl: returnUrl,
-      });
+      if (paymentMethod === PaymentMethod.MOMO) {
+        const redirectHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
+        const ipnHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
 
-      return { url: paymentUrl };
+        const paymentResponse = await this.momoService.createPaymentUrl({
+          amount,
+          orderId: transaction._id.toString(),
+          orderInfo: `WalletTopUp_${walletId}`,
+          redirectUrl: redirectHandler,
+          ipnUrl: ipnHandler,
+        });
+
+        const payUrl = (paymentResponse as Record<string, string>).payUrl;
+
+        transaction.paymentUrl = payUrl;
+        transaction.paymentMethod = 'momo';
+        await transaction.save();
+
+        return {
+          transactionId: transaction._id,
+          url: payUrl,
+          paymentResponse,
+        };
+      } else if (paymentMethod === PaymentMethod.VNPAY) {
+        const returnUrl = `${process.env.API_BASE_URL || 'http://localhost:8000'}/vnpay/return`;
+
+        const paymentUrl = this.vnpayService.createPaymentUrl({
+          vnp_Amount: amount,
+          vnp_ReturnUrl: returnUrl,
+          vnp_TxnRef: transaction._id.toString(),
+          vnp_OrderInfo: `WalletTopUp_${walletId}`,
+        });
+
+        transaction.paymentUrl = paymentUrl;
+        transaction.paymentMethod = 'vnpay';
+        await transaction.save();
+
+        return {
+          transactionId: transaction._id,
+          url: paymentUrl,
+          paymentResponse: {
+            payUrl: paymentUrl,
+          },
+        };
+      } else {
+        throw new HttpException(
+          'Invalid payment method',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
     } catch (error) {
       if (error instanceof HttpException) {
         throw error;
@@ -156,7 +202,6 @@ export class WalletsService {
     }
   }
 
-  // Withdraw money
   async withdraw(
     walletId: string,
     amount: number,
@@ -233,6 +278,181 @@ export class WalletsService {
       }
       const message = (error as Error)?.message || 'Error during withdrawal';
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async retryPayment(
+    transactionId: string,
+    userId?: string,
+  ): Promise<{
+    transactionId: string;
+    url: string;
+    paymentResponse: any;
+  }> {
+    try {
+      const transaction = await this.transactionsModel.findById(transactionId);
+
+      if (!transaction) {
+        throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (transaction.status !== 'processing') {
+        throw new HttpException(
+          `Cannot retry payment. Transaction status is: ${transaction.status}`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const wallet = await this.walletsModel.findById(transaction.walletId);
+      if (!wallet) {
+        throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (userId && wallet.userId?.toString() !== userId?.toString()) {
+        throw new HttpException(
+          'You do not have permission to access this transaction',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() - 60);
+
+      const transactionDoc = transaction.toObject() as unknown as {
+        createdAt: Date;
+        updatedAt: Date;
+      };
+      if (transactionDoc.createdAt < expirationTime) {
+        transaction.status = 'expired';
+        await transaction.save();
+        throw new HttpException(
+          'Transaction has expired. Please create a new deposit request.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      if (!transaction.paymentMethod) {
+        throw new HttpException(
+          'Payment method not found for this transaction',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      const recentTime = new Date();
+      recentTime.setMinutes(recentTime.getMinutes() - 30);
+      const transactionDoc2 = transaction.toObject() as unknown as {
+        createdAt: Date;
+      };
+
+      if (transaction.paymentUrl && transactionDoc2.createdAt > recentTime) {
+        return {
+          transactionId: transaction._id.toString(),
+          url: transaction.paymentUrl,
+          paymentResponse: {
+            payUrl: transaction.paymentUrl,
+          },
+        };
+      }
+
+      if (transaction.paymentMethod === 'momo') {
+        const redirectHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
+        const ipnHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
+
+        const paymentResponse = await this.momoService.createPaymentUrl({
+          amount: transaction.amount,
+          orderId: transaction._id.toString(),
+          orderInfo: `WalletTopUp_${wallet._id.toString()}`,
+          redirectUrl: redirectHandler,
+          ipnUrl: ipnHandler,
+        });
+
+        const payUrl = (paymentResponse as Record<string, string>).payUrl;
+
+        transaction.paymentUrl = payUrl;
+        await transaction.save();
+
+        return {
+          transactionId: transaction._id.toString(),
+          url: payUrl,
+          paymentResponse,
+        };
+      } else if (transaction.paymentMethod === 'vnpay') {
+        const returnUrl = `${process.env.API_BASE_URL || 'http://localhost:8000'}/vnpay/return`;
+
+        const paymentUrl = this.vnpayService.createPaymentUrl({
+          vnp_Amount: transaction.amount,
+          vnp_ReturnUrl: returnUrl,
+          vnp_TxnRef: transaction._id.toString(),
+          vnp_OrderInfo: `WalletTopUp_${wallet._id.toString()}`,
+        });
+
+        transaction.paymentUrl = paymentUrl;
+        await transaction.save();
+
+        return {
+          transactionId: transaction._id.toString(),
+          url: paymentUrl,
+          paymentResponse: {
+            payUrl: paymentUrl,
+          },
+        };
+      } else {
+        throw new HttpException(
+          'Invalid payment method for this transaction',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        (error as Error)?.message || 'Error retrying payment',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Cron('*/15 * * * *') // every 15 minutes
+  async expireOldTransactions() {
+    try {
+      console.log('[Cron] Starting expired transactions cleanup...');
+
+      const expirationTime = new Date();
+      expirationTime.setMinutes(expirationTime.getMinutes() - 60);
+
+      const result = await this.transactionsModel.updateMany(
+        {
+          status: 'processing',
+          transactionType: TransactionType.TOP_UP,
+          createdAt: { $lt: expirationTime },
+        },
+        {
+          $set: {
+            status: 'expired',
+            updatedAt: new Date(),
+          },
+        },
+      );
+
+      if (result.modifiedCount > 0) {
+        console.log(
+          `[Cron] Expired ${result.modifiedCount} old processing transactions`,
+        );
+      } else {
+        console.log('[Cron] No expired transactions found');
+      }
+
+      return {
+        success: true,
+        expiredCount: result.modifiedCount,
+      };
+    } catch (error) {
+      console.error(
+        '[Cron] Error expiring old transactions:',
+        (error as Error)?.message || error,
+      );
+      throw error;
     }
   }
 }

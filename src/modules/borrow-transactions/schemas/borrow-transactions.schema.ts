@@ -45,6 +45,11 @@ export class BorrowTransaction {
   @Prop()
   qrCode: string;
 
+  @Prop({ type: Number, default: 0 })
+  extensionCount?: number;
+
+  @Prop({ type: Date })
+  lastExtensionDate?: Date;
   @Prop()
   rewardPointChanged?: number;
 

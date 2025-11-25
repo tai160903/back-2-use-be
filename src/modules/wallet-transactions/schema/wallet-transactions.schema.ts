@@ -45,9 +45,15 @@ export class WalletTransactions {
   @Prop()
   description?: string;
 
+  @Prop({ type: String })
+  paymentUrl?: string;
+
+  @Prop({ type: String, enum: ['vnpay', 'momo'] })
+  paymentMethod?: string;
+
   @Prop({
     required: true,
-    enum: ['processing', 'completed', 'failed'],
+    enum: ['processing', 'completed', 'failed', 'expired'],
     default: 'processing',
   })
   status: string;
