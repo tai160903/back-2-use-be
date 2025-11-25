@@ -139,6 +139,8 @@ export class UsersService {
         yob: customer.yob || null,
         rewardPoints: customer.rewardPoints || 0,
         rankingPoints: customer.rankingPoints || 0,
+        returnSuccessCount: customer.returnSuccessCount || 0,
+        returnFailedCount: customer.returnFailedCount || 0,
       };
 
       return {

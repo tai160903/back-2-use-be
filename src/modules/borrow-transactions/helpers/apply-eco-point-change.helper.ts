@@ -14,19 +14,27 @@ export function applyEcoPointChange(
   let addedEcoPoints = 0;
   let addedCo2 = 0;
 
-  if (borrowStatus === 'returned') {
-    // +eco, +co2
-    addedEcoPoints = ecoPoint;
-    addedCo2 = co2Reduced;
+  switch (borrowStatus) {
+    case 'returned':
+    case 'return_late':
+      // +eco, +co2
+      addedEcoPoints = ecoPoint;
+      addedCo2 = co2Reduced;
 
-    business.ecoPoints += addedEcoPoints;
-    business.co2Reduced += addedCo2;
-  } else if (borrowStatus === 'rejected') {
-    // -co2, 0 eco
-    addedEcoPoints = 0;
-    addedCo2 = -co2Reduced;
+      business.ecoPoints += addedEcoPoints;
+      business.co2Reduced += addedCo2;
+      break;
 
-    business.co2Reduced += addedCo2;
+    case 'rejected':
+    case 'lost':
+      addedEcoPoints = 0;
+      addedCo2 = -co2Reduced;
+
+      business.co2Reduced += addedCo2;
+      break;
+
+    default:
+      break;
   }
 
   return {

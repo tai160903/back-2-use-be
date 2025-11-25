@@ -3,12 +3,12 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { BusinessVouchers } from 'src/modules/businesses/schemas/business-voucher.schema';
-import { VouchersStatus } from '../constants/vouchers-status.enum';
-import { VoucherCodeStatus } from '../constants/voucher-codes-status.enum';
 import {
   VoucherCodes,
   VoucherCodesDocument,
 } from 'src/modules/voucher-codes/schema/voucher-codes.schema';
+import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
+import { VoucherCodeStatus } from 'src/common/constants/voucher-codes-status.enum';
 
 @Injectable()
 export class BusinessVouchersCronService {
