@@ -224,6 +224,46 @@ export class BorrowTransactionsController {
     );
   }
 
+  @Patch('customer/extend/:id')
+  @ApiOperation({
+    summary: 'Extend borrow duration (customer)',
+    description:
+      'Extend the borrow period with additional days. Anti-spam validations: max 3 extensions, 24h cooldown, cannot extend overdue transactions.',
+  })
+  @ApiBearerAuth('access-token')
+  @ApiParam({
+    name: 'id',
+    description: 'Transaction ID to extend',
+    example: '6730a0f9e6b01a2e8f1c2d34',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        additionalDays: {
+          type: 'number',
+          example: 7,
+          minimum: 1,
+          maximum: 30,
+          description: 'Number of additional days to extend (1-30)',
+        },
+      },
+      required: ['additionalDays'],
+    },
+  })
+  @UseGuards(AuthGuard('jwt'))
+  extendBorrowDuration(
+    @Request() req: { user: { _id: string } },
+    @Param('id') id: string,
+    @Body('additionalDays') additionalDays: number,
+  ) {
+    return this.borrowTransactionsService.extendBorrowDuration(
+      req.user._id,
+      id,
+      additionalDays,
+    );
+  }
+
   // POST borrow-transactions/:serialNumber/return-check
   @Post(':serialNumber/return-check')
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))

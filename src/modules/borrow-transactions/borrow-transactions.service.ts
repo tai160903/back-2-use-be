@@ -864,6 +864,256 @@ export class BorrowTransactionsService {
     }
   }
 
+  /**
+   * Gia hạn thêm ngày mượn với các validation chống spam:
+   * - Chỉ cho phép gia hạn transaction đang trong trạng thái 'borrowing'
+   * - Giới hạn số lần gia hạn tối đa
+   * - Giới hạn tổng thời gian mượn tối đa
+   * - Phải gia hạn trước khi hết hạn (không cho gia hạn sau khi quá hạn)
+   * - Cooldown giữa các lần gia hạn để tránh spam
+   */
+  async extendBorrowDuration(
+    userId: string,
+    transactionId: string,
+    additionalDays: number,
+  ): Promise<APIResponseDto> {
+    const session = await this.borrowTransactionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      // 1. Validate customer
+      const customer = await this.customerModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .session(session);
+
+      if (!customer) {
+        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      }
+
+      // 2. Validate transaction
+      const transaction = await this.borrowTransactionModel
+        .findOne({
+          _id: new Types.ObjectId(transactionId),
+          customerId: customer._id,
+        })
+        .session(session);
+
+      if (!transaction) {
+        throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+      }
+
+      // 3. Validate transaction status
+      if (transaction.status !== 'borrowing') {
+        throw new HttpException(
+          'Can only extend transactions with status "borrowing"',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // 4. Validate not overdue
+      const now = new Date();
+      if (transaction.dueDate < now) {
+        throw new HttpException(
+          'Cannot extend overdue transaction. Please return the product first.',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // 5. Validate extension cooldown (chống spam - chỉ cho gia hạn mỗi 24h)
+      const lastExtensionDate = transaction.lastExtensionDate;
+
+      if (lastExtensionDate) {
+        const hoursSinceLastExtension =
+          (now.getTime() - lastExtensionDate.getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceLastExtension < 24) {
+          const hoursLeft = Math.ceil(24 - hoursSinceLastExtension);
+          throw new HttpException(
+            `You can only extend once every 24 hours. Please wait ${hoursLeft} more hour(s).`,
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
+
+      // 6. Validate max extensions (tối đa 3 lần gia hạn)
+      const extensionCount = transaction.extensionCount || 0;
+      const maxExtensions = 3;
+
+      if (extensionCount >= maxExtensions) {
+        throw new HttpException(
+          `Maximum extension limit reached (${maxExtensions} times). Please return the product.`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // 7. Get borrow policy
+      const borrowPolicy = await this.systemSettingsModel
+        .findOne({
+          key: 'borrow_policy',
+          category: 'borrow',
+        })
+        .session(session);
+
+      if (!borrowPolicy) {
+        throw new HttpException(
+          'Borrow policy settings not found',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      // 8. Validate max total duration
+      const maxDaysBorrowAllowed = borrowPolicy.value.maxDaysBorrowAllowed;
+      const currentDuration = Math.ceil(
+        (transaction.dueDate.getTime() - transaction.borrowDate.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+      const totalDurationAfterExtension = currentDuration + additionalDays;
+
+      if (totalDurationAfterExtension > maxDaysBorrowAllowed) {
+        const remainingDays = maxDaysBorrowAllowed - currentDuration;
+        throw new HttpException(
+          `Cannot extend. Maximum total duration is ${maxDaysBorrowAllowed} days. You can only extend ${remainingDays} more day(s).`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // 9. Get product info for deposit calculation
+      const product = await this.productModel
+        .findById(transaction.productId)
+        .session(session);
+
+      if (!product) {
+        throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
+      }
+
+      const productSize = await this.productSizeModel
+        .findById(product.productSizeId)
+        .session(session);
+
+      if (!productSize) {
+        throw new HttpException('Product size not found', HttpStatus.NOT_FOUND);
+      }
+
+      // 10. Calculate additional deposit
+      const additionalDeposit =
+        (Math.round(Number(productSize.depositValue) * 100) *
+          Number(additionalDays)) /
+        100;
+
+      // 11. Validate customer wallet balance
+      const customerWallet = await this.walletsModel
+        .findOne({ userId: customer.userId, type: 'customer' })
+        .session(session);
+
+      if (!customerWallet) {
+        throw new HttpException(
+          'Customer wallet not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      if (customerWallet.availableBalance < additionalDeposit) {
+        throw new HttpException(
+          `Insufficient wallet balance. Need ${additionalDeposit} VND for ${additionalDays} day(s) extension.`,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
+      // 12. Get business wallet
+      const business = await this.businessesModel
+        .findById(transaction.businessId)
+        .session(session);
+
+      if (!business) {
+        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      const businessWallet = await this.walletsModel
+        .findOne({ userId: business.userId, type: 'business' })
+        .session(session);
+
+      if (!businessWallet) {
+        throw new HttpException(
+          'Business wallet not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
+      // 13. Update wallets
+      customerWallet.availableBalance -= additionalDeposit;
+      businessWallet.holdingBalance += additionalDeposit;
+
+      // 14. Create wallet transactions
+      const customerWalletTx = new this.walletTransactionsModel({
+        walletId: customerWallet._id,
+        relatedUserId: business._id,
+        relatedUserType: 'business',
+        amount: additionalDeposit,
+        transactionType: TransactionType.BORROW_DEPOSIT,
+        direction: 'out',
+        status: 'completed',
+        description: `Extension deposit for ${additionalDays} day(s)`,
+        referenceType: 'borrow',
+        referenceId: transaction._id,
+        balanceType: 'available',
+      });
+
+      const businessWalletTx = new this.walletTransactionsModel({
+        walletId: businessWallet._id,
+        relatedUserId: customer._id,
+        relatedUserType: 'customer',
+        amount: additionalDeposit,
+        transactionType: TransactionType.BORROW_DEPOSIT,
+        direction: 'in',
+        status: 'completed',
+        description: `Extension deposit received for ${additionalDays} day(s)`,
+        referenceType: 'borrow',
+        referenceId: transaction._id,
+        balanceType: 'holding',
+      });
+
+      // 15. Update transaction
+      const newDueDate = new Date(transaction.dueDate);
+      newDueDate.setDate(newDueDate.getDate() + additionalDays);
+
+      transaction.dueDate = newDueDate;
+      transaction.depositAmount += additionalDeposit;
+      transaction.extensionCount = extensionCount + 1;
+      transaction.lastExtensionDate = now;
+
+      // 16. Save all changes
+      await Promise.all([
+        transaction.save({ session }),
+        customerWallet.save({ session }),
+        businessWallet.save({ session }),
+        customerWalletTx.save({ session }),
+        businessWalletTx.save({ session }),
+      ]);
+
+      await session.commitTransaction();
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: `Transaction extended successfully by ${additionalDays} day(s)`,
+        data: {
+          transaction,
+          additionalDeposit,
+          newDueDate,
+          extensionCount: extensionCount + 1,
+          remainingExtensions: maxExtensions - extensionCount - 1,
+        },
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      throw new HttpException(
+        (error as Error).message || 'Failed to extend transaction.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    } finally {
+      await session.endSession();
+    }
+  }
+
   // Business check product when return
   async confirmReturnCondition(
     serialNumber: string,

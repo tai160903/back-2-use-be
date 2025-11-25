@@ -4,6 +4,7 @@ import { WalletsController } from './wallets.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Wallets, WalletsSchema } from './schemas/wallets.schema';
 import { MomoModule } from '../../infrastructure/momo/momo.module';
+import { VnpayModule } from '../../infrastructure/vnpay/vnpay.module';
 import {
   WalletTransactions,
   WalletTransactionsSchema,
@@ -17,6 +18,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       { name: WalletTransactions.name, schema: WalletTransactionsSchema },
     ]),
     MomoModule,
+    VnpayModule,
     NotificationsModule,
   ],
   controllers: [WalletsController],
