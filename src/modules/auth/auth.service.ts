@@ -18,6 +18,7 @@ import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
 import { BusinessSubscriptions } from '../businesses/schemas/business-subscriptions.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { Businesses } from '../businesses/schemas/businesses.schema';
+import { Staff } from '../staffs/schemas/staffs.schema';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
     @InjectModel(Businesses.name)
     private businessModel: Model<Businesses>,
+    @InjectModel(Staff.name) private staffModel: Model<Staff>,
     private jwtService: JwtService,
     private mailerService: MailerService,
     private configService: ConfigService,
@@ -191,6 +193,29 @@ export class AuthService {
 
     if (user.role === RolesEnum.ADMIN) {
       userRole = RolesEnum.ADMIN;
+    } else if (user.role === RolesEnum.BUSINESS) {
+      const business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
+      if (!business) {
+        throw new HttpException(
+          'Business account not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+      userRole = RolesEnum.BUSINESS;
+    } else if (user.role === RolesEnum.STAFF) {
+      const staff = await this.staffModel.findOne({
+        userId: new Types.ObjectId(user._id),
+        status: 'active',
+      });
+      if (!staff) {
+        throw new HttpException(
+          'Staff account not found or inactive',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      userRole = RolesEnum.STAFF;
     } else {
       const customer = await this.customersModel.findOne({
         userId: new Types.ObjectId(user._id),
