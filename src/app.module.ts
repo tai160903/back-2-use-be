@@ -29,6 +29,7 @@ import { BorrowTransactionsModule } from './modules/borrow-transactions/borrow-t
 import { CronModule } from './common/cron/cron.module';
 import { MonthlyLeaderboardsModule } from './modules/monthly-leaderboards/monthly-leaderboard.module';
 import { MomoModule } from './infrastructure/momo/momo.module';
+import { StaffsModule } from './modules/staffs/staffs.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { MomoModule } from './infrastructure/momo/momo.module';
     BorrowTransactionsModule,
     MonthlyLeaderboardsModule,
     MomoModule,
+    StaffsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

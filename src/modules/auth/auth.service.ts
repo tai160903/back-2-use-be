@@ -198,7 +198,7 @@ export class AuthService {
       if (!customer) {
         throw new HttpException(
           'Customer account not found',
-          HttpStatus.NOT_FOUND,
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
       userRole = 'customer';
@@ -407,7 +407,10 @@ export class AuthService {
       });
 
       if (!customer) {
-        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Customer not found',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       const randomNumber = parseInt(crypto.randomBytes(3).toString('hex'), 16);
@@ -455,7 +458,10 @@ export class AuthService {
       userId: new Types.ObjectId(user._id),
     });
     if (!customer) {
-      throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Customer not found',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
     // Generate secure 6-digit OTP using crypto
     const otpCode = (
@@ -499,9 +505,21 @@ export class AuthService {
     newPassword: string,
     confirmNewPassword: string,
   ): Promise<APIResponseDto> {
+    if (!email || !otp || !newPassword || !confirmNewPassword) {
+      throw new HttpException(
+        'All fields are required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const user = await this.usersModel.findOne({ email }).select('+password');
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    if (!otp.match(/^\d{6}$/)) {
+      throw new HttpException(
+        'OTP code must be a 6-digit number',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     if (user.otpCode !== otp) {
       throw new HttpException('Invalid OTP code', HttpStatus.UNAUTHORIZED);
