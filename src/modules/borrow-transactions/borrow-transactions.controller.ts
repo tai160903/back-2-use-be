@@ -61,7 +61,7 @@ export class BorrowTransactionsController {
   @ApiOperation({
     summary: 'Confirm borrow transaction',
     description:
-      'Business, staff or manager confirms a pending_pickup borrow transaction (moves to borrowing).',
+      'Business or staff confirms a pending_pickup borrow transaction (moves to borrowing).',
   })
   @ApiBearerAuth('access-token')
   @ApiParam({
@@ -71,11 +71,7 @@ export class BorrowTransactionsController {
   })
   @UseGuards(
     AuthGuard('jwt'),
-    RoleCheckGuard.withRoles([
-      RolesEnum.BUSINESS,
-      RolesEnum.STAFF,
-      RolesEnum.MANAGER,
-    ]),
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   confirm(
     @Param('id') id: string,
@@ -99,11 +95,7 @@ export class BorrowTransactionsController {
   @ApiQuery({ name: 'borrowTransactionType', required: false })
   @UseGuards(
     AuthGuard('jwt'),
-    RoleCheckGuard.withRoles([
-      RolesEnum.BUSINESS,
-      RolesEnum.STAFF,
-      RolesEnum.MANAGER,
-    ]),
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessTransactions(
     @Request() req: { user: { _id: string } },
@@ -137,11 +129,7 @@ export class BorrowTransactionsController {
   @ApiQuery({ name: 'borrowTransactionType', required: false })
   @UseGuards(
     AuthGuard('jwt'),
-    RoleCheckGuard.withRoles([
-      RolesEnum.BUSINESS,
-      RolesEnum.STAFF,
-      RolesEnum.MANAGER,
-    ]),
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessHistory(
     @Request() req: { user: { _id: string } },
@@ -159,11 +147,7 @@ export class BorrowTransactionsController {
   @ApiBearerAuth('access-token')
   @UseGuards(
     AuthGuard('jwt'),
-    RoleCheckGuard.withRoles([
-      RolesEnum.BUSINESS,
-      RolesEnum.STAFF,
-      RolesEnum.MANAGER,
-    ]),
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessTransactionDetail(
     @Request() req: { user: { _id: string } },
@@ -183,11 +167,7 @@ export class BorrowTransactionsController {
   @ApiBearerAuth('access-token')
   @UseGuards(
     AuthGuard('jwt'),
-    RoleCheckGuard.withRoles([
-      RolesEnum.BUSINESS,
-      RolesEnum.STAFF,
-      RolesEnum.MANAGER,
-    ]),
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessPendingTransactions(@Request() req: { user: { _id: string } }) {
     return this.borrowTransactionsService.getBusinessPendingTransactions(
