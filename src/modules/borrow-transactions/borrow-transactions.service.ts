@@ -702,12 +702,27 @@ export class BorrowTransactionsService {
     userId: string,
   ): Promise<APIResponseDto> {
     try {
-      const business = await this.businessesModel.findOne({
+      let business = await this.businessesModel.findOne({
         userId: new Types.ObjectId(userId),
       });
-
       if (!business) {
-        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+        const staff = await this.staffModel.findOne({
+          userId: new Types.ObjectId(userId),
+          status: 'active',
+        });
+        if (!staff) {
+          throw new HttpException(
+            'Business or staff not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+        business = await this.businessesModel.findById(staff.businessId);
+        if (!business) {
+          throw new HttpException(
+            'Business not found for staff',
+            HttpStatus.NOT_FOUND,
+          );
+        }
       }
 
       const transactions = await this.borrowTransactionModel

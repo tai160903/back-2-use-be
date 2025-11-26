@@ -193,17 +193,6 @@ export class AuthService {
 
     if (user.role === RolesEnum.ADMIN) {
       userRole = RolesEnum.ADMIN;
-    } else if (user.role === RolesEnum.BUSINESS) {
-      const business = await this.businessModel.findOne({
-        userId: new Types.ObjectId(user._id),
-      });
-      if (!business) {
-        throw new HttpException(
-          'Business account not found',
-          HttpStatus.NOT_FOUND,
-        );
-      }
-      userRole = RolesEnum.BUSINESS;
     } else if (user.role === RolesEnum.STAFF) {
       const staff = await this.staffModel.findOne({
         userId: new Types.ObjectId(user._id),
