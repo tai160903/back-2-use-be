@@ -881,7 +881,6 @@ export class BorrowTransactionsService {
     session.startTransaction();
 
     try {
-      // 1. Validate customer
       const customer = await this.customerModel
         .findOne({ userId: new Types.ObjectId(userId) })
         .session(session);
@@ -890,7 +889,6 @@ export class BorrowTransactionsService {
         throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
       }
 
-      // 2. Validate transaction
       const transaction = await this.borrowTransactionModel
         .findOne({
           _id: new Types.ObjectId(transactionId),
@@ -902,7 +900,6 @@ export class BorrowTransactionsService {
         throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
       }
 
-      // 3. Validate transaction status
       if (transaction.status !== 'borrowing') {
         throw new HttpException(
           'Can only extend transactions with status "borrowing"',
@@ -910,7 +907,6 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 4. Validate not overdue
       const now = new Date();
       if (transaction.dueDate < now) {
         throw new HttpException(
@@ -919,7 +915,6 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 5. Validate extension cooldown (chống spam - chỉ cho gia hạn mỗi 24h)
       const lastExtensionDate = transaction.lastExtensionDate;
 
       if (lastExtensionDate) {
@@ -935,7 +930,6 @@ export class BorrowTransactionsService {
         }
       }
 
-      // 6. Validate max extensions (tối đa 3 lần gia hạn)
       const extensionCount = transaction.extensionCount || 0;
       const maxExtensions = 3;
 
@@ -946,7 +940,6 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 7. Get borrow policy
       const borrowPolicy = await this.systemSettingsModel
         .findOne({
           key: 'borrow_policy',
@@ -961,7 +954,6 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 8. Validate max total duration
       const maxDaysBorrowAllowed = borrowPolicy.value.maxDaysBorrowAllowed;
       const currentDuration = Math.ceil(
         (transaction.dueDate.getTime() - transaction.borrowDate.getTime()) /
@@ -977,7 +969,6 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 9. Get product info for deposit calculation
       const product = await this.productModel
         .findById(transaction.productId)
         .session(session);
@@ -994,13 +985,11 @@ export class BorrowTransactionsService {
         throw new HttpException('Product size not found', HttpStatus.NOT_FOUND);
       }
 
-      // 10. Calculate additional deposit
       const additionalDeposit =
         (Math.round(Number(productSize.depositValue) * 100) *
           Number(additionalDays)) /
         100;
 
-      // 11. Validate customer wallet balance
       const customerWallet = await this.walletsModel
         .findOne({ userId: customer.userId, type: 'customer' })
         .session(session);
@@ -1019,7 +1008,6 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 12. Get business wallet
       const business = await this.businessesModel
         .findById(transaction.businessId)
         .session(session);
@@ -1039,11 +1027,9 @@ export class BorrowTransactionsService {
         );
       }
 
-      // 13. Update wallets
       customerWallet.availableBalance -= additionalDeposit;
       businessWallet.holdingBalance += additionalDeposit;
 
-      // 14. Create wallet transactions
       const customerWalletTx = new this.walletTransactionsModel({
         walletId: customerWallet._id,
         relatedUserId: business._id,
@@ -1072,7 +1058,6 @@ export class BorrowTransactionsService {
         balanceType: 'holding',
       });
 
-      // 15. Update transaction
       const newDueDate = new Date(transaction.dueDate);
       newDueDate.setDate(newDueDate.getDate() + additionalDays);
 
@@ -1081,7 +1066,6 @@ export class BorrowTransactionsService {
       transaction.extensionCount = extensionCount + 1;
       transaction.lastExtensionDate = now;
 
-      // 16. Save all changes
       await Promise.all([
         transaction.save({ session }),
         customerWallet.save({ session }),
