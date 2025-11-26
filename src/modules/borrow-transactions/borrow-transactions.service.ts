@@ -40,6 +40,11 @@ import { applyEcoPointChange } from './helpers/apply-eco-point-change.helper';
 import { Staff } from '../staffs/schemas/staffs.schema';
 import { calculateLateReturnInfo } from './utils/calculate-late-return';
 import { handlePartialRefund } from './helpers/handle-partial-refund.helper';
+import {
+  buildConditionImageObject,
+  buildCurrentDamageFaces,
+} from './helpers/condition.helper';
+import { calculateTotalDamagePoints } from './utils/calculateDamagePoints';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -101,6 +106,13 @@ export class BorrowTransactionsService {
         .findById(dto.productId)
         .session(session);
 
+      if (!product)
+        throw new HttpException('Product not found', HttpStatus.BAD_REQUEST);
+
+      const previousConditionImages = { ...product.lastConditionImages };
+
+      const previousDamageFaces = product.lastDamageFaces || [];
+
       const maxConcurrent =
         this.configService.get<number>(
           'borrowTransactions.maxConcurrentBorrows',
@@ -118,9 +130,6 @@ export class BorrowTransactionsService {
           HttpStatus.BAD_REQUEST,
         );
       }
-
-      if (!product)
-        throw new HttpException('Product not found', HttpStatus.BAD_REQUEST);
 
       // if (ProductGroup.businessId?.toString() !== dto.businessId?.toString())
       //   throw new HttpException(
@@ -228,6 +237,8 @@ export class BorrowTransactionsService {
             customerId: customer._id,
             status,
             borrowTransactionType: 'borrow',
+            previousConditionImages,
+            previousDamageFaces,
           },
         ],
         { session },
@@ -1347,7 +1358,14 @@ export class BorrowTransactionsService {
     serialNumber: string,
     userId: string,
     dto: UpdateProductConditionDto,
-    images: Express.Multer.File[],
+    images: {
+      frontImage?: Express.Multer.File[];
+      backImage?: Express.Multer.File[];
+      leftImage?: Express.Multer.File[];
+      rightImage?: Express.Multer.File[];
+      topImage?: Express.Multer.File[];
+      bottomImage?: Express.Multer.File[];
+    },
   ) {
     const session = await this.connection.startSession();
     session.startTransaction();
@@ -1365,6 +1383,7 @@ export class BorrowTransactionsService {
         businessWallet,
         rewardPolicy,
         borrowPolicy,
+        damagePolicy,
       } = await loadEntities(serialNumber, userId, session, {
         businessesModel: this.businessesModel,
         productModel: this.productModel,
@@ -1379,13 +1398,31 @@ export class BorrowTransactionsService {
 
       const uploadedUrls = await processImages(images, this.cloudinaryService);
 
+      const currentDamageFaces = buildCurrentDamageFaces(dto);
+
+      // 2. Build object ảnh từ uploadedUrls
+      const conditionImages = buildConditionImageObject(uploadedUrls);
+
+      // Gán cho BorrowTransaction
+      borrowTransaction.currentDamageFaces = currentDamageFaces;
+      borrowTransaction.currentConditionImages = conditionImages;
+
+      // Gán cho Product
+      product.lastDamageFaces = currentDamageFaces;
+      product.lastConditionImages = conditionImages;
+
+      const totalDamagePoints = calculateTotalDamagePoints(dto, damagePolicy);
+
+      const finalCondition = totalDamagePoints > 12 ? 'damaged' : 'good';
+
+      borrowTransaction.totalConditionPoints = totalDamagePoints;
+
       const lateInfo = calculateLateReturnInfo(borrowTransaction, borrowPolicy);
 
       applyConditionChange(
         product,
         borrowTransaction,
-        dto,
-        uploadedUrls,
+        { ...dto, condition: finalCondition },
         lateInfo.isLate,
       );
 
