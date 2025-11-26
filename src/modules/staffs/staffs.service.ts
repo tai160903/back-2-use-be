@@ -11,6 +11,8 @@ import { Users } from '../users/schemas/users.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import * as bcrypt from 'bcrypt';
 import { generateRandomString } from 'src/common/utils/generate-random-string.util';
+import { MailerService } from 'src/infrastructure/mailer/mailer.service';
+import { staffCredentialsTemplate } from 'src/infrastructure/mailer/templates/staff-credentials.template';
 
 @Injectable()
 export class StaffsService {
@@ -18,6 +20,7 @@ export class StaffsService {
     @InjectModel(Staff.name) private staffModel: Model<Staff>,
     @InjectModel(Businesses.name) private businessesModel: Model<Businesses>,
     @InjectModel(Users.name) private usersModel: Model<Users>,
+    private readonly mailerService: MailerService,
   ) {}
 
   async createStaff(
@@ -45,7 +48,6 @@ export class StaffsService {
           HttpStatus.BAD_REQUEST,
         );
 
-      // Create user account for staff to allow login
       const emailLower = dto.email.toLowerCase();
       const existingUser = await this.usersModel
         .findOne({ email: emailLower })
@@ -57,7 +59,6 @@ export class StaffsService {
         );
       }
 
-      // Derive unique username from email prefix, prefixed with 'staff_'
       const baseUsernameRaw = emailLower.split('@')[0];
       let candidate = baseUsernameRaw;
       let suffix = 1;
@@ -65,7 +66,7 @@ export class StaffsService {
         candidate = `${baseUsernameRaw}${suffix++}`;
       }
 
-      const tempPasswordPlain = generateRandomString(10); // temporary password
+      const tempPasswordPlain = generateRandomString(10);
       const salt = await bcrypt.genSalt();
       const hashedPassword = await bcrypt.hash(tempPasswordPlain, salt);
 
@@ -87,12 +88,30 @@ export class StaffsService {
         userId: user._id,
       });
 
+      // Send credentials via email instead of returning password in API
+      try {
+        const subject = 'Tài khoản nhân viên đã được tạo';
+        const html = staffCredentialsTemplate({
+          fullName: staff.fullName,
+          username: user.username,
+          tempPassword: tempPasswordPlain,
+        });
+        await this.mailerService.sendMail({
+          to: [{ name: staff.fullName || emailLower, address: emailLower }],
+          subject,
+          html,
+        });
+      } catch (_e) {
+        // Do not fail creation if email fails; log or swallow
+        console.warn('Failed to send staff credentials email', _e);
+      }
+
       return {
         statusCode: HttpStatus.CREATED,
-        message: 'Staff created successfully (login enabled)',
+        message: 'Staff created successfully; credentials sent via email',
         data: {
           staff,
-          temporaryPassword: tempPasswordPlain,
+          credentialsSent: true,
         },
       };
     } catch (error) {
