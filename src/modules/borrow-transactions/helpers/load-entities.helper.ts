@@ -121,11 +121,19 @@ export async function loadEntities(
 
   if (!rewardPolicy) throw new NotFoundException('Reward policy not found');
 
+  // --- Borrow Policy ---
   const borrowPolicy = await systemSettingsModel
     .findOne({ category: 'borrow', key: 'borrow_policy' })
     .session(session);
 
   if (!borrowPolicy) throw new NotFoundException('Borrow policy not found');
+
+  // --- Damage Policy ---
+  const damagePolicy = await systemSettingsModel
+    .findOne({ category: 'return_check', key: 'damage_issues' })
+    .session(session);
+
+  if (!damagePolicy) throw new NotFoundException('Damage policy not found');
 
   return {
     business,
@@ -139,5 +147,6 @@ export async function loadEntities(
     businessWallet,
     rewardPolicy: rewardPolicy.value,
     borrowPolicy: borrowPolicy.value,
+    damagePolicy: damagePolicy.value,
   };
 }

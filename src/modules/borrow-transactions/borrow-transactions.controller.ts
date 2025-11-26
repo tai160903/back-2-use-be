@@ -10,6 +10,8 @@ import {
   Query,
   UseInterceptors,
   UploadedFiles,
+  Req,
+  UsePipes,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -24,10 +26,14 @@ import { CreateBorrowTransactionDto } from './dto/create-borrow-transaction.dto'
 import { BorrowTransactionsService } from './borrow-transactions.service';
 import { AuthGuard } from '@nestjs/passport';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { UpdateProductConditionDto } from './dto/update-product-condition.dto';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import { ValidateDamageIssuePipe } from './pipes/validate-damage-issue.pipe';
 
 @ApiTags('Borrow Transactions')
 @Controller('borrow-transactions')
@@ -266,35 +272,85 @@ export class BorrowTransactionsController {
 
   // POST borrow-transactions/:serialNumber/return-check
   @Post(':serialNumber/return-check')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
-  @ApiBearerAuth('access-token')
   @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UpdateProductConditionDto })
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('access-token')
+  @UsePipes(ValidateDamageIssuePipe)
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'frontImage', maxCount: 1 },
+      { name: 'backImage', maxCount: 1 },
+      { name: 'leftImage', maxCount: 1 },
+      { name: 'rightImage', maxCount: 1 },
+      { name: 'topImage', maxCount: 1 },
+      { name: 'bottomImage', maxCount: 1 },
+    ]),
+  )
   @ApiBody({
-    description: 'Return condition data including note and images',
     schema: {
       type: 'object',
       properties: {
-        condition: { type: 'string', enum: ['good', 'damaged'] },
+        frontImage: { type: 'string', format: 'binary' },
+        frontIssue: { type: 'string' },
+
+        backImage: { type: 'string', format: 'binary' },
+        backIssue: { type: 'string' },
+
+        leftImage: { type: 'string', format: 'binary' },
+        leftIssue: { type: 'string' },
+
+        rightImage: { type: 'string', format: 'binary' },
+        rightIssue: { type: 'string' },
+
+        topImage: { type: 'string', format: 'binary' },
+        topIssue: { type: 'string' },
+
+        bottomImage: { type: 'string', format: 'binary' },
+        bottomIssue: { type: 'string' },
+
         note: { type: 'string' },
-        images: {
-          type: 'array',
-          items: { type: 'string', format: 'binary' },
-        },
       },
-      required: ['condition', 'note'],
+      required: [
+        'frontImage',
+        'frontIssue',
+
+        'backImage',
+        'backIssue',
+
+        'leftImage',
+        'leftIssue',
+
+        'rightImage',
+        'rightIssue',
+
+        'topImage',
+        'topIssue',
+
+        'bottomImage',
+        'bottomIssue',
+
+        'note',
+      ],
     },
   })
-  @UseInterceptors(FilesInterceptor('images', 3))
   async confirmReturnCondition(
     @Param('serialNumber') serialNumber: string,
+    @UploadedFiles()
+    images: {
+      frontImage?: Express.Multer.File[];
+      backImage?: Express.Multer.File[];
+      leftImage?: Express.Multer.File[];
+      rightImage?: Express.Multer.File[];
+      topImage?: Express.Multer.File[];
+      bottomImage?: Express.Multer.File[];
+    },
     @Body() dto: UpdateProductConditionDto,
-    @UploadedFiles() images: Express.Multer.File[],
-    @Request() req: AuthenticatedRequest,
+    @Req() req: AuthenticatedRequest,
   ) {
-    const userId = req.user?._id;
     return this.borrowTransactionsService.confirmReturnCondition(
       serialNumber,
-      userId,
+      req.user?._id,
       dto,
       images,
     );
