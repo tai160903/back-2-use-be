@@ -42,23 +42,4 @@ export class CreateStaffDto {
   @IsString()
   @Length(8, 20)
   phone?: string;
-
-  @ApiProperty({
-    description: 'Position / role inside business',
-    example: 'cashier',
-  })
-  @IsNotEmpty()
-  @IsString()
-  @Length(2, 50)
-  position: string;
-
-  @ApiProperty({
-    description: 'Internal staff role',
-    enum: ['staff', 'manager'],
-    required: false,
-    example: 'staff',
-  })
-  @IsOptional()
-  @IsIn(['staff', 'manager'])
-  staffRole?: string;
 }

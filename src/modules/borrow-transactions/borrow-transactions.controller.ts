@@ -61,7 +61,7 @@ export class BorrowTransactionsController {
   @ApiOperation({
     summary: 'Confirm borrow transaction',
     description:
-      'Business, staff or manager confirms a pending_pickup borrow transaction (moves to borrowing).',
+      'Business or staff confirms a pending_pickup borrow transaction (moves to borrowing).',
   })
   @ApiBearerAuth('access-token')
   @ApiParam({
@@ -74,7 +74,6 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([
       RolesEnum.BUSINESS,
       RolesEnum.STAFF,
-      RolesEnum.MANAGER,
     ]),
   )
   confirm(
@@ -102,7 +101,6 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([
       RolesEnum.BUSINESS,
       RolesEnum.STAFF,
-      RolesEnum.MANAGER,
     ]),
   )
   getBusinessTransactions(
@@ -140,7 +138,6 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([
       RolesEnum.BUSINESS,
       RolesEnum.STAFF,
-      RolesEnum.MANAGER,
     ]),
   )
   getBusinessHistory(
@@ -162,7 +159,6 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([
       RolesEnum.BUSINESS,
       RolesEnum.STAFF,
-      RolesEnum.MANAGER,
     ]),
   )
   getBusinessTransactionDetail(

@@ -20,14 +20,8 @@ export class Staff {
   @Prop({ required: false })
   phone?: string;
 
-  @Prop({ required: true })
-  position: string; // e.g. cashier, manager
-
-  @Prop({ enum: ['staff', 'manager'], default: 'staff' })
-  staffRole: string; // internal staff role (authorization within business)
-
   @Prop({
-    enum: ['active', 'inactive', 'removed'],
+    enum: ['active', 'removed'],
     default: 'active',
   })
   status: string;

@@ -73,7 +73,7 @@ export class StaffsService {
         username: candidate,
         email: emailLower,
         password: hashedPassword,
-        role: dto.staffRole === 'manager' ? RolesEnum.MANAGER : RolesEnum.STAFF,
+        role: RolesEnum.STAFF,
         isActive: true,
       });
       await user.save();
@@ -83,8 +83,6 @@ export class StaffsService {
         fullName: dto.fullName,
         email: emailLower,
         phone: dto.phone,
-        position: dto.position,
-        staffRole: dto.staffRole || 'staff',
         status: 'active', // immediately active since account created
         userId: user._id,
       });
@@ -126,7 +124,6 @@ export class StaffsService {
         match.$or = [
           { fullName: { $regex: query.search, $options: 'i' } },
           { email: { $regex: query.search, $options: 'i' } },
-          { position: { $regex: query.search, $options: 'i' } },
         ];
       }
 
@@ -176,7 +173,6 @@ export class StaffsService {
         data: staff,
       };
     } catch (error) {
-      if (error instanceof HttpException) throw error;
       throw new HttpException(
         (error as Error).message || 'Error fetching staff',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -218,8 +214,6 @@ export class StaffsService {
       }
       if (dto.fullName) staff.fullName = dto.fullName;
       if (dto.phone) staff.phone = dto.phone;
-      if (dto.position) staff.position = dto.position;
-      if (dto.staffRole) staff.staffRole = dto.staffRole;
       if (dto.status) staff.status = dto.status;
 
       await staff.save();
