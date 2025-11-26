@@ -18,6 +18,7 @@ import { MailerDto } from 'src/infrastructure/mailer/dto/mailer.dto';
 import { BusinessSubscriptions } from '../businesses/schemas/business-subscriptions.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { Businesses } from '../businesses/schemas/businesses.schema';
+import { Staff } from '../staffs/schemas/staffs.schema';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
     @InjectModel(Businesses.name)
     private businessModel: Model<Businesses>,
+    @InjectModel(Staff.name) private staffModel: Model<Staff>,
     private jwtService: JwtService,
     private mailerService: MailerService,
     private configService: ConfigService,
@@ -191,6 +193,18 @@ export class AuthService {
 
     if (user.role === RolesEnum.ADMIN) {
       userRole = RolesEnum.ADMIN;
+    } else if (user.role === RolesEnum.STAFF) {
+      const staff = await this.staffModel.findOne({
+        userId: new Types.ObjectId(user._id),
+        status: 'active',
+      });
+      if (!staff) {
+        throw new HttpException(
+          'Staff account not found or inactive',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      userRole = RolesEnum.STAFF;
     } else {
       const customer = await this.customersModel.findOne({
         userId: new Types.ObjectId(user._id),
@@ -198,7 +212,7 @@ export class AuthService {
       if (!customer) {
         throw new HttpException(
           'Customer account not found',
-          HttpStatus.NOT_FOUND,
+          HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
       userRole = 'customer';
@@ -407,7 +421,10 @@ export class AuthService {
       });
 
       if (!customer) {
-        throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Customer not found',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       const randomNumber = parseInt(crypto.randomBytes(3).toString('hex'), 16);
@@ -455,7 +472,10 @@ export class AuthService {
       userId: new Types.ObjectId(user._id),
     });
     if (!customer) {
-      throw new HttpException('Customer not found', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Customer not found',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
     // Generate secure 6-digit OTP using crypto
     const otpCode = (
@@ -499,9 +519,21 @@ export class AuthService {
     newPassword: string,
     confirmNewPassword: string,
   ): Promise<APIResponseDto> {
+    if (!email || !otp || !newPassword || !confirmNewPassword) {
+      throw new HttpException(
+        'All fields are required',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
     const user = await this.usersModel.findOne({ email }).select('+password');
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+    if (!otp.match(/^\d{6}$/)) {
+      throw new HttpException(
+        'OTP code must be a 6-digit number',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     if (user.otpCode !== otp) {
       throw new HttpException('Invalid OTP code', HttpStatus.UNAUTHORIZED);

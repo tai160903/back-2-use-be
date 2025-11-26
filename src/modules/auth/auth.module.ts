@@ -21,6 +21,7 @@ import {
   Businesses,
   BusinessesSchema,
 } from '../businesses/schemas/businesses.schema';
+import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import {
       { name: Users.name, schema: UsersSchema },
       { name: Customers.name, schema: CustomersSchema },
       { name: Businesses.name, schema: BusinessesSchema },
+      { name: Staff.name, schema: StaffSchema },
       {
         name: BusinessSubscriptions.name,
         schema: BusinessSubscriptionsSchema,

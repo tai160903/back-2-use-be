@@ -31,6 +31,7 @@ import {
   SystemSettingSchema,
 } from '../system-settings/schemas/system-setting.schema';
 import { Material, MaterialSchema } from '../materials/schemas/material.schema';
+import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { Material, MaterialSchema } from '../materials/schemas/material.schema';
       { name: ProductGroup.name, schema: ProductGroupSchema },
       { name: Businesses.name, schema: BusinessesSchema },
       { name: SystemSetting.name, schema: SystemSettingSchema },
+      { name: Staff.name, schema: StaffSchema },
     ]),
     UsersModule,
     CloudinaryModule,
