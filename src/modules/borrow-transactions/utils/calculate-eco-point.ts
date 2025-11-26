@@ -3,10 +3,8 @@ export function calculateEcoPoint(productSize, material) {
 
   const rawCo2 = (plasticPrevented / 1000) * material.co2EmissionPerKg;
 
-  // làm sạch số, giữ tối đa 3 chữ số thập phân
   const co2Reduced = cleanNumber(rawCo2, 3);
 
-  // eco luôn = co2 * 100 (chính xác tuyệt đối)
   const ecoPoint = cleanNumber(co2Reduced * 100, 2);
 
   return {

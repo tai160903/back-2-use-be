@@ -8,7 +8,7 @@ import {
   VoucherCodes,
   VoucherCodesDocument,
 } from 'src/modules/voucher-codes/schema/voucher-codes.schema';
-import { VoucherType } from '../constants/voucher-types.enum';
+import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
 @Injectable()
 export class VoucherCodesLeaderboardCronService {

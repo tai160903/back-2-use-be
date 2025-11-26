@@ -8,9 +8,9 @@ import { LeaderboardRewardPolicy } from 'src/modules/leaderboard-reward-policies
 import { LeaderboardReward } from 'src/modules/leaderboard-reward/schema/leaderboard-rewards.schema';
 import { VoucherCodes } from 'src/modules/voucher-codes/schema/voucher-codes.schema';
 import { Vouchers } from 'src/modules/vouchers/schema/vouchers.schema';
-import { generateRandomString } from '../utils/generate-random-string.util';
-import { VoucherCodeStatus } from '../constants/voucher-codes-status.enum';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
+import { generateRandomString } from 'src/common/utils/generate-random-string.util';
+import { VoucherCodeStatus } from 'src/common/constants/voucher-codes-status.enum';
 
 @Injectable()
 export class LeaderboardRewardCron {

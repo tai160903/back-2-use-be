@@ -13,18 +13,29 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { BorrowTransaction } from '../borrow-transactions/schemas/borrow-transactions.schema';
+import { SystemSetting } from '../system-settings/schemas/system-setting.schema';
+import { calculateLateReturnInfo } from '../borrow-transactions/utils/calculate-late-return';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Users.name) private userModel: Model<Users>,
+
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
+
     @InjectModel(ProductGroup.name)
     private productGroupModel: Model<ProductGroup>,
+
     @InjectModel(ProductSize.name) private productSizeModel: Model<ProductSize>,
+
     @InjectModel(Product.name) private productModel: Model<Product>,
+
     @InjectModel(BorrowTransaction.name)
     private borrowTransactionModel: Model<BorrowTransaction>,
+
+    @InjectModel(SystemSetting.name)
+    private systemSettingsModel: Model<SystemSetting>,
+
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -187,12 +198,12 @@ export class ProductsService {
       const product = await this.productModel
         .findOne({ serialNumber, isDeleted: false })
         .select(
-          '_id serialNumber qrCode status condition reuseCount lastConditionImages lastConditionNote',
+          '_id serialNumber  qrCode status condition reuseCount lastConditionImages lastConditionNote',
         )
-        .populate('productGroupId', 'name description imageUrl')
+        .populate('productGroupId', 'name businessId description imageUrl')
         .populate(
           'productSizeId',
-          'sizeName depositValue weight plasticEquivalentWeight description',
+          'sizeName businessId depositValue weight plasticEquivalentWeight description',
         );
 
       if (!product) {
@@ -207,13 +218,42 @@ export class ProductsService {
         .select(
           '_id borrowDate dueDate returnDate status depositAmount borrowTransactionType qrCode ',
         )
-        .populate('customerId', 'fullName phone yob address');
+        .populate('customerId', 'fullName phone yob address')
+        .populate(
+          'businessId',
+          'businessName businessMail businessPhone businessAddress openTime closeTime businessLogoUrl',
+        );
+
+      let lateInfo: any = null;
+
+      if (
+        activeTransaction &&
+        ['borrowing', 'lost'].includes(activeTransaction.status)
+      ) {
+        const borrowPolicy = await this.systemSettingsModel.findOne({
+          category: 'borrow',
+          key: 'borrow_policy',
+        });
+
+        if (!borrowPolicy) {
+          throw new HttpException(
+            'Borrow policy not found',
+            HttpStatus.NOT_FOUND,
+          );
+        }
+
+        lateInfo = calculateLateReturnInfo(
+          activeTransaction,
+          borrowPolicy.value,
+        );
+      }
 
       return {
         success: true,
         data: {
           product,
           transaction: activeTransaction || null,
+          lateInfo: lateInfo || null,
         },
       };
     } catch (error) {
@@ -331,25 +371,36 @@ export class ProductsService {
     productGroupId: string,
     page: number = 1,
     limit: number = 10,
+    status?: string,
+    condition?: string,
   ): Promise<APIResponseDto> {
     try {
       const skip = (page - 1) * limit;
 
+      const filter: Record<string, any> = {
+        productGroupId: new Types.ObjectId(productGroupId),
+        isDeleted: false,
+      };
+
+      if (status) {
+        filter.status = status;
+      } else {
+        filter.status = 'available';
+      }
+
+      if (condition) {
+        filter.condition = condition;
+      }
+
       const products = await this.productModel
-        .find({
-          status: 'available',
-          productGroupId: new Types.ObjectId(productGroupId),
-        })
+        .find(filter)
         .skip(skip)
         .populate('productSizeId')
         .populate('productGroupId')
         .limit(limit)
         .sort({ createdAt: -1 });
 
-      const total = await this.productModel.countDocuments({
-        status: 'available',
-        productGroupId: new Types.ObjectId(productGroupId),
-      });
+      const total = await this.productModel.countDocuments(filter);
 
       return {
         statusCode: HttpStatus.OK,
