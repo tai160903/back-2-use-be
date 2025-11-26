@@ -8,6 +8,7 @@ import {
   BusinessesSchema,
 } from '../businesses/schemas/businesses.schema';
 import { Users, UsersSchema } from '../users/schemas/users.schema';
+import { MailerModule } from 'src/infrastructure/mailer/mailer.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { Users, UsersSchema } from '../users/schemas/users.schema';
       { name: Businesses.name, schema: BusinessesSchema },
       { name: Users.name, schema: UsersSchema },
     ]),
+    MailerModule,
   ],
   controllers: [StaffsController],
   providers: [StaffsService],
