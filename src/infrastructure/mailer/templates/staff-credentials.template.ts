@@ -1,6 +1,8 @@
-export function staffCredentialsTemplate(
-  params: { fullName?: string; username: string; tempPassword: string },
-) {
+export function staffCredentialsTemplate(params: {
+  fullName?: string;
+  username: string;
+  tempPassword: string;
+}) {
   const displayName = params.fullName || 'Bạn';
   return `
 <!DOCTYPE html>
@@ -47,4 +49,4 @@ export function staffCredentialsTemplate(
     </table>
   </body>
 </html>`;
-
+}
