@@ -59,18 +59,33 @@ export class BorrowTransactionsController {
   }
   @Patch('confirm/:id')
   @ApiOperation({
-    summary: 'Confirm a borrow transaction',
-    description: 'Confirms a borrow transaction by updating its status.',
+    summary: 'Confirm borrow transaction',
+    description:
+      'Business, staff or manager confirms a pending_pickup borrow transaction (moves to borrowing).',
   })
   @ApiBearerAuth('access-token')
   @ApiParam({
     name: 'id',
-    description: 'The ID of the borrow transaction to confirm.',
+    description: 'Borrow transaction ID to confirm',
     example: '6730a0f9e6b01a2e8f1c2d34',
   })
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
-  confirm(@Param('id') id: string) {
-    return this.borrowTransactionsService.confirmBorrowTransaction(id);
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles([
+      RolesEnum.BUSINESS,
+      RolesEnum.STAFF,
+      RolesEnum.MANAGER,
+    ]),
+  )
+  confirm(
+    @Param('id') id: string,
+    @Request() req: { user: { _id: string; role: RolesEnum } },
+  ) {
+    return this.borrowTransactionsService.confirmBorrowTransaction(
+      req.user._id,
+      id,
+      req.user.role,
+    );
   }
 
   @Get('business')
@@ -82,7 +97,14 @@ export class BorrowTransactionsController {
   @ApiQuery({ name: 'productName', required: false })
   @ApiQuery({ name: 'serialNumber', required: false })
   @ApiQuery({ name: 'borrowTransactionType', required: false })
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles([
+      RolesEnum.BUSINESS,
+      RolesEnum.STAFF,
+      RolesEnum.MANAGER,
+    ]),
+  )
   getBusinessTransactions(
     @Request() req: { user: { _id: string } },
     @Query('page') page = '1',
@@ -113,7 +135,14 @@ export class BorrowTransactionsController {
   @ApiQuery({ name: 'productName', required: false })
   @ApiQuery({ name: 'serialNumber', required: false })
   @ApiQuery({ name: 'borrowTransactionType', required: false })
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles([
+      RolesEnum.BUSINESS,
+      RolesEnum.STAFF,
+      RolesEnum.MANAGER,
+    ]),
+  )
   getBusinessHistory(
     @Request() req: { user: { _id: string } },
     @Query('status') status?: string,
@@ -128,7 +157,14 @@ export class BorrowTransactionsController {
   @Get('business/:id')
   @ApiOperation({ summary: 'Get borrow transaction detail (business)' })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles([
+      RolesEnum.BUSINESS,
+      RolesEnum.STAFF,
+      RolesEnum.MANAGER,
+    ]),
+  )
   getBusinessTransactionDetail(
     @Request() req: { user: { _id: string } },
     @Param('id') id: string,
@@ -145,7 +181,14 @@ export class BorrowTransactionsController {
     description: 'Fetches all pending transactions for a specific business.',
   })
   @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['business']))
+  @UseGuards(
+    AuthGuard('jwt'),
+    RoleCheckGuard.withRoles([
+      RolesEnum.BUSINESS,
+      RolesEnum.STAFF,
+      RolesEnum.MANAGER,
+    ]),
+  )
   getBusinessPendingTransactions(@Request() req: { user: { _id: string } }) {
     return this.borrowTransactionsService.getBusinessPendingTransactions(
       req.user._id,
