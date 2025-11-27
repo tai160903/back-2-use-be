@@ -2,11 +2,9 @@ export function applyConditionChange(
   product,
   transaction,
   dto,
-  urls: string[],
   isLate: boolean,
 ) {
   product.lastConditionNote = dto.note;
-  product.lastConditionImages = urls;
 
   transaction.returnDate = new Date();
 

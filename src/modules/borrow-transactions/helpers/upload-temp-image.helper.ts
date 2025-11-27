@@ -1,6 +1,6 @@
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 
-export async function processImages(
+export async function uploadTempImages(
   images: {
     frontImage?: Express.Multer.File[];
     backImage?: Express.Multer.File[];

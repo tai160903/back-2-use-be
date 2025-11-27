@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ProductFace } from 'src/common/constants/product-face.enum';
 
 export type ProductDocument = HydratedDocument<Product>;
 
@@ -32,8 +33,43 @@ export class Product {
   @Prop()
   lastConditionNote: string;
 
-  @Prop({ type: [String], default: [] })
-  lastConditionImages: string[];
+  @Prop({
+    type: {
+      topImage: String,
+      bottomImage: String,
+      frontImage: String,
+      backImage: String,
+      leftImage: String,
+      rightImage: String,
+    },
+    default: {},
+  })
+  lastConditionImages: {
+    topImage?: string;
+    bottomImage?: string;
+    frontImage?: string;
+    backImage?: string;
+    leftImage?: string;
+    rightImage?: string;
+  };
+
+  @Prop({
+    type: [
+      {
+        face: {
+          type: String,
+          enum: Object.values(ProductFace),
+          required: true,
+        },
+        issue: { type: String, required: true },
+      },
+    ],
+    default: [],
+  })
+  lastDamageFaces: {
+    face: ProductFace;
+    issue: string;
+  }[];
 
   @Prop({ default: false })
   isDeleted: boolean;
