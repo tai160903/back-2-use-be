@@ -15,6 +15,7 @@ export async function loadEntities(
     customerModel;
     walletsModel;
     systemSettingsModel;
+    staffModel;
   },
 ) {
   const {
@@ -27,19 +28,30 @@ export async function loadEntities(
     customerModel,
     walletsModel,
     systemSettingsModel,
+    staffModel,
   } = models;
 
-  // --- Business ---
-  const business = await businessesModel
+  // --- Staff ---
+  const staff = await staffModel
     .findOne({ userId: new Types.ObjectId(userId) })
     .session(session);
 
-  if (!business)
-    throw new BadRequestException(
-      'User does not belong to any business account.',
-    );
-  if (business.status !== 'active')
+  if (!staff) {
+    throw new BadRequestException('Staff not found.');
+  }
+
+  // --- Business ---
+  const business = await businessesModel
+    .findById(staff.businessId)
+    .session(session);
+
+  if (!business) {
+    throw new BadRequestException('Business not found for this staff.');
+  }
+
+  if (business.status !== 'active') {
     throw new BadRequestException('Business is not active.');
+  }
 
   // --- Product ---
   const product = await productModel
