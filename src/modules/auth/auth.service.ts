@@ -94,22 +94,36 @@ export class AuthService {
       ).toString();
       const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
 
-      const createdUser = new this.usersModel({
-        username: authDto.username,
-        email: authDto.email,
-        password: authDto.password,
-        otpCode,
-        otpExpires,
-      });
+      let createdUser: any;
+      try {
+        createdUser = new this.usersModel({
+          username: authDto.username,
+          email: authDto.email,
+          password: authDto.password,
+          otpCode,
+          otpExpires,
+        });
 
-      await createdUser.save();
+        await createdUser.save();
+      } catch (error: any) {
+        throw new HttpException(
+          error.message || 'Failed to create user',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
 
-      const customer = new this.customersModel({
-        userId: createdUser._id,
-      });
+      try {
+        const customer = new this.customersModel({
+          userId: createdUser._id,
+        });
 
-      await customer.save();
-
+        await customer.save();
+      } catch (error: any) {
+        throw new HttpException(
+          error.message || 'Failed to create customer',
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
       const html = otpEmailTemplate(authDto.username, otpCode);
       const mailer: MailerDto = {
         to: [{ name: authDto.username, address: authDto.email }],
@@ -124,9 +138,9 @@ export class AuthService {
             HttpStatus.INTERNAL_SERVER_ERROR,
           );
         }
-      } catch (error) {
+      } catch (error: any) {
         throw new HttpException(
-          error || 'Failed to send verification email',
+          error?.message || 'Failed to send verification email',
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
@@ -139,7 +153,7 @@ export class AuthService {
         message: 'User registered successfully, check your email for OTP code',
         data: userResponse,
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(
         error.message || 'Internal server error',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -200,7 +214,7 @@ export class AuthService {
       });
       if (!staff) {
         throw new HttpException(
-          'Staff account not found or inactive',
+          'Staff account not found',
           HttpStatus.FORBIDDEN,
         );
       }
@@ -242,7 +256,7 @@ export class AuthService {
           'jwt.refreshToken.signOptions.expiresIn',
         ),
       });
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to generate tokens',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -433,7 +447,14 @@ export class AuthService {
       const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
       user.otpCode = otpCode;
       user.otpExpires = otpExpires;
-      await user.save();
+      try {
+        await user.save();
+      } catch (error: any) {
+        throw new HttpException(
+          error.message || 'Failed to save user',
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
       const html = otpEmailTemplate(customer?.fullName, otpCode);
       const mailer: MailerDto = {
         to: [{ name: customer?.fullName, address: user.email }],
@@ -452,7 +473,7 @@ export class AuthService {
         statusCode: HttpStatus.OK,
         message: 'OTP resent successfully',
       };
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(
         error.message || 'Internal server error',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
@@ -485,7 +506,14 @@ export class AuthService {
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000);
     user.otpCode = otpCode;
     user.otpExpires = otpExpires;
-    await user.save();
+    try {
+      await user.save();
+    } catch (error: any) {
+      throw new HttpException(
+        error.message || 'Failed to save user',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
     const html = otpForgotPasswordTemplate(customer?.fullName, otpCode);
     const mailer: MailerDto = {
       to: [{ name: customer?.fullName, address: user.email }],
@@ -500,7 +528,7 @@ export class AuthService {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-    } catch (error) {
+    } catch (error: any) {
       throw new HttpException(
         error.message || 'Failed to send password reset email',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -552,7 +580,14 @@ export class AuthService {
     if (!user.isActive) {
       user.isActive = true;
     }
-    await user.save();
+    try {
+      await user.save();
+    } catch (error: any) {
+      throw new HttpException(
+        error.message || 'Failed to reset password',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
     return {
       statusCode: 200,
       message: 'Password reset successfully',
@@ -591,7 +626,14 @@ export class AuthService {
       salt,
     );
     user.password = hashedPassword;
-    await user.save();
+    try {
+      await user.save();
+    } catch (error: any) {
+      throw new HttpException(
+        error.message || 'Failed to save user',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
     return {
       statusCode: HttpStatus.OK,
       message: 'Password changed successfully',
@@ -608,26 +650,50 @@ export class AuthService {
 
       const user = await this.usersModel.findOne({ email: req.user.email });
       if (!user) {
-        const newUser = new this.usersModel({
-          name: `${req.user.firstName} ${req.user.lastName}`,
-          email: req.user.email,
-          avatar: req.user.picture,
-          phone: '',
-          isActive: true,
-          password: crypto.randomBytes(16).toString('hex'),
-        });
-        await newUser.save();
-        await this.walletsService.create({
-          userId: newUser._id.toString(),
-          type: 'customer',
-          availableBalance: 0,
-          holdingBalance: 0,
-        });
+        let newUser;
+        try {
+          newUser = new this.usersModel({
+            name: `${req.user.firstName} ${req.user.lastName}`,
+            email: req.user.email,
+            avatar: req.user.picture,
+            phone: '',
+            isActive: true,
+            password: crypto.randomBytes(16).toString('hex'),
+          });
+          await newUser.save();
+        } catch (error: any) {
+          throw new HttpException(
+            error.message || 'Failed to create user',
+            error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+
+        try {
+          await this.walletsService.create({
+            userId: newUser._id.toString(),
+            type: 'customer',
+            availableBalance: 0,
+            holdingBalance: 0,
+          });
+        } catch (error: any) {
+          throw new HttpException(
+            error.message || 'Failed to create wallet',
+            error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
+
         req.user = newUser;
 
-        await new this.customersModel({
-          userId: newUser._id,
-        }).save();
+        try {
+          await new this.customersModel({
+            userId: newUser._id,
+          }).save();
+        } catch (error: any) {
+          throw new HttpException(
+            error.message || 'Failed to create customer',
+            error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+          );
+        }
       } else {
         req.user = user;
       }
@@ -655,7 +721,7 @@ export class AuthService {
           user: req.user,
         },
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error(error.message);
       throw new HttpException(
         'Something went wrong',
@@ -700,14 +766,11 @@ export class AuthService {
           accessToken: newAccessToken,
         },
       };
-    } catch (error) {
-      if (error.name === 'TokenExpiredError') {
-        throw new HttpException(
-          'Refresh token expired',
-          HttpStatus.UNAUTHORIZED,
-        );
-      }
-      throw new HttpException('Invalid refresh token', HttpStatus.UNAUTHORIZED);
+    } catch (error: any) {
+      throw new HttpException(
+        error.message || 'Something went wrong',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
   }
 }
