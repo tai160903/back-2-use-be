@@ -54,7 +54,11 @@ export class MonthlyLeaderboardsService {
 
     const populate = {
       path: 'customerId',
-      select: 'fullName phone address yob',
+      select: 'fullName phone address yob userId',
+      populate: {
+        path: 'userId',
+        select: 'avatar',
+      },
     };
 
     const { data, total, totalPages, currentPage } = await paginate(

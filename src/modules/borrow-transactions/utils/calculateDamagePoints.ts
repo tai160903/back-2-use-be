@@ -2,8 +2,6 @@ export function calculateTotalDamagePoints(
   dto: any,
   damagePolicy: Record<string, number> = {},
 ) {
-  console.log('damagePolicy loaded:', damagePolicy);
-
   const faces = [
     dto.frontIssue,
     dto.backIssue,

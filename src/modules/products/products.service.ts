@@ -198,7 +198,7 @@ export class ProductsService {
       const product = await this.productModel
         .findOne({ serialNumber, isDeleted: false })
         .select(
-          '_id serialNumber  qrCode status condition reuseCount lastConditionImages lastConditionNote',
+          '_id serialNumber qrCode status condition reuseCount lastConditionImages lastConditionNote lastDamageFaces',
         )
         .populate('productGroupId', 'name businessId description imageUrl')
         .populate(
@@ -215,9 +215,6 @@ export class ProductsService {
           productId: product._id,
           status: { $in: ['pending_pickup', 'borrowing', 'rejected', 'lost'] },
         })
-        .select(
-          '_id borrowDate dueDate returnDate status depositAmount borrowTransactionType qrCode ',
-        )
         .populate('customerId', 'fullName phone yob address')
         .populate(
           'businessId',

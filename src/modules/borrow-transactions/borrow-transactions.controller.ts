@@ -30,10 +30,12 @@ import {
   FileFieldsInterceptor,
   FilesInterceptor,
 } from '@nestjs/platform-express';
-import { UpdateProductConditionDto } from './dto/update-product-condition.dto';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { ValidateDamageIssuePipe } from './pipes/validate-damage-issue.pipe';
+import { CheckProductConditionDto } from './dto/check-product-condition';
+import { ConfirmReturnDto } from './dto/confirm-return-condition.dto';
+import { GetTransactionsDto } from './dto/get-borrow-transactions';
 
 @ApiTags('Borrow Transactions')
 @Controller('borrow-transactions')
@@ -105,24 +107,11 @@ export class BorrowTransactionsController {
   )
   getBusinessTransactions(
     @Request() req: { user: { _id: string } },
-    @Query('page') page = '1',
-    @Query('limit') limit = '10',
-    @Query('status') status?: string,
-    @Query('productName') productName?: string,
-    @Query('serialNumber') serialNumber?: string,
-    @Query('borrowTransactionType') borrowTransactionType?: string,
+    @Query() query: GetTransactionsDto,
   ) {
-    const q = {
-      page: Number(page) || 1,
-      limit: Number(limit) || 10,
-      status,
-      productName,
-      serialNumber,
-      borrowTransactionType,
-    };
     return this.borrowTransactionsService.getBusinessTransactions(
       req.user._id,
-      q,
+      query,
     );
   }
 
@@ -215,13 +204,11 @@ export class BorrowTransactionsController {
   @UseGuards(AuthGuard('jwt'))
   getCustomerHistory(
     @Request() req: { user: { _id: string } },
-    @Query('status') status?: string,
-    @Query('productName') productName?: string,
-    @Query('borrowTransactionType') borrowTransactionType?: string,
+    @Query() query: GetTransactionsDto,
   ) {
     return this.borrowTransactionsService.getCustomerTransactionHistory(
       req.user._id,
-      { status, productName, borrowTransactionType },
+      query,
     );
   }
 
@@ -293,10 +280,18 @@ export class BorrowTransactionsController {
     );
   }
 
-  // POST borrow-transactions/:serialNumber/return-check
-  @Post(':serialNumber/return-check')
+  // GET borrow-transactions/damage-policy
+  @Get('damage-policy')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('access-token')
+  async getDamageIssues() {
+    return this.borrowTransactionsService.getDamageIssues();
+  }
+
+  // POST borrow-transactions/:serialNumber/check
+  @Post(':serialNumber/check')
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UpdateProductConditionDto })
+  @ApiBody({ type: CheckProductConditionDto })
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth('access-token')
   @UsePipes(ValidateDamageIssuePipe)
@@ -331,8 +326,6 @@ export class BorrowTransactionsController {
 
         bottomImage: { type: 'string', format: 'binary' },
         bottomIssue: { type: 'string' },
-
-        note: { type: 'string' },
       },
       required: [
         'frontImage',
@@ -352,12 +345,10 @@ export class BorrowTransactionsController {
 
         'bottomImage',
         'bottomIssue',
-
-        'note',
       ],
     },
   })
-  async confirmReturnCondition(
+  async checkReturn(
     @Param('serialNumber') serialNumber: string,
     @UploadedFiles()
     images: {
@@ -368,14 +359,28 @@ export class BorrowTransactionsController {
       topImage?: Express.Multer.File[];
       bottomImage?: Express.Multer.File[];
     },
-    @Body() dto: UpdateProductConditionDto,
-    @Req() req: AuthenticatedRequest,
+    @Body() dto: CheckProductConditionDto,
+  ) {
+    return this.borrowTransactionsService.checkReturnCondition(
+      serialNumber,
+      dto,
+      images,
+    );
+  }
+
+  // POST borrow-transactions/:serialNumber/confirm
+  @Post(':serialNumber/confirm')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth('access-token')
+  async confirmReturn(
+    @Param('serialNumber') serialNumber: string,
+    @Req() req,
+    @Body() dto: ConfirmReturnDto,
   ) {
     return this.borrowTransactionsService.confirmReturnCondition(
       serialNumber,
       req.user?._id,
       dto,
-      images,
     );
   }
 }

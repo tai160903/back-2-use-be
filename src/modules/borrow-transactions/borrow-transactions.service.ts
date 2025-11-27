@@ -27,7 +27,6 @@ import { ProductSize } from '../product-sizes/schemas/product-size.schema';
 import { Businesses } from '../businesses/schemas/businesses.schema';
 import { ProductGroup } from '../product-groups/schemas/product-group.schema';
 import { SystemSetting } from '../system-settings/schemas/system-setting.schema';
-import { UpdateProductConditionDto } from './dto/update-product-condition.dto';
 import { loadEntities } from './helpers/load-entities.helper';
 import { processImages } from './helpers/process-image.helper';
 import { applyConditionChange } from './helpers/apply-conditon-change.helper';
@@ -45,6 +44,15 @@ import {
   buildCurrentDamageFaces,
 } from './helpers/condition.helper';
 import { calculateTotalDamagePoints } from './utils/calculateDamagePoints';
+import { determineFinalCondition } from './helpers/determine-final-condition.helper';
+import { uploadTempImages } from './helpers/upload-temp-image.helper';
+import { CheckProductConditionDto } from './dto/check-product-condition';
+import { loadEntitiesForCheck } from './helpers/load-entity-for-check.helper';
+import { moveImagesToMain } from './helpers/moves-image-to-main.helper';
+import { ConfirmReturnDto } from './dto/confirm-return-condition.dto';
+import { calculateTotalDamagePointsWhenReturn } from './utils/calculateDamagePointsWhenReturn';
+import { determineFinalConditionWhenReturn } from './helpers/determine-final-condition-when-return.helper';
+import { GetTransactionsDto } from './dto/get-borrow-transactions';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -403,14 +411,7 @@ export class BorrowTransactionsService {
 
   async getBusinessTransactions(
     userId: string,
-    options: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      productName?: string;
-      serialNumber?: string;
-      borrowTransactionType?: string;
-    },
+    options: GetTransactionsDto,
   ): Promise<APIResponseDto> {
     try {
       const business = await this.businessesModel.findOne({
@@ -481,8 +482,7 @@ export class BorrowTransactionsService {
         .find(query)
         .populate({
           path: 'productId',
-          select:
-            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          select: 'qrCode serialNumber productGroupId productSizeId',
           populate: [
             { path: 'productGroupId', select: 'name imageUrl' },
             { path: 'productSizeId', select: 'sizeName' },
@@ -510,6 +510,7 @@ export class BorrowTransactionsService {
       const statusToWalletType: Record<string, string> = {
         borrowing: 'borrow_deposit',
         returned: 'return_refund',
+        return_late: 'penalty',
         rejected: 'deposit_forfeited',
         lost: 'deposit_forfeited',
       };
@@ -607,7 +608,7 @@ export class BorrowTransactionsService {
         .populate({
           path: 'productId',
           select:
-            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+            'qrCode serialNumber status condition reuseCount productGroupId productSizeId',
           populate: [
             { path: 'productGroupId', select: 'name imageUrl' },
             { path: 'productSizeId', select: 'sizeName' },
@@ -662,8 +663,7 @@ export class BorrowTransactionsService {
         })
         .populate({
           path: 'productId',
-          select:
-            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          select: 'qrCode serialNumber productGroupId productSizeId',
           populate: [
             {
               path: 'productGroupId',
@@ -789,14 +789,7 @@ export class BorrowTransactionsService {
 
   async getCustomerTransactionHistory(
     userId: string,
-    options: {
-      page?: number;
-      limit?: number;
-      status?: string;
-      productName?: string;
-      serialNumber?: string;
-      borrowTransactionType?: string;
-    },
+    options: GetTransactionsDto,
   ): Promise<APIResponseDto> {
     try {
       // ===== GET CUSTOMER =====
@@ -869,8 +862,7 @@ export class BorrowTransactionsService {
         .find(query)
         .populate({
           path: 'productId',
-          select:
-            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+          select: 'qrCode serialNumber productGroupId productSizeId',
           populate: [
             {
               path: 'productGroupId',
@@ -904,8 +896,9 @@ export class BorrowTransactionsService {
 
       // ===== MAPPING status -> transactionType =====
       const statusToWalletType: Record<string, string> = {
-        borrowing: 'borrow_deposit', // khi mượn trừ tiền customer
-        returned: 'return_refund', // khi trả nhận lại tiền
+        borrowing: 'borrow_deposit',
+        returned: 'return_refund',
+        return_late: 'penalty',
         // rejected: 'deposit_forfeited',
         // lost: 'deposit_forfeited',
       };
@@ -1353,11 +1346,10 @@ export class BorrowTransactionsService {
     }
   }
 
-  // Business check product when return
-  async confirmReturnCondition(
+  // Check before return
+  async checkReturnCondition(
     serialNumber: string,
-    userId: string,
-    dto: UpdateProductConditionDto,
+    dto: CheckProductConditionDto,
     images: {
       frontImage?: Express.Multer.File[];
       backImage?: Express.Multer.File[];
@@ -1366,6 +1358,78 @@ export class BorrowTransactionsService {
       topImage?: Express.Multer.File[];
       bottomImage?: Express.Multer.File[];
     },
+  ) {
+    const { product, productSize, material, damagePolicy, borrowPolicy } =
+      await loadEntitiesForCheck(serialNumber, {
+        productModel: this.productModel,
+        productGroupModel: this.productGroupModel,
+        productSizeModel: this.productSizeModel,
+        materialModel: this.materialModel,
+        borrowTransactionModel: this.borrowTransactionModel,
+        systemSettingsModel: this.systemSettingsModel,
+      });
+
+    // 1. Upload temp images
+    const tempUploadedUrls = await uploadTempImages(
+      images,
+      this.cloudinaryService,
+    );
+
+    // 2. Build damage faces
+    const previewDamageFaces = buildCurrentDamageFaces(dto);
+
+    // 4. Tính điểm damage
+    const totalPoints = calculateTotalDamagePoints(dto, damagePolicy);
+
+    // 5. Tính condition
+    const previewCondition = determineFinalCondition(
+      dto,
+      damagePolicy,
+      totalPoints,
+    );
+
+    return {
+      success: HttpStatus.OK,
+      message: 'Preview product condition',
+      preview: {
+        serialNumber,
+        damageFaces: previewDamageFaces,
+        tempImages: tempUploadedUrls,
+        totalDamagePoints: totalPoints,
+        finalCondition: previewCondition,
+      },
+    };
+  }
+
+  // Get damage issues
+  async getDamageIssues() {
+    const settings = await this.systemSettingsModel.findOne({
+      key: 'damage_issues',
+      category: 'return_check',
+    });
+
+    if (!settings || !settings.value) {
+      throw new BadRequestException('Damage issues are not configured.');
+    }
+
+    // Convert Object -> Array
+    const issues = Object.entries(settings.value).map(([issue, points]) => ({
+      issue,
+      points,
+    }));
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get damage policy success',
+      data: issues,
+    };
+  }
+
+  // Business confirm when return
+  async confirmReturnCondition(
+    serialNumber: string,
+    userId: string,
+    dto: ConfirmReturnDto,
   ) {
     const session = await this.connection.startSession();
     session.startTransaction();
@@ -1394,41 +1458,52 @@ export class BorrowTransactionsService {
         customerModel: this.customerModel,
         walletsModel: this.walletsModel,
         systemSettingsModel: this.systemSettingsModel,
+        staffModel: this.staffModel,
       });
 
-      const uploadedUrls = await processImages(images, this.cloudinaryService);
+      const conditionImages = dto.tempImages;
 
-      const currentDamageFaces = buildCurrentDamageFaces(dto);
+      // 2. Lấy damageFaces từ preview (đã tính check API)
+      const damageFaces = dto.damageFaces;
 
-      // 2. Build object ảnh từ uploadedUrls
-      const conditionImages = buildConditionImageObject(uploadedUrls);
+      console.log(damageFaces);
 
-      // Gán cho BorrowTransaction
-      borrowTransaction.currentDamageFaces = currentDamageFaces;
+      // Assign
+      borrowTransaction.currentDamageFaces = damageFaces;
       borrowTransaction.currentConditionImages = conditionImages;
 
-      // Gán cho Product
-      product.lastDamageFaces = currentDamageFaces;
+      product.lastDamageFaces = damageFaces;
       product.lastConditionImages = conditionImages;
 
-      const totalDamagePoints = calculateTotalDamagePoints(dto, damagePolicy);
+      // 3. Tính lại điểm để đảm bảo integrity
+      const totalPoints =
+        calculateTotalDamagePointsWhenReturn(damageFaces, damagePolicy) ??
+        dto.totalDamagePoints;
 
-      const finalCondition = totalDamagePoints > 12 ? 'damaged' : 'good';
+      const finalCondition =
+        determineFinalConditionWhenReturn(
+          damageFaces,
+          damagePolicy,
+          totalPoints,
+        ) ?? dto.finalCondition;
 
-      borrowTransaction.totalConditionPoints = totalDamagePoints;
+      borrowTransaction.totalConditionPoints = totalPoints;
 
+      // 4. Tính late
       const lateInfo = calculateLateReturnInfo(borrowTransaction, borrowPolicy);
 
+      // 5. Apply condition
       applyConditionChange(
         product,
         borrowTransaction,
-        { ...dto, condition: finalCondition },
+        { note: dto.note, condition: finalCondition },
         lateInfo.isLate,
       );
 
-      // handle reuse limit
-      handleReuseLimit(product, productGroup.materialId);
+      // 6. Reuse limit
+      handleReuseLimit(product, material);
 
+      // 7. Reward & eco points
       const { addedRewardPoints, addedRankingPoints } = applyRewardPointChange(
         customer,
         borrowTransaction.status,
@@ -1447,6 +1522,7 @@ export class BorrowTransactionsService {
       borrowTransaction.ecoPointChanged = addedEcoPoints;
       borrowTransaction.co2Changed = addedCo2;
 
+      // 8. Save
       await Promise.all([
         product.save({ session }),
         borrowTransaction.save({ session }),
@@ -1454,8 +1530,8 @@ export class BorrowTransactionsService {
         business.save({ session }),
       ]);
 
+      // 9. Refund logic
       if (borrowTransaction.status === 'returned') {
-        // Trả đúng hạn → full refund
         await handleRefund(
           borrowTransaction,
           businessWallet,
@@ -1464,17 +1540,15 @@ export class BorrowTransactionsService {
           this.walletTransactionsModel,
         );
       } else if (borrowTransaction.status === 'return_late') {
-        // Trả trễ trong giới hạn → partial refund
         await handlePartialRefund(
           borrowTransaction,
           businessWallet,
           customerWallet,
           session,
           this.walletTransactionsModel,
-          lateInfo.lateFee, // business giữ lại phần này
+          lateInfo.lateFee,
         );
       } else if (borrowTransaction.status === 'rejected') {
-        // Hư hỏng → forfeit full
         await handleForfeit(
           borrowTransaction,
           businessWallet,
@@ -1487,25 +1561,15 @@ export class BorrowTransactionsService {
 
       return {
         success: true,
-        message: 'Return condition confirmed successfully',
+        message: 'Return condition confirmed',
         data: {
           product,
           borrowTransaction,
-
-          customer: {
-            addedRewardPoints,
-            addedRankingPoints,
-          },
-
-          business: {
-            addedEcoPoints,
-            addedCo2,
-          },
         },
       };
-    } catch (err) {
+    } catch (e) {
       await session.abortTransaction();
-      throw new HttpException(err.message, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(e.message, HttpStatus.INTERNAL_SERVER_ERROR);
     } finally {
       session.endSession();
     }
