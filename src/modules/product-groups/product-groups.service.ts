@@ -5,6 +5,8 @@ import { ProductGroup } from '../product-groups/schemas/product-group.schema';
 import { Model, Types } from 'mongoose';
 import { Users } from '../users/schemas/users.schema';
 import { Businesses } from '../businesses/schemas/businesses.schema';
+import { BusinessSubscriptions } from '../businesses/schemas/business-subscriptions.schema';
+import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
 import { CloudinaryService } from 'src/infrastructure/cloudinary/cloudinary.service';
 
 @Injectable()
@@ -14,6 +16,10 @@ export class ProductGroupsService {
     private productGroupModel: Model<ProductGroup>,
     @InjectModel(Users.name) private userModel: Model<Users>,
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
+    @InjectModel(BusinessSubscriptions.name)
+    private businessSubscriptionModel: Model<BusinessSubscriptions>,
+    @InjectModel(Subscriptions.name)
+    private subscriptionModel: Model<Subscriptions>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
   async getAllProductGroupsByBusiness(
@@ -84,6 +90,42 @@ export class ProductGroupsService {
 
       if (!business) {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Check subscription limits
+      const now = new Date();
+      const activeSub = await this.businessSubscriptionModel
+        .findOne({
+          businessId: new Types.ObjectId(business._id),
+          status: 'active',
+          startDate: { $lte: now },
+          endDate: { $gte: now },
+        })
+        .populate('subscriptionId')
+        .lean();
+
+      if (!activeSub) {
+        throw new HttpException(
+          'No active subscription found',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const subscription = activeSub.subscriptionId as any;
+      const productGroupLimit = subscription?.limits?.productGroupLimit ?? 0;
+
+      // Count existing product groups
+      const existingCount = await this.productGroupModel.countDocuments({
+        businessId: new Types.ObjectId(business._id),
+        isDeleted: false,
+      });
+
+      // Check if limit reached (-1 means unlimited)
+      if (productGroupLimit !== -1 && existingCount >= productGroupLimit) {
+        throw new HttpException(
+          `Product group limit reached. Your plan allows ${productGroupLimit} product group${productGroupLimit !== 1 ? 's' : ''}. Upgrade your subscription to create more.`,
+          HttpStatus.FORBIDDEN,
+        );
       }
 
       const existingProductGroup = await this.productGroupModel.findOne({

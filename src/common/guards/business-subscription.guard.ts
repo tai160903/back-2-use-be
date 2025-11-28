@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import * as jwt from 'jsonwebtoken';
 import { Businesses } from '../../modules/businesses/schemas/businesses.schema';
 import { BusinessSubscriptions } from '../../modules/businesses/schemas/business-subscriptions.schema';
+import { Subscriptions } from '../../modules/subscriptions/schemas/subscriptions.schema';
 
 @Injectable()
 export class BusinessSubscriptionGuard implements CanActivate {
@@ -18,6 +19,8 @@ export class BusinessSubscriptionGuard implements CanActivate {
     private readonly businessModel: Model<Businesses>,
     @InjectModel(BusinessSubscriptions.name)
     private readonly businessSubscriptionModel: Model<BusinessSubscriptions>,
+    @InjectModel(Subscriptions.name)
+    private readonly subscriptionModel: Model<Subscriptions>,
     private readonly configService: ConfigService,
   ) {}
 
@@ -57,16 +60,19 @@ export class BusinessSubscriptionGuard implements CanActivate {
     }
 
     const now = new Date();
-    const hasActive = await this.businessSubscriptionModel.exists({
-      businessId: new Types.ObjectId(business._id),
-      status: 'active',
-      $and: [
-        { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
-        { $or: [{ endDate: null }, { endDate: { $gte: now } }] },
-      ],
-    });
+    const activeSub = await this.businessSubscriptionModel
+      .findOne({
+        businessId: new Types.ObjectId(business._id),
+        status: 'active',
+        $and: [
+          { $or: [{ startDate: null }, { startDate: { $lte: now } }] },
+          { $or: [{ endDate: null }, { endDate: { $gte: now } }] },
+        ],
+      })
+      .populate('subscriptionId')
+      .lean();
 
-    if (!hasActive) {
+    if (!activeSub) {
       throw new ForbiddenException({
         statusCode: 403,
         code: 'NO_ACTIVE_SUBSCRIPTION',
@@ -75,6 +81,12 @@ export class BusinessSubscriptionGuard implements CanActivate {
         action: 'purchase_subscription',
         help: 'Go to the subscriptions screen and buy a plan to continue.',
       });
+    }
+
+    // Attach subscription limits to request for use in services
+    const subscription = activeSub.subscriptionId as any;
+    if (subscription?.limits) {
+      request.subscriptionLimits = subscription.limits;
     }
 
     return true;

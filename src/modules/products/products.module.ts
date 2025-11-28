@@ -20,13 +20,20 @@ import {
   BusinessSubscriptions,
   BusinessSubscriptionsSchema,
 } from '../businesses/schemas/business-subscriptions.schema';
+import {
+  Subscriptions,
+  SubscriptionsSchema,
+} from '../subscriptions/schemas/subscriptions.schema';
 import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.module';
 import { Users, UsersSchema } from '../users/schemas/users.schema';
 import {
   BorrowTransaction,
   BorrowTransactionSchema,
 } from '../borrow-transactions/schemas/borrow-transactions.schema';
-import { SystemSetting, SystemSettingSchema } from '../system-settings/schemas/system-setting.schema';
+import {
+  SystemSetting,
+  SystemSettingSchema,
+} from '../system-settings/schemas/system-setting.schema';
 
 @Module({
   imports: [
@@ -36,6 +43,7 @@ import { SystemSetting, SystemSettingSchema } from '../system-settings/schemas/s
       { name: ProductSize.name, schema: ProductSizeSchema },
       { name: Businesses.name, schema: BusinessesSchema },
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
+      { name: Subscriptions.name, schema: SubscriptionsSchema },
       { name: Users.name, schema: UsersSchema },
       { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
       { name: SystemSetting.name, schema: SystemSettingSchema },

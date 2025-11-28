@@ -6,16 +6,11 @@ import {
   SubscriptionsSchema,
 } from './schemas/subscriptions.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import {
-  SubscriptionFeatures,
-  SubscriptionFeaturesSchema,
-} from './schemas/subscriptions-description.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Subscriptions.name, schema: SubscriptionsSchema },
-      { name: SubscriptionFeatures.name, schema: SubscriptionFeaturesSchema },
     ]),
   ],
   controllers: [SubscriptionsController],

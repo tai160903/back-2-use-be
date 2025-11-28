@@ -5,6 +5,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Users } from '../users/schemas/users.schema';
 import { Model, Types } from 'mongoose';
 import { Businesses } from '../businesses/schemas/businesses.schema';
+import { BusinessSubscriptions } from '../businesses/schemas/business-subscriptions.schema';
+import { Subscriptions } from '../subscriptions/schemas/subscriptions.schema';
 import { Product } from './schemas/product.schema';
 import { ProductSize } from '../product-sizes/schemas/product-size.schema';
 import * as QRCode from 'qrcode';
@@ -22,6 +24,12 @@ export class ProductsService {
     @InjectModel(Users.name) private userModel: Model<Users>,
 
     @InjectModel(Businesses.name) private businessModel: Model<Businesses>,
+
+    @InjectModel(BusinessSubscriptions.name)
+    private businessSubscriptionModel: Model<BusinessSubscriptions>,
+
+    @InjectModel(Subscriptions.name)
+    private subscriptionModel: Model<Subscriptions>,
 
     @InjectModel(ProductGroup.name)
     private productGroupModel: Model<ProductGroup>,
@@ -79,6 +87,45 @@ export class ProductsService {
       }
       if (!productSize) {
         throw new HttpException('Product size not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Check subscription limits
+      const now = new Date();
+      const activeSub = await this.businessSubscriptionModel
+        .findOne({
+          businessId: new Types.ObjectId(business._id),
+          status: 'active',
+          startDate: { $lte: now },
+          endDate: { $gte: now },
+        })
+        .populate('subscriptionId')
+        .lean();
+
+      if (!activeSub) {
+        throw new HttpException(
+          'No active subscription found',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const subscription = activeSub.subscriptionId as any;
+      const productItemLimit = subscription?.limits?.productItemLimit ?? 0;
+
+      // Count existing products (available for loan)
+      const existingCount = await this.productModel.countDocuments({
+        productGroupId,
+        status: { $in: ['available', 'borrowed'] },
+      });
+
+      const newTotal = existingCount + createProductDto.amount;
+
+      // Check if limit would be exceeded (-1 means unlimited)
+      if (productItemLimit !== -1 && newTotal > productItemLimit) {
+        const remaining = Math.max(0, productItemLimit - existingCount);
+        throw new HttpException(
+          `Product loan limit would be exceeded. Your plan allows ${productItemLimit} product${productItemLimit !== 1 ? 's' : ''} for loan. You currently have ${existingCount} and can add ${remaining} more. Upgrade your subscription to create more.`,
+          HttpStatus.FORBIDDEN,
+        );
       }
 
       const prefix = productGroup.name.slice(0, 3).toUpperCase();

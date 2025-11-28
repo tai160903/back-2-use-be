@@ -16,6 +16,10 @@ import {
   BusinessSubscriptions,
   BusinessSubscriptionsSchema,
 } from '../businesses/schemas/business-subscriptions.schema';
+import {
+  Subscriptions,
+  SubscriptionsSchema,
+} from '../subscriptions/schemas/subscriptions.schema';
 import { BusinessSubscriptionGuard } from 'src/common/guards/business-subscription.guard';
 import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.module';
 
@@ -27,6 +31,7 @@ import { CloudinaryModule } from 'src/infrastructure/cloudinary/cloudinary.modul
       { name: Businesses.name, schema: BusinessesSchema },
       { name: Material.name, schema: MaterialSchema },
       { name: BusinessSubscriptions.name, schema: BusinessSubscriptionsSchema },
+      { name: Subscriptions.name, schema: SubscriptionsSchema },
     ]),
     CloudinaryModule,
   ],
