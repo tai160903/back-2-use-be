@@ -3,101 +3,63 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
-  UseGuards,
   Put,
-  UsePipes,
-  ValidationPipe,
+  Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import {
   ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBody,
-  ApiParam,
   ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
-import { UpdateFeaturesDto } from './dto/update-features.dto';
 
-@Controller('subscriptions')
 @ApiTags('Subscriptions')
+@Controller('subscriptions')
 export class SubscriptionsController {
-  constructor(private readonly subscriptionsService: SubscriptionsService) {}
+  constructor(private readonly service: SubscriptionsService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get all subscriptions' })
   findAll() {
-    return this.subscriptionsService.findAll();
-  }
-
-  @Get('/features')
-  @ApiOperation({ summary: 'Get subscription features' })
-  findFeatures() {
-    return this.subscriptionsService.findFeatures();
+    return this.service.findAll();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a subscription by id' })
-  @ApiParam({ name: 'id', type: String })
+  @ApiOperation({ summary: 'Get one subscription' })
+  @ApiParam({ name: 'id', type: 'string' })
   findOne(@Param('id') id: string) {
-    return this.subscriptionsService.findOne(id);
+    return this.service.findOne(id);
   }
 
-  // Subscription features
-
+  // Admin endpoints
   @Post()
   @ApiOperation({ summary: 'Create a subscription' })
-  @ApiResponse({ status: 201, description: 'Subscription created' })
-  @ApiBody({ type: CreateSubscriptionDto })
   @ApiBearerAuth('access-token')
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
-  create(@Body() createSubscriptionDto: CreateSubscriptionDto) {
-    return this.subscriptionsService.create(createSubscriptionDto);
-  }
-
-  @Put('/features')
-  @ApiOperation({ summary: 'Update subscription features' })
-  @ApiBody({ type: UpdateFeaturesDto })
-  @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
-  updateFeatures(@Body() featuresDto: UpdateFeaturesDto) {
-    return this.subscriptionsService.updateFeatures(featuresDto.features);
-  }
-
-  @Delete('/features/:feature')
-  @ApiOperation({ summary: 'Delete subscription feature' })
-  @ApiParam({ name: 'feature', type: String })
-  @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
-  removeFeature(@Param('feature') feature: string) {
-    return this.subscriptionsService.removeFeature(feature);
-  }
-
-  @Patch('delete/:id')
-  @ApiOperation({ summary: 'Delete a subscription' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiBearerAuth('access-token')
-  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
-  delete(@Param('id') id: string) {
-    return this.subscriptionsService.remove(id);
+  create(@Body() dto: CreateSubscriptionDto) {
+    return this.service.create(dto);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Update a subscription' })
-  @ApiParam({ name: 'id', type: String })
   @ApiBearerAuth('access-token')
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
-  update(
-    @Param('id') id: string,
-    @Body() updateSubscriptionDto: UpdateSubscriptionDto,
-  ) {
-    return this.subscriptionsService.update(id, updateSubscriptionDto);
+  update(@Param('id') id: string, @Body() dto: UpdateSubscriptionDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Patch('delete/:id')
+  @ApiOperation({ summary: 'Delete a subscription' })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['admin']))
+  delete(@Param('id') id: string) {
+    return this.service.remove(id);
   }
 }

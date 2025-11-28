@@ -290,16 +290,20 @@ export class BusinessesService {
     if (!business)
       throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
 
-    const trialSub = await this.subscriptionModel.findOne({
-      isTrial: true,
-      isActive: true,
-      isDeleted: { $ne: true },
-    });
+    const trialSub = await this.subscriptionModel
+      .findOne({
+        isTrial: true,
+        isActive: true,
+        isDeleted: { $ne: true },
+      })
+      .lean<Subscriptions & { _id: Types.ObjectId }>();
     if (!trialSub)
       throw new HttpException(
         'No active trial subscription is configured',
         HttpStatus.BAD_REQUEST,
       );
+
+    const trialName: string = trialSub.name;
 
     let businessTrial = await this.businessSubscriptionModel.findOne({
       businessId: business._id,
@@ -357,14 +361,27 @@ export class BusinessesService {
     const startDate =
       activeSub && activeSub.endDate > now ? activeSub.endDate : now;
     const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + trialSub.durationInDays);
+
+    const durationValue: number = trialSub.durationInDays;
+    const durationDays = Number(durationValue);
+
+    if (
+      !trialSub ||
+      typeof durationValue === 'undefined' ||
+      isNaN(durationDays)
+    ) {
+      throw new HttpException(
+        'Invalid trial subscription configuration: durationInDays is missing or invalid',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    endDate.setDate(endDate.getDate() + durationDays);
 
     businessTrial.startDate = startDate;
     businessTrial.endDate = endDate;
     businessTrial.status = startDate <= now ? 'active' : 'pending';
     businessTrial.isTrialUsed = true;
-    await businessTrial.save();
-
     await this.notificationsService.create({
       receiverId: new Types.ObjectId(userId),
       receiverType: 'business',
@@ -374,8 +391,8 @@ export class BusinessesService {
           : 'Trial Scheduled',
       message:
         businessTrial.status === 'active'
-          ? `Your ${trialSub.name} trial has been activated from ${startDate.toDateString()} to ${endDate.toDateString()}.`
-          : `Your ${trialSub.name} trial has been scheduled and will start on ${startDate.toDateString()} after your current subscription ends, lasting until ${endDate.toDateString()}.`,
+          ? `Your ${trialName} trial has been activated from ${startDate.toDateString()} to ${endDate.toDateString()}.`
+          : `Your ${trialName} trial has been scheduled and will start on ${startDate.toDateString()} after your current subscription ends, lasting until ${endDate.toDateString()}.`,
       type: 'manual',
       referenceType: 'subscription',
       referenceId: businessTrial._id,
@@ -389,7 +406,7 @@ export class BusinessesService {
           subject: 'Subscription Activated',
           html: subscriptionActivatedTemplate(
             business.businessName,
-            trialSub.name,
+            trialName,
             now.toDateString(),
             endDate.toDateString(),
           ),

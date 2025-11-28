@@ -27,10 +27,7 @@ import {
   UserBlockHistorySchema,
 } from '../users/schemas/users-block-history';
 import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
-import {
-  Subscriptions,
-  SubscriptionsSchema,
-} from '../subscriptions/schemas/subscriptions.schema';
+
 import {
   BusinessSubscriptions,
   BusinessSubscriptionsSchema,
@@ -80,6 +77,10 @@ import {
 } from '../system-settings/schemas/system-setting.schema';
 import { AdminSystemSettingController } from './controllers/admin-system-setting.controller';
 import { AdminSystemSettingService } from './services/admin-system-setting.service';
+import {
+  Subscriptions,
+  SubscriptionsSchema,
+} from '../subscriptions/schemas/subscriptions.schema';
 
 @Module({
   imports: [

@@ -21,7 +21,6 @@ export class VnpayService {
       enableLog: true,
       loggerFn: ignoreLogger,
     });
-    console.log(this.vnpay);
   }
   createPaymentUrl(params: {
     vnp_Amount: number;

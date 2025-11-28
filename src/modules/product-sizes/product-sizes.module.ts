@@ -18,6 +18,10 @@ import {
 } from '../product-groups/schemas/product-group.schema';
 import { Users, UsersSchema } from '../users/schemas/users.schema';
 import { Material, MaterialSchema } from '../materials/schemas/material.schema';
+import {
+  Subscriptions,
+  SubscriptionsSchema,
+} from '../subscriptions/schemas/subscriptions.schema';
 
 @Module({
   imports: [
@@ -28,6 +32,7 @@ import { Material, MaterialSchema } from '../materials/schemas/material.schema';
       { name: ProductGroup.name, schema: ProductGroupSchema },
       { name: Users.name, schema: UsersSchema },
       { name: Material.name, schema: MaterialSchema },
+      { name: Subscriptions.name, schema: SubscriptionsSchema },
     ]),
   ],
   controllers: [ProductSizesController],
