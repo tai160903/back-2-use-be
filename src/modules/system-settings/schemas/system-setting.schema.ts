@@ -5,7 +5,7 @@ export type SystemSettingDocument = HydratedDocument<SystemSetting>;
 
 @Schema({ timestamps: true })
 export class SystemSetting {
-  @Prop({ type: String, required: true }) 
+  @Prop({ type: String, required: true })
   category: string;
 
   @Prop({ type: String, required: true })

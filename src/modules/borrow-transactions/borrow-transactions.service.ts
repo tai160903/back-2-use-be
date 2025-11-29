@@ -117,14 +117,33 @@ export class BorrowTransactionsService {
       if (!product)
         throw new HttpException('Product not found', HttpStatus.BAD_REQUEST);
 
+      const productGroup = await this.productGroupModel
+        .findById(product.productGroupId)
+        .session(session);
+
       const previousConditionImages = { ...product.lastConditionImages };
 
       const previousDamageFaces = product.lastDamageFaces || [];
 
+      // Load borrow policy early to derive dynamic limits (admin configurable)
+      const borrowPolicy = await this.systemSettingsModel
+        .findOne({
+          key: 'borrow_policy',
+          category: 'borrow',
+        })
+        .session(session);
+
+      if (!borrowPolicy) {
+        throw new HttpException(
+          'Borrow policy settings not found',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
       const maxConcurrent =
-        this.configService.get<number>(
-          'borrowTransactions.maxConcurrentBorrows',
-        ) || 3;
+        Number(borrowPolicy.value?.maxConcurrentBorrows) > 0
+          ? Number(borrowPolicy.value.maxConcurrentBorrows)
+          : 3; // fallback
       const activeCount = await this.borrowTransactionModel
         .countDocuments({
           customerId: customer._id,
@@ -139,11 +158,11 @@ export class BorrowTransactionsService {
         );
       }
 
-      // if (ProductGroup.businessId?.toString() !== dto.businessId?.toString())
-      //   throw new HttpException(
-      //     'Product does not belong to the specified business',
-      //     HttpStatus.BAD_REQUEST,
-      //   );
+      if (productGroup?.businessId?.toString() !== dto.businessId?.toString())
+        throw new HttpException(
+          'Product does not belong to the specified business',
+          HttpStatus.BAD_REQUEST,
+        );
 
       if (product.status !== 'available')
         throw new HttpException(
@@ -160,20 +179,6 @@ export class BorrowTransactionsService {
           'Invalid deposit value',
           HttpStatus.BAD_REQUEST,
         );
-
-      const borrowPolicy = await this.systemSettingsModel
-        .findOne({
-          key: 'borrow_policy',
-          category: 'borrow',
-        })
-        .session(session);
-
-      if (!borrowPolicy) {
-        throw new HttpException(
-          'Borrow policy settings not found',
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
 
       const maxDaysBorrowAllowed = borrowPolicy.value.maxDaysBorrowAllowed;
 
@@ -1578,9 +1583,15 @@ export class BorrowTransactionsService {
   @Cron(CronExpression.EVERY_MINUTE, { timeZone: 'Asia/Ho_Chi_Minh' })
   async cancelExpiredBorrowTransactions() {
     const now = new Date();
-    const autoCancelHours =
-      this.configService.get<number>('borrowTransactions.autoCancelHours') ||
-      24;
+    const borrowPolicy = await this.systemSettingsModel.findOne({
+      key: 'borrow_policy',
+      category: 'borrow',
+    });
+    const autoCancelHours = (() => {
+      const raw = borrowPolicy?.value?.autoCancelHours;
+      const num = typeof raw === 'number' ? raw : Number(raw);
+      return num > 0 ? num : 24; // fallback
+    })();
     const cutoff = new Date(now.getTime() - autoCancelHours * 60 * 60 * 1000);
 
     const expiredTransactions = await this.borrowTransactionModel.find({
