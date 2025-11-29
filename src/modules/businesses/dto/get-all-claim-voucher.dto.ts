@@ -5,7 +5,7 @@ import { Transform, Type } from 'class-transformer';
 import { VouchersStatus } from 'src/common/constants/vouchers-status.enum';
 
 export enum BusinessVoucherStatusFilter {
-  CLAIMED = VouchersStatus.CLAIMED,
+  // CLAIMED = VouchersStatus.CLAIMED,
   INACTIVE = VouchersStatus.INACTIVE,
   ACTIVE = VouchersStatus.ACTIVE,
   EXPIRED = VouchersStatus.EXPIRED,
@@ -13,26 +13,25 @@ export enum BusinessVoucherStatusFilter {
 
 export class GetAllClaimVouchersQueryDto {
   @ApiPropertyOptional({
-    description:
-      'Filter by voucher status (claimed, inactive, active, expired)',
+    description: 'Filter by voucher status ( inactive, active, expired)',
     enum: BusinessVoucherStatusFilter,
-    example: BusinessVoucherStatusFilter.CLAIMED,
+    example: BusinessVoucherStatusFilter.ACTIVE,
   })
   @IsOptional()
   @IsEnum(BusinessVoucherStatusFilter)
   status?: BusinessVoucherStatusFilter;
 
-//   @ApiPropertyOptional({
-//     description:
-//       'Filter by setup state (true = already setup, false = not yet setup)',
-//     example: true,
-//   })
-//   @IsOptional()
-//   @IsBoolean()
-//   @Transform(({ value }) =>
-//     value === 'true' ? true : value === 'false' ? false : undefined,
-//   )
-//   isSetup?: boolean;
+  //   @ApiPropertyOptional({
+  //     description:
+  //       'Filter by setup state (true = already setup, false = not yet setup)',
+  //     example: true,
+  //   })
+  //   @IsOptional()
+  //   @IsBoolean()
+  //   @Transform(({ value }) =>
+  //     value === 'true' ? true : value === 'false' ? false : undefined,
+  //   )
+  //   isSetup?: boolean;
 
   @ApiPropertyOptional({
     description: 'Filter by publish state (true = published, false = hidden)',

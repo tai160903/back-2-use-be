@@ -41,6 +41,12 @@ import {
 import { VoucherCodeStatus } from 'src/common/constants/voucher-codes-status.enum';
 import { UseVoucherAtStoreDto } from '../dto/use-voucher-at-store';
 import { GetVoucherDetailQueryDto } from '../dto/get-voucher-detail.dto';
+import { BusinessCreateVoucherDto } from '../dto/business-create-voucher';
+import { Staff, StaffDocument } from 'src/modules/staffs/schemas/staffs.schema';
+import {
+  Customers,
+  CustomersDocument,
+} from 'src/modules/users/schemas/customer.schema';
 
 @Injectable()
 export class BusinessVoucherService {
@@ -59,6 +65,12 @@ export class BusinessVoucherService {
 
     @InjectModel(EcoRewardPolicy.name)
     private readonly ecoRewardPolicyModel: Model<EcoRewardPolicyDocument>,
+
+    @InjectModel(Staff.name)
+    private readonly staffModel: Model<StaffDocument>,
+
+    @InjectModel(Customers.name)
+    private readonly customerModel: Model<CustomersDocument>,
   ) {}
 
   // Business claim voucher
@@ -261,6 +273,94 @@ export class BusinessVoucherService {
     };
   }
 
+  async createBusinessVoucher(
+    userId: string,
+    dto: BusinessCreateVoucherDto,
+  ): Promise<APIResponseDto<BusinessVouchers>> {
+    const {
+      customName,
+      customDescription,
+      baseCode,
+      maxUsage,
+      discountPercent,
+      rewardPointCost,
+      isPublished,
+      startDate,
+      endDate,
+    } = dto;
+
+    // 1️⃣ Lấy business của user
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new NotFoundException(`No business found for user '${userId}'.`);
+    }
+
+    // 2️⃣ Validate ngày tháng
+    const now = new Date();
+
+    // Nếu không truyền startDate → auto = now
+    const start = startDate ? new Date(startDate) : now;
+
+    if (isNaN(start.getTime())) {
+      throw new BadRequestException(`Invalid startDate format.`);
+    }
+
+    // endDate bắt buộc
+    if (!endDate) {
+      throw new BadRequestException(`endDate is required.`);
+    }
+
+    const end = new Date(endDate);
+
+    if (isNaN(end.getTime())) {
+      throw new BadRequestException(`Invalid endDate format.`);
+    }
+
+    if (end <= start) {
+      throw new BadRequestException(`endDate must be later than startDate.`);
+    }
+
+    // Nếu start là do user truyền → validate không được trước hiện tại
+    if (startDate && start < now) {
+      throw new BadRequestException(`startDate cannot be in the past.`);
+    }
+
+    //  Xác định status
+    let status: VouchersStatus;
+    if (now < start) status = VouchersStatus.INACTIVE;
+    else if (now >= start && now <= end) status = VouchersStatus.ACTIVE;
+    else status = VouchersStatus.EXPIRED;
+
+    const businessVoucher = await this.businessVoucherModel.create({
+      businessId: business._id,
+
+      customName,
+      customDescription,
+
+      baseCode,
+      maxUsage,
+      discountPercent,
+      rewardPointCost,
+      startDate: start,
+      endDate: end,
+
+      voucherType: VoucherType.BUSINESS,
+      status,
+      redeemedCount: 0,
+      isPublished: isPublished ?? true,
+      isSetup: true,
+    });
+
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: `Business voucher '${businessVoucher.customName}' created successfully.`,
+      data: businessVoucher,
+    };
+  }
+
   // Update voucher after setup
   async updateMyVoucher(
     userId: string,
@@ -354,16 +454,23 @@ export class BusinessVoucherService {
   ): Promise<APIResponseDto<VoucherCodes>> {
     const { code } = dto;
 
-    // 1. Tìm business theo userId
-    const business = await this.businessModel.findOne({
+    const staff = await this.staffModel.findOne({
       userId: new Types.ObjectId(userId),
     });
 
-    if (!business) {
-      throw new NotFoundException(`No business found for user '${userId}'.`);
+    if (!staff) {
+      throw new NotFoundException(`No staff found for user '${userId}'.`);
     }
 
-    const businessId = business._id.toString();
+    const businessId = staff.businessId?.toString();
+    if (!businessId) {
+      throw new NotFoundException(`Staff is not linked to any business.`);
+    }
+
+    const business = await this.businessModel.findById(businessId);
+    if (!business) {
+      throw new NotFoundException(`Business not found for staff.`);
+    }
 
     // 2. Tìm voucher code
     const voucherCode = await this.voucherCodeModel.findOne({ fullCode: code });
@@ -702,30 +809,50 @@ export class BusinessVoucherService {
   // Business get voucher code detail
   async getVoucherCodeDetail(
     voucherCodeId: string,
-  ): Promise<APIResponseDto<VoucherCodes>> {
-    const voucherCode = await this.voucherCodeModel
-      .findById(voucherCodeId)
-      .populate([
-        {
-          path: 'redeemedBy',
-
-          select: 'fullName phone yob',
-        },
-        {
-          path: 'businessId',
-          select:
-            'businessName businessAddress businessPhone businessMail businessLogoUrl',
-        },
-      ]);
+  ): Promise<APIResponseDto<any>> {
+    // 1. Lấy voucher code gốc (không populate)
+    const voucherCode = await this.voucherCodeModel.findById(voucherCodeId);
 
     if (!voucherCode) {
       throw new NotFoundException(`Voucher code '${voucherCodeId}' not found`);
     }
 
+    // 2. Lấy info liên quan
+    const [business, customer, voucher] = await Promise.all([
+      this.businessModel
+        .findById(voucherCode.businessId)
+        .select(
+          'businessMail businessName businessAddress businessPhone businessType openTime closeTime businessLogoUrl',
+        ),
+
+      this.customerModel
+        .findById(voucherCode.redeemedBy)
+        .select('fullName phone address yob')
+        .populate({
+          path: 'userId',
+          select: 'avatar',
+        }),
+
+      this.businessVoucherModel
+        .findById(voucherCode.voucherId)
+        .select(
+          'customName customDescription discountPercent baseCode rewardPointCost maxUsage redeemedCount startDate endDate status',
+        ),
+    ]);
+
+    // 3. Build object mới với 3 field bạn muốn
+    const result = {
+      ...voucherCode.toObject(),
+      // new fields
+      businessInfo: business ?? null,
+      customerInfo: customer ?? null,
+      voucherInfo: voucher ?? null,
+    };
+
     return {
       statusCode: HttpStatus.OK,
       message: 'Voucher code detail fetched successfully',
-      data: voucherCode,
+      data: result,
     };
   }
 }
