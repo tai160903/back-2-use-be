@@ -48,7 +48,11 @@ import {
 } from '../eco-reward-policies/schemas/eco-reward-policy.schema';
 import { Vouchers, VouchersSchema } from '../vouchers/schema/vouchers.schema';
 import { BusinessesController } from './controller/businesses.controller';
-import { VoucherCodes, VoucherCodesSchema } from '../voucher-codes/schema/voucher-codes.schema';
+import {
+  VoucherCodes,
+  VoucherCodesSchema,
+} from '../voucher-codes/schema/voucher-codes.schema';
+import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
 
 @Module({
   imports: [
@@ -71,6 +75,7 @@ import { VoucherCodes, VoucherCodesSchema } from '../voucher-codes/schema/vouche
       { name: EcoRewardPolicy.name, schema: EcoRewardPolicySchema },
       { name: Vouchers.name, schema: VouchersSchema },
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
+      { name: Staff.name, schema: StaffSchema },
     ]),
     CloudinaryModule,
     MailerModule,

@@ -229,19 +229,32 @@ export class VouchersService {
     const redeemed = await this.voucherCodeModel.find({
       redeemedBy: new Types.ObjectId(customer._id),
     });
+
     const redeemedVoucherIds = new Set(
       redeemed.map((v) => v.voucherId.toString()),
     );
 
-    // Gắn isRedeemable
-    const enrichedData = data.map((v) => ({
-      ...v.toObject(),
-      isRedeemable:
-        // v.isPublished === true &&
-        v.status === VouchersStatus.ACTIVE &&
-        customer?.rewardPoints >= (v.rewardPointCost ?? 0) &&
-        !redeemedVoucherIds.has(v._id.toString()),
-    }));
+    const enrichedData = await Promise.all(
+      data.map(async (v) => {
+        const voucherObj = v.toObject();
+
+        const businessInfo = await this.businessModel
+          .findById(v.businessId)
+          .select(
+            'businessName businessAddress businessPhone openTime closeTime businessLogoUrl',
+          )
+          .lean();
+
+        return {
+          ...voucherObj,
+          businessInfo,
+          isRedeemable:
+            v.status === VouchersStatus.ACTIVE &&
+            customer.rewardPoints >= (v.rewardPointCost ?? 0) &&
+            !redeemedVoucherIds.has(v._id.toString()),
+        };
+      }),
+    );
 
     return {
       statusCode: HttpStatus.OK,
@@ -296,11 +309,11 @@ export class VouchersService {
         // Convert sang plain object để có thể gắn field mới
         const vc = vcDoc.toObject();
 
-        if (vc.voucherType === 'BUSINESS') {
+        if (vc.voucherType === VoucherType.BUSINESS) {
           vc.voucherInfo = await this.businessVoucherModel
             .findById(vc.voucherId)
             .select(
-              'customName customDescription discountPercent maxUsage redeemedCount startDate endDate',
+              'customName customDescription discountPercent baseCode rewardPointCost maxUsage redeemedCount status startDate endDate',
             )
             .lean();
         } else {

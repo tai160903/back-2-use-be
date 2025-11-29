@@ -26,9 +26,9 @@ import { UpdateBusinessVoucherDto } from '../dto/update-business-voucher.dto';
 import { UseVoucherAtStoreDto } from '../dto/use-voucher-at-store';
 import { VoucherCodes } from 'src/modules/voucher-codes/schema/voucher-codes.schema';
 import { GetVoucherDetailQueryDto } from '../dto/get-voucher-detail.dto';
+import { BusinessCreateVoucherDto } from '../dto/business-create-voucher';
 
 @Controller('business-vouchers')
-@UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
 @ApiBearerAuth('access-token')
 @ApiTags('Voucher (Business)')
 export class BusinessVoucherController {
@@ -36,33 +36,48 @@ export class BusinessVoucherController {
     private readonly businessesVoucherService: BusinessVoucherService,
   ) {}
 
-  // POST business-vouchers/:voucherId/claim
-  @Post(':voucherId/claim')
-  async claimVoucher(
-    @Param('voucherId') voucherId: string,
-    @Body() dto: ClaimVoucherDto,
+  // POST business-vouchers
+  @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
+  @Post('')
+  async createBusinessVoucher(
+    @Body() dto: BusinessCreateVoucherDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<APIResponseDto<BusinessVouchers>> {
     const userId = req.user._id;
-    return this.businessesVoucherService.claimVoucher(userId, voucherId, dto);
+    return this.businessesVoucherService.createBusinessVoucher(userId, dto);
   }
+
+  // POST business-vouchers/:voucherId/claim
+  // @Post(':voucherId/claim')
+  // async claimVoucher(
+  //   @Param('voucherId') voucherId: string,
+  //   @Body() dto: ClaimVoucherDto,
+  //   @Req() req: AuthenticatedRequest,
+  // ): Promise<APIResponseDto<BusinessVouchers>> {
+  //   const userId = req.user._id;
+  //   return this.businessesVoucherService.claimVoucher(userId, voucherId, dto);
+  // }
 
   // POST business-vouchers/:businessVoucherId/setup
-  @Post(':businessVoucherId/setup')
-  async setupClaimedVoucher(
-    @Req() req: AuthenticatedRequest,
-    @Param('businessVoucherId') businessVoucherId: string,
-    @Body() dto: SetupBusinessVoucherDto,
-  ): Promise<APIResponseDto<BusinessVouchers>> {
-    const userId = req.user._id;
-    return this.businessesVoucherService.setupClaimedVoucher(
-      userId,
-      businessVoucherId,
-      dto,
-    );
-  }
+  // @Post(':businessVoucherId/setup')
+  // async setupClaimedVoucher(
+  //   @Req() req: AuthenticatedRequest,
+  //   @Param('businessVoucherId') businessVoucherId: string,
+  //   @Body() dto: SetupBusinessVoucherDto,
+  // ): Promise<APIResponseDto<BusinessVouchers>> {
+  //   const userId = req.user._id;
+  //   return this.businessesVoucherService.setupClaimedVoucher(
+  //     userId,
+  //     businessVoucherId,
+  //     dto,
+  //   );
+  // }
 
   // POST business-vouchers/voucher-codes/use
+  @UseGuards(
+    AuthGuard,
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
+  )
   @Post('voucher-codes/use')
   async useVoucherAtStore(
     @Req() req: AuthenticatedRequest,
@@ -73,6 +88,7 @@ export class BusinessVoucherController {
   }
 
   // PATCH business-vouchers/:id
+  @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
   @Patch(':businessVoucherId')
   async updateMyVoucher(
     @Req() req: AuthenticatedRequest,
@@ -88,18 +104,18 @@ export class BusinessVoucherController {
   }
 
   // GET business-vouchers
-  @Get('')
-  async getBusinessVouchers(
-    @Req() req: AuthenticatedRequest,
-    @Query() query: GetVouchersQueryDto,
-  ): Promise<APIPaginatedResponseDto<any>> {
-    const userId = req.user._id;
-    return this.businessesVoucherService.getAllForBusiness(userId, query);
-  }
+  // @Get('')
+  // async getBusinessVouchers(
+  //   @Req() req: AuthenticatedRequest,
+  //   @Query() query: GetVouchersQueryDto,
+  // ): Promise<APIPaginatedResponseDto<any>> {
+  //   const userId = req.user._id;
+  //   return this.businessesVoucherService.getAllForBusiness(userId, query);
+  // }
 
   // GET business-vouchers/my
   @Get('/my')
-  async getMyClaimedVouchers(
+  async getMyVouchers(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetAllClaimVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
@@ -107,8 +123,12 @@ export class BusinessVoucherController {
     return this.businessesVoucherService.getMyClaimedVouchers(userId, query);
   }
 
-  // GET business-vouchers/:businessVoucherId/detail
-  @Get(':businessVoucherId/detail')
+  // GET business-vouchers/:businessVoucherId/voucher-codes
+  @UseGuards(
+    AuthGuard,
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
+  )
+  @Get(':businessVoucherId/voucher-codes')
   async getBusinessVoucherDetail(
     @Req() req: AuthenticatedRequest,
     @Param('businessVoucherId') businessVoucherId: string,
@@ -123,6 +143,10 @@ export class BusinessVoucherController {
   }
 
   // GET business-vouchers/voucher-codes/:voucherCodeId
+  @UseGuards(
+    AuthGuard,
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
+  )
   @Get('voucher-codes/:voucherCodeId')
   async getVoucherCodeDetail(
     @Param('voucherCodeId') voucherCodeId: string,

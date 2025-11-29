@@ -7,7 +7,7 @@ export type BusinessVoucherDocument = HydratedDocument<BusinessVouchers>;
 
 @Schema({ timestamps: true })
 export class BusinessVouchers {
-  @Prop({ type: Types.ObjectId, ref: 'Vouchers', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Vouchers' })
   templateVoucherId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Businesses', required: true })

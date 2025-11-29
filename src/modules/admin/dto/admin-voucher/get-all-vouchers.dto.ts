@@ -4,25 +4,25 @@ import { IsOptional, IsEnum, IsInt, Min, IsBoolean } from 'class-validator';
 import { VoucherType } from 'src/common/constants/voucher-types.enum';
 
 export class GetAllVouchersQueryDto {
-  @ApiPropertyOptional({
-    enum: VoucherType,
-    description: 'Filter by voucher type (business, leaderboard)',
-  })
+  // @ApiPropertyOptional({
+  //   enum: VoucherType,
+  //   description: 'Filter by voucher type (business, leaderboard)',
+  // })
   @IsOptional()
   @IsEnum(VoucherType)
   voucherType?: VoucherType;
 
-  @ApiPropertyOptional({
-    example: true,
-    description:
-      'Filter by disabled status (true or false) use for business voucher',
-  })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) =>
-    value === 'true' ? true : value === 'false' ? false : undefined,
-  )
-  isDisabled?: boolean;
+  // @ApiPropertyOptional({
+  //   example: true,
+  //   description:
+  //     'Filter by disabled status (true or false) use for business voucher',
+  // })
+  // @IsOptional()
+  // @IsBoolean()
+  // @Transform(({ value }) =>
+  //   value === 'true' ? true : value === 'false' ? false : undefined,
+  // )
+  // isDisabled?: boolean;
 
   @ApiPropertyOptional({
     example: 1,

@@ -17,6 +17,7 @@ import { APIResponseDto } from 'src/common/dtos/api-response.dto';
 import { BorrowTransaction } from '../borrow-transactions/schemas/borrow-transactions.schema';
 import { SystemSetting } from '../system-settings/schemas/system-setting.schema';
 import { calculateLateReturnInfo } from '../borrow-transactions/utils/calculate-late-return';
+import { ProductFace } from 'src/common/constants/product-face.enum';
 
 @Injectable()
 export class ProductsService {
@@ -128,6 +129,8 @@ export class ProductsService {
         );
       }
 
+      const FACE_LIST = Object.values(ProductFace);
+
       const prefix = productGroup.name.slice(0, 3).toUpperCase();
       const timestamp = Date.now();
 
@@ -151,12 +154,28 @@ export class ProductsService {
             'products/qrcodes',
           );
 
+          const lastConditionImages = {
+            topImage: productGroup.imageUrl,
+            bottomImage: productGroup.imageUrl,
+            frontImage: productGroup.imageUrl,
+            backImage: productGroup.imageUrl,
+            leftImage: productGroup.imageUrl,
+            rightImage: productGroup.imageUrl,
+          };
+
+          const lastDamageFaces = FACE_LIST.map((f) => ({
+            face: f,
+            issue: 'none',
+          }));
+
           return {
             productGroupId,
             productSizeId,
             serialNumber,
             qrCode: uploadResult.secure_url,
             condition: 'good',
+            lastConditionImages,
+            lastDamageFaces,
           };
         }),
       );

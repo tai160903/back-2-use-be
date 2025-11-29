@@ -29,6 +29,7 @@ import { UpdateVoucherDto } from '../dto/admin-voucher/update-voucher.dto';
 import { BusinessVouchers } from 'src/modules/businesses/schemas/business-voucher.schema';
 import { GetBusinessVoucherByVoucherIdQueryDto } from '../dto/admin-voucher/get-business-voucher-from-vouchers-query.dto';
 import { GetVoucherCodesByBusinessVoucherIdQueryDto } from '../dto/admin-voucher/get-voucher-codes-from-business-voucher-query.dto';
+import { GetBusinessVouchersQueryDto } from '../dto/admin-voucher/get-all-business-voucher.dto';
 
 @ApiTags('Voucher (Admin)')
 @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.ADMIN]))
@@ -38,14 +39,14 @@ export class AdminVoucherController {
   constructor(private readonly voucherService: AdminVoucherService) {}
 
   // POST admin/vouchers/business
-  @Post('business')
-  @ApiOperation({ summary: 'Admin create business voucher' })
-  @ApiBody({ type: CreateBusinessVoucherDto })
-  async createBusinessVoucher(
-    @Body() dto: CreateBusinessVoucherDto,
-  ): Promise<APIResponseDto<Vouchers>> {
-    return this.voucherService.createVoucher(dto);
-  }
+  // @Post('business')
+  // @ApiOperation({ summary: 'Admin create business voucher' })
+  // @ApiBody({ type: CreateBusinessVoucherDto })
+  // async createBusinessVoucher(
+  //   @Body() dto: CreateBusinessVoucherDto,
+  // ): Promise<APIResponseDto<Vouchers>> {
+  //   return this.voucherService.createVoucher(dto);
+  // }
 
   // POST admin/vouchers/leaderboard
   @Post('leaderboard')
@@ -58,15 +59,21 @@ export class AdminVoucherController {
   }
 
   // GET /admin/vouchers
-  @Get()
-  async getAllVoucher(
+  @Get('leaderboard')
+  async getLeaderboardVoucher(
     @Query() query: GetAllVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-    return this.voucherService.getAllVoucher(query);
+    return this.voucherService.getLeaderboardVoucher(query);
+  }
+
+  // GET /admin/vouchers/businessVoucher
+  @Get('businessVoucher')
+  async getAllBusinessVoucher(@Query() query: GetBusinessVouchersQueryDto) {
+    return this.voucherService.getAllBusinessVouchers(query);
   }
 
   // GET /admin/vouchers/:voucherId
-  @Get(':voucherId')
+  @Get('leaderboard/:voucherId')
   async getVoucherById(
     @Param('voucherId') voucherId: string,
   ): Promise<APIResponseDto<Vouchers>> {
@@ -74,13 +81,13 @@ export class AdminVoucherController {
   }
 
   //  GET /admin/vouchers/:voucherId/businessVoucher
-  @Get(':voucherId/businessVoucher')
-  async getBusinessVoucherByVoucherId(
-    @Param('voucherId') voucherId: string,
-    @Query() query: GetBusinessVoucherByVoucherIdQueryDto,
-  ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
-    return this.voucherService.getBusinessVoucherByVoucherId(voucherId, query);
-  }
+  // @Get(':voucherId/businessVoucher')
+  // async getBusinessVoucherByVoucherId(
+  //   @Param('voucherId') voucherId: string,
+  //   @Query() query: GetBusinessVoucherByVoucherIdQueryDto,
+  // ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
+  //   return this.voucherService.getBusinessVoucherByVoucherId(voucherId, query);
+  // }
 
   //  GET /admin/vouchers/businessVoucher/:businessVoucherId/codes
   @Get('businessVoucher/:businessVoucherId/codes')
@@ -95,11 +102,11 @@ export class AdminVoucherController {
   }
 
   // PATCH /admin/vouchers/:voucherId
-  @Patch('businessVoucher/:voucherId/is-disabled')
-  async updateIsDisabled(
-    @Param('voucherId') voucherId: string,
-    @Body() dto: UpdateVoucherDto,
-  ) {
-    return this.voucherService.updateVoucherTypeBusiness(voucherId, dto);
-  }
+  // @Patch('businessVoucher/:voucherId/is-disabled')
+  // async updateIsDisabled(
+  //   @Param('voucherId') voucherId: string,
+  //   @Body() dto: UpdateVoucherDto,
+  // ) {
+  //   return this.voucherService.updateVoucherTypeBusiness(voucherId, dto);
+  // }
 }

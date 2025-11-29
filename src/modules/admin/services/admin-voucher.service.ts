@@ -37,6 +37,11 @@ import {
 } from 'src/modules/businesses/schemas/business-voucher.schema';
 import { GetBusinessVoucherByVoucherIdQueryDto } from '../dto/admin-voucher/get-business-voucher-from-vouchers-query.dto';
 import { GetVoucherCodesByBusinessVoucherIdQueryDto } from '../dto/admin-voucher/get-voucher-codes-from-business-voucher-query.dto';
+import { GetBusinessVouchersQueryDto } from '../dto/admin-voucher/get-all-business-voucher.dto';
+import {
+  BusinessDocument,
+  Businesses,
+} from 'src/modules/businesses/schemas/businesses.schema';
 
 @Injectable()
 export class AdminVoucherService {
@@ -52,6 +57,9 @@ export class AdminVoucherService {
 
     @InjectModel(EcoRewardPolicy.name)
     private readonly ecoRewardPolicyModel: Model<EcoRewardPolicyDocument>,
+
+    @InjectModel(Businesses.name)
+    private readonly businessModel: Model<BusinessDocument>,
   ) {}
 
   // Admin create voucher
@@ -122,16 +130,20 @@ export class AdminVoucherService {
     };
   }
 
-  // Get all vouchers
-  async getAllVoucher(
+  // Get all leaderboard vouchers
+  async getLeaderboardVoucher(
     query: GetAllVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<Vouchers[]>> {
-    const { voucherType, isDisabled, page = 1, limit = 10 } = query;
+    const { page = 1, limit = 10 } = query;
 
-    const filter: Record<string, any> = {};
+    // const filter: Record<string, any> = {};
 
-    if (voucherType) filter.voucherType = voucherType;
-    if (typeof isDisabled === 'boolean') filter.isDisabled = isDisabled;
+    // if (voucherType) filter.voucherType = voucherType;
+    // if (typeof isDisabled === 'boolean') filter.isDisabled = isDisabled;
+
+    const filter: Record<string, any> = {
+      voucherType: VoucherType.LEADERBOARD,
+    };
 
     const pipeline: any[] = [
       { $match: filter },
@@ -195,6 +207,38 @@ export class AdminVoucherService {
     };
   }
 
+  // Get all business voucher
+  async getAllBusinessVouchers(
+    query: GetBusinessVouchersQueryDto,
+  ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
+    const { page = 1, limit = 10 } = query;
+
+    const filter: Record<string, any> = {};
+
+    const { data, total, currentPage, totalPages } =
+      await paginate<BusinessVouchers>(
+        this.businessVoucherModel,
+        filter,
+        page,
+        limit,
+        undefined,
+        { createdAt: -1 },
+        {
+          path: 'businessId',
+          select:
+            'businessMail businessName businessAddress businessPhone businessType openTime closeTime businessLogoUrl',
+        },
+      );
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get business vouchers successfully',
+      data,
+      total,
+      currentPage,
+      totalPages,
+    };
+  }
   // Get business voucher by voucherId
   async getBusinessVoucherByVoucherId(
     voucherId: string,
@@ -243,7 +287,7 @@ export class AdminVoucherService {
   async getVoucherCodesByBusinessVoucherId(
     businessVoucherId: string,
     query: GetVoucherCodesByBusinessVoucherIdQueryDto,
-  ): Promise<APIPaginatedResponseDto<VoucherCodes[]>> {
+  ): Promise<APIPaginatedResponseDto<any[]>> {
     const { page = 1, limit = 10, status } = query;
 
     const businessVoucher =
@@ -258,61 +302,71 @@ export class AdminVoucherService {
 
     if (status) filter.status = status;
 
-    const result = await paginate(
+    // 1️⃣ Lấy danh sách voucher codes (chưa populate sâu)
+    const { data, total, currentPage, totalPages } = await paginate(
       this.voucherCodeModel,
       filter,
       page,
       limit,
       undefined,
       { createdAt: -1 },
-      [
-        {
-          path: 'redeemedBy',
-          select: 'fullName phone',
+      {
+        path: 'redeemedBy',
+        // select: 'fullName phone address yob userId',
+        populate: {
+          path: 'userId',
+          select: 'avatar',
         },
-      ],
+      },
+    );
+
+    // 2️⃣ Populate thủ công business info + usedByBusinessInfo
+    const populatedData = await Promise.all(
+      data.map(async (vc: any) => {
+        // Business info (owner of voucher)
+        const businessInfo = await this.businessModel
+          .findById(vc.businessId)
+          .select(
+            'businessName businessAddress businessPhone openTime closeTime businessLogoUrl',
+          );
+
+        // UsedBy business info (where the voucher was used)
+        const usedByBusinessInfo = vc.usedByBusinessId
+          ? await this.businessModel
+              .findById(vc.usedByBusinessId)
+              .select(
+                'businessName businessAddress businessPhone openTime closeTime businessLogoUrl',
+              )
+          : null;
+
+        // Customer info (redeemedBy đã populate từ paginate)
+        const customerInfo = vc.redeemedBy
+          ? {
+              _id: vc.redeemedBy._id,
+              fullName: vc.redeemedBy.fullName,
+              phone: vc.redeemedBy.phone,
+              address: vc.redeemedBy.address,
+              yob: vc.redeemedBy.yob,
+              avatar: vc.redeemedBy.userId?.avatar ?? null,
+            }
+          : null;
+
+        return {
+          ...vc.toObject(),
+          businessInfo,
+          customerInfo,
+          usedByBusinessInfo,
+        };
+      }),
     );
 
     return {
-      statusCode: 200,
-      message: 'Get voucher codes successfully',
-      data: result.data,
-      total: result.total,
-      currentPage: result.currentPage,
-      totalPages: result.totalPages,
-    };
-  }
-
-  // Admin update isDisable of voucher
-  async updateVoucherTypeBusiness(
-    voucherId: string,
-    dto: UpdateVoucherDto,
-  ): Promise<APIResponseDto<Vouchers>> {
-    if (!isValidObjectId(voucherId)) {
-      throw new BadRequestException(`Invalid voucher ID '${voucherId}'.`);
-    }
-
-    const voucher = await this.voucherModel.findById(voucherId);
-
-    if (!voucher) {
-      throw new NotFoundException(`Voucher with id '${voucherId}' not found.`);
-    }
-
-    // ❗ Only allow updates for BUSINESS voucher type
-    if (voucher.voucherType !== VoucherType.BUSINESS) {
-      throw new BadRequestException(
-        `Only vouchers with type BUSINESS can be updated. Current type: '${voucher.voucherType}'.`,
-      );
-    }
-
-    voucher.isDisabled = dto.isDisabled;
-
-    const saved = await voucher.save();
-
-    return {
       statusCode: HttpStatus.OK,
-      message: `Voucher '${saved.name}' updated successfully.`,
-      data: saved,
+      message: 'Get voucher codes successfully',
+      data: populatedData,
+      total,
+      currentPage,
+      totalPages,
     };
   }
 }

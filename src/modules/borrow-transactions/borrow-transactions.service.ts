@@ -485,6 +485,9 @@ export class BorrowTransactionsService {
       // ===== FETCH BORROW TRANSACTIONS =====
       const transactions = await this.borrowTransactionModel
         .find(query)
+        .select(
+          '-previousConditionImages -currentConditionImages -previousDamageFaces -currentDamageFaces',
+        )
         .populate({
           path: 'productId',
           select: 'qrCode serialNumber productGroupId productSizeId',
@@ -865,6 +868,9 @@ export class BorrowTransactionsService {
       // ===== FETCH TRANSACTIONS =====
       const transactions = await this.borrowTransactionModel
         .find(query)
+        .select(
+          '-previousConditionImages -currentConditionImages -previousDamageFaces -currentDamageFaces',
+        )
         .populate({
           path: 'productId',
           select: 'qrCode serialNumber productGroupId productSizeId',

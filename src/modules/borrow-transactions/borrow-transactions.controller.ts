@@ -115,27 +115,27 @@ export class BorrowTransactionsController {
     );
   }
 
-  @Get('business/history')
-  @ApiOperation({ summary: 'Get borrow transaction history for business' })
-  @ApiBearerAuth('access-token')
-  @ApiQuery({ name: 'status', required: false })
-  @ApiQuery({ name: 'productName', required: false })
-  @ApiQuery({ name: 'serialNumber', required: false })
-  @ApiQuery({ name: 'borrowTransactionType', required: false })
-  @UseGuards(
-    AuthGuard('jwt'),
-    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
-  )
-  getBusinessHistory(
-    @Request() req: { user: { _id: string } },
-    @Query('status') status?: string,
-    @Query('productName') productName?: string,
-    @Query('serialNumber') serialNumber?: string,
-    @Query('borrowTransactionType') borrowTransactionType?: string,
-  ) {
-    const q = { status, productName, serialNumber, borrowTransactionType };
-    return this.borrowTransactionsService.getBusinessHistory(req.user._id, q);
-  }
+  // @Get('business/history')
+  // @ApiOperation({ summary: 'Get borrow transaction history for business' })
+  // @ApiBearerAuth('access-token')
+  // @ApiQuery({ name: 'status', required: false })
+  // @ApiQuery({ name: 'productName', required: false })
+  // @ApiQuery({ name: 'serialNumber', required: false })
+  // @ApiQuery({ name: 'borrowTransactionType', required: false })
+  // @UseGuards(
+  //   AuthGuard('jwt'),
+  //   RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
+  // )
+  // getBusinessHistory(
+  //   @Request() req: { user: { _id: string } },
+  //   @Query('status') status?: string,
+  //   @Query('productName') productName?: string,
+  //   @Query('serialNumber') serialNumber?: string,
+  //   @Query('borrowTransactionType') borrowTransactionType?: string,
+  // ) {
+  //   const q = { status, productName, serialNumber, borrowTransactionType };
+  //   return this.borrowTransactionsService.getBusinessHistory(req.user._id, q);
+  // }
 
   @Get('business/:id')
   @ApiOperation({ summary: 'Get borrow transaction detail (business)' })
