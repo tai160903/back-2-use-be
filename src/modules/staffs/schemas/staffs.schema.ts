@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { StaffStatus } from 'src/common/constants/staff-status.enum';
 
 export type StaffDocument = HydratedDocument<Staff>;
 
@@ -21,8 +22,8 @@ export class Staff {
   phone?: string;
 
   @Prop({
-    enum: ['active', 'removed'],
-    default: 'active',
+    enum: StaffStatus,
+    default: StaffStatus.ACTIVE,
   })
   status: string;
 }

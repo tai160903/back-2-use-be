@@ -1,5 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { BorrowTransactionStatus } from 'src/common/constants/borrow-transaction-status.enum';
+import { BorrowTransactionType } from 'src/common/constants/borrow-transaction-type.enum';
 import { ProductFace } from 'src/common/constants/product-face.enum';
 
 export type BorrowTransactionDocument = HydratedDocument<BorrowTransaction>;
@@ -15,7 +17,7 @@ export class BorrowTransaction {
   @Prop({ required: true, ref: 'Businesses', type: Types.ObjectId })
   businessId: Types.ObjectId;
 
-  @Prop({ enum: ['borrow', 'return_success', 'return_failed'], required: true })
+  @Prop({ enum: BorrowTransactionType, required: true })
   borrowTransactionType: string;
 
   @Prop({ required: true })
@@ -31,15 +33,7 @@ export class BorrowTransaction {
   depositAmount: number;
 
   @Prop({
-    enum: [
-      'pending_pickup',
-      'borrowing',
-      'returned',
-      'return_late',
-      'rejected',
-      'lost',
-      'canceled',
-    ],
+    enum: BorrowTransactionStatus,
   })
   status: string;
 

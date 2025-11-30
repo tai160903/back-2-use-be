@@ -1096,14 +1096,14 @@ export class BorrowTransactionsService {
         );
       }
 
-      transaction.status = 'canceled';
+      transaction.status = 'cancelled';
       await transaction.save({ session });
 
       await session.commitTransaction();
 
       return {
         statusCode: HttpStatus.OK,
-        message: 'Transaction canceled successfully.',
+        message: 'Transaction cancelled successfully.',
         data: transaction,
       };
     } catch (error) {
@@ -1184,14 +1184,6 @@ export class BorrowTransactionsService {
       }
 
       const extensionCount = transaction.extensionCount || 0;
-      const maxExtensions = 3;
-
-      if (extensionCount >= maxExtensions) {
-        throw new HttpException(
-          `Maximum extension limit reached (${maxExtensions} times). Please return the product.`,
-          HttpStatus.BAD_REQUEST,
-        );
-      }
 
       const borrowPolicy = await this.systemSettingsModel
         .findOne({
@@ -1204,6 +1196,18 @@ export class BorrowTransactionsService {
         throw new HttpException(
           'Borrow policy settings not found',
           HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      const maxExtensions =
+        Number(borrowPolicy.value?.maxExtensions) > 0
+          ? Number(borrowPolicy.value.maxExtensions)
+          : 3; // fallback
+
+      if (extensionCount >= maxExtensions) {
+        throw new HttpException(
+          `Maximum extension limit reached (${maxExtensions} times). Please return the product.`,
+          HttpStatus.BAD_REQUEST,
         );
       }
 
@@ -1637,7 +1641,7 @@ export class BorrowTransactionsService {
           }
         }
 
-        transaction.status = 'canceled';
+        transaction.status = 'cancelled';
         await transaction.save();
       } catch (error) {
         throw new HttpException(

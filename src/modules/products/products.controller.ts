@@ -26,6 +26,8 @@ import {
 } from '@nestjs/swagger';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { ProductCondition } from 'src/common/constants/product-condition.enum';
+import { ProductStatus } from 'src/common/constants/product-status.enum';
 
 @ApiTags('Products')
 @ApiBearerAuth('access-token')
@@ -62,7 +64,7 @@ export class ProductsController {
   @ApiQuery({
     name: 'status',
     required: false,
-    enum: ['available', 'non-available'],
+    enum: ProductStatus,
   })
   @ApiQuery({
     name: 'search',
@@ -156,13 +158,13 @@ export class ProductsController {
   @ApiQuery({
     name: 'status',
     required: false,
-    enum: ['available', 'non-available'],
+    enum: ProductStatus,
     description: 'Filter by product status',
   })
   @ApiQuery({
     name: 'condition',
     required: false,
-    enum: ['good', 'damaged', 'expired', 'lost'],
+    enum: ProductCondition,
     description: 'Filter by product condition',
   })
   @UseGuards(AuthGuard('jwt'))

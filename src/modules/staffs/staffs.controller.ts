@@ -22,6 +22,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { StaffStatus } from 'src/common/constants/staff-status.enum';
 
 @ApiTags('Staffs')
 @Controller('staffs')
@@ -54,7 +55,7 @@ export class StaffsController {
   @ApiQuery({
     name: 'status',
     required: false,
-    enum: ['active', 'inactive', 'removed'],
+    enum: StaffStatus,
   })
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
   findAll(

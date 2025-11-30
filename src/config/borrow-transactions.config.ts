@@ -1,7 +1,7 @@
 import { registerAs } from '@nestjs/config';
 
 export default registerAs('borrowTransactions', () => ({
-  // Number of hours after borrowDate for a 'pending_pickup' transaction to be auto-canceled
+  // Number of hours after borrowDate for a 'pending_pickup' transaction to be auto-cancelled
   autoCancelHours: parseInt(process.env.BORROW_AUTO_CANCEL_HOURS || '24', 10),
   // Max concurrent borrow transactions allowed per customer
   maxConcurrentBorrows: parseInt(process.env.BORROW_MAX_CONCURRENT || '3', 10),

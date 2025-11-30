@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ProductCondition } from 'src/common/constants/product-condition.enum';
 import { ProductFace } from 'src/common/constants/product-face.enum';
+import { ProductStatus } from 'src/common/constants/product-status.enum';
 
 export type ProductDocument = HydratedDocument<Product>;
 
@@ -19,12 +21,12 @@ export class Product {
   serialNumber: string;
 
   @Prop({
-    enum: ['available', 'non-available'],
-    default: 'available',
+    enum: ProductStatus,
+    default: ProductStatus.AVAILABLE,
   })
   status: string;
 
-  @Prop({ enum: ['good', 'damaged', 'expired', 'lost'] })
+  @Prop({ enum: ProductCondition, default: ProductCondition.GOOD })
   condition: string;
 
   @Prop({ default: 0 })

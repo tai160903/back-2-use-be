@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { BusinessSubscriptionStatusEnum } from 'src/common/constants/business-subscription-status.enum';
 
 export type BusinessSubscriptionsDocument =
   HydratedDocument<BusinessSubscriptions>;
@@ -19,8 +20,8 @@ export class BusinessSubscriptions {
   endDate: Date;
 
   @Prop({
-    enum: ['pending', 'active', 'expired', 'canceled', 'failed_renew'],
-    default: 'pending',
+    enum: BusinessSubscriptionStatusEnum,
+    default: BusinessSubscriptionStatusEnum.PENDING,
   })
   status: string;
 

@@ -9,7 +9,7 @@ export enum BorrowTransactionStatus {
   RETURN_LATE = 'return_late',
   REJECTED = 'rejected',
   LOST = 'lost',
-  CANCELED = 'canceled',
+  CANCELED = 'cancelled',
 }
 
 export enum BorrowTransactionType {
