@@ -36,6 +36,8 @@ import { ValidateDamageIssuePipe } from './pipes/validate-damage-issue.pipe';
 import { CheckProductConditionDto } from './dto/check-product-condition';
 import { ConfirmReturnDto } from './dto/confirm-return-condition.dto';
 import { GetTransactionsDto } from './dto/get-borrow-transactions';
+import { BorrowTransactionStatus } from 'src/common/constants/borrow-transaction-status.enum';
+import { BorrowTransactionType } from 'src/common/constants/borrow-transaction-type.enum';
 
 @ApiTags('Borrow Transactions')
 @Controller('borrow-transactions')
@@ -185,15 +187,7 @@ export class BorrowTransactionsController {
     name: 'status',
     required: false,
     description: 'Filter by transaction status.',
-    enum: [
-      'pending_pickup',
-      'borrowing',
-      'returned',
-      'return_late',
-      'rejected',
-      'lost',
-      'canceled',
-    ],
+    enum: BorrowTransactionStatus,
   })
   @ApiQuery({
     name: 'productName',
@@ -204,7 +198,7 @@ export class BorrowTransactionsController {
     name: 'borrowTransactionType',
     required: false,
     description: 'Filter by borrowTransactionType',
-    enum: ['borrow', 'return_success', 'return_failed'],
+    enum: BorrowTransactionType,
   })
   @UseGuards(AuthGuard('jwt'))
   getCustomerHistory(

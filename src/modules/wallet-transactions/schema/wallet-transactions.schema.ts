@@ -1,6 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { PaymentMethod } from 'src/common/constants/payment-method.enum';
 import { TransactionType } from 'src/common/constants/transaction-type.enum';
+import { UserType } from 'src/common/constants/user-type.enum';
+import { WalletBalanceType } from 'src/common/constants/wallet-balance-type.enum';
+import { WalletDirection } from 'src/common/constants/wallet-direction.enum';
+import { WalletReferenceType } from 'src/common/constants/wallet-reference-type.enum';
+import { WalletTransactionStatus } from 'src/common/constants/wallet-transaction-status.enum';
 
 export type WalletTransactionsDocument = HydratedDocument<WalletTransactions>;
 
@@ -12,7 +18,7 @@ export class WalletTransactions {
   @Prop({ type: Types.ObjectId })
   relatedUserId?: Types.ObjectId;
 
-  @Prop({ enum: ['customer', 'business'] })
+  @Prop({ enum: UserType })
   relatedUserType?: string;
 
   @Prop({
@@ -24,22 +30,22 @@ export class WalletTransactions {
   @Prop({ required: true })
   amount: number;
 
-  @Prop({ required: true, enum: ['in', 'out'] })
+  @Prop({ required: true, enum: WalletDirection })
   direction: string;
 
   @Prop({ type: Types.ObjectId })
   referenceId?: Types.ObjectId;
 
   @Prop({
-    enum: ['borrow', 'subscription', 'system', 'manual'],
-    default: 'manual',
+    enum: WalletReferenceType,
+    default: WalletReferenceType.MANUAL,
   })
   referenceType?: string;
 
-  @Prop({ type: String, enum: ['available', 'holding'], default: null })
+  @Prop({ type: String, enum: WalletBalanceType, default: null })
   balanceType?: string | null;
 
-  @Prop({ type: String, enum: ['available', 'holding'], default: null })
+  @Prop({ type: String, enum: WalletBalanceType, default: null })
   toBalanceType?: string | null;
 
   @Prop()
@@ -48,13 +54,13 @@ export class WalletTransactions {
   @Prop({ type: String })
   paymentUrl?: string;
 
-  @Prop({ type: String, enum: ['vnpay', 'momo'] })
+  @Prop({ type: String, enum: PaymentMethod })
   paymentMethod?: string;
 
   @Prop({
     required: true,
-    enum: ['processing', 'completed', 'failed', 'expired'],
-    default: 'processing',
+    enum: WalletTransactionStatus,
+    default: WalletTransactionStatus.PROCESSING,
   })
   status: string;
 }

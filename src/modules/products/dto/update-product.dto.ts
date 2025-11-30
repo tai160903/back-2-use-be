@@ -1,15 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { ProductCondition } from 'src/common/constants/product-condition.enum';
+import { ProductStatus } from 'src/common/constants/product-status.enum';
 
 export class UpdateProductDto {
   @ApiProperty({
     description: 'Product status',
-    enum: ['available', 'non-available'],
+    enum: ProductStatus,
     example: 'available',
     required: false,
   })
   @IsOptional()
-  @IsEnum(['available', 'non-available'], {
+  @IsEnum(ProductStatus, {
     message: 'Status must be either available or non-available',
   })
   status?: string;
@@ -35,11 +37,11 @@ export class UpdateProductDto {
   @ApiProperty({
     description: 'Product condition',
     required: false,
-    enum: ['good', 'damaged', 'expired', 'lost'],
+    enum: ProductCondition,
     example: 'good',
   })
   @IsOptional()
-  @IsEnum(['good', 'damaged', 'expired', 'lost'], {
+  @IsEnum(ProductCondition, {
     message: 'Condition must be one of good, damaged, expired, lost',
   })
   condition?: string;

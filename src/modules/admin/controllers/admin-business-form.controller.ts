@@ -11,6 +11,7 @@ import {
 } from '@nestjs/swagger';
 import { HttpExceptionFilter } from 'src/common/filters/http-exception.filter';
 import { AdminBusinessFormService } from '../services/admin-business-form.service';
+import { BusinessFormStatusEnum } from 'src/common/constants/business-form-status.enum';
 
 @ApiTags('Business Form (Admin)')
 @Controller('admin')
@@ -26,7 +27,7 @@ export class AdminBusinessFormController {
     name: 'status',
     required: false,
     example: 'pending',
-    enum: ['pending', 'approve', 'reject'],
+    enum: BusinessFormStatusEnum,
     description: 'Filter by status: pending, approve, reject',
   })
   @ApiBearerAuth('access-token')

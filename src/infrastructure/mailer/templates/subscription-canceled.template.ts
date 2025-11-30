@@ -66,17 +66,17 @@ export const subscriptionCanceledTemplate = (
     </head>
     <body>
       <div class="header">
-        <h1>Subscription Canceled</h1>
+        <h1>Subscription Cancelled</h1>
       </div>
       <div class="content">
         <p>Dear <strong>${businessName}</strong>,</p>
         
-        <p>This email confirms that your pending subscription has been successfully canceled.</p>
+        <p>This email confirms that your pending subscription has been successfully cancelled.</p>
         
         <div class="info-box">
-          <h2>Canceled Subscription Details</h2>
+          <h2>Cancelled Subscription Details</h2>
           <p><strong>Subscription Plan:</strong> ${subscriptionName}</p>
-          <p><strong>Status:</strong> Canceled</p>
+          <p><strong>Status:</strong> Cancelled</p>
         </div>
         
         <div class="refund-box">
