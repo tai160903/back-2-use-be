@@ -33,6 +33,7 @@ import { Businesses } from '../schemas/businesses.schema';
 import { GetNearbyBusinessesDto } from '../dto/get-nearby-businesses.dto';
 import { CreateBusinessFormDto } from '../dto/create-business-form.dto';
 import { UpdateBusinessDto } from '../dto/update-business.dto';
+import { BusinessStatusEnum } from 'src/common/constants/business-status.enum';
 
 @Controller('businesses')
 @ApiTags('Businesses')
@@ -159,7 +160,7 @@ export class BusinessesController {
     name: 'status',
     required: false,
     example: 'pending',
-    enum: ['pending', 'approved', 'rejected'],
+    enum: BusinessStatusEnum,
     description: 'Status of the business form history',
   })
   @ApiQuery({

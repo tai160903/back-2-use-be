@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
-import { BusinessStatusEnum } from '../../../common/constants/business-status.enum';
 
 export type BusinessDocument = HydratedDocument<Businesses>;
 
@@ -44,12 +43,6 @@ export class Businesses {
 
   @Prop({ required: true, trim: true })
   businessLicenseUrl: string;
-
-  @Prop({
-    enum: Object.values(BusinessStatusEnum),
-    default: BusinessStatusEnum.PENDING,
-  })
-  status: BusinessStatusEnum;
 
   @Prop({
     type: {

@@ -29,13 +29,13 @@ import { subscriptionActivatedTemplate } from 'src/infrastructure/mailer/templat
 import { subscriptionExpiringSoonTemplate } from 'src/infrastructure/mailer/templates/subscription-expiring-soon.template';
 import { autoRenewalSuccessTemplate } from 'src/infrastructure/mailer/templates/auto-renewal-success.template';
 import { autoRenewalFailedTemplate } from 'src/infrastructure/mailer/templates/auto-renewal-failed.template';
-import { subscriptionCanceledTemplate } from 'src/infrastructure/mailer/templates/subscription-canceled.template';
 import { Customers } from '../../users/schemas/customer.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
 import * as moment from 'moment-timezone';
 
 import { Product } from '../../products/schemas/product.schema';
 import { ProductGroup } from '../../product-groups/schemas/product-group.schema';
+import { subscriptionCanceledTemplate } from 'src/infrastructure/mailer/templates/subscription-canceled.template';
 
 @Injectable()
 export class BusinessesService {
@@ -666,7 +666,7 @@ export class BusinessesService {
 
     if (businessSub.status !== 'pending') {
       throw new HttpException(
-        `Cannot cancel subscription with status '${businessSub.status}'. Only pending subscriptions can be canceled.`,
+        `Cannot cancel subscription with status '${businessSub.status}'. Only pending subscriptions can be cancelled.`,
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -675,7 +675,7 @@ export class BusinessesService {
     session.startTransaction();
 
     try {
-      businessSub.status = 'canceled';
+      businessSub.status = 'cancelled';
       await businessSub.save({ session });
 
       const relatedTransaction = await this.walletTransactionsModel.findOne({
@@ -703,7 +703,7 @@ export class BusinessesService {
             transactionType: 'subscription_refund',
             direction: 'in',
             status: 'completed',
-            description: `Refund for canceled subscription`,
+            description: `Refund for cancelled subscription`,
             referenceType: 'subscription',
             referenceId: businessSub._id,
           });
@@ -720,10 +720,10 @@ export class BusinessesService {
       await this.notificationsService.create({
         receiverId: new Types.ObjectId(userId),
         receiverType: 'business',
-        title: 'Subscription Canceled',
+        title: 'Subscription Cancelled',
         message: subscription
-          ? `Your pending ${subscription.name} subscription has been canceled and refunded.`
-          : 'Your pending subscription has been canceled and refunded.',
+          ? `Your pending ${subscription.name} subscription has been cancelled and refunded.`
+          : 'Your pending subscription has been cancelled and refunded.',
         type: 'manual',
         referenceType: 'subscription',
         referenceId: businessSub._id,
@@ -734,7 +734,7 @@ export class BusinessesService {
         try {
           await this.mailerService.sendMail({
             to: [{ address: user.email, name: business.businessName }],
-            subject: 'Subscription Canceled',
+            subject: 'Subscription Cancelled',
             html: subscriptionCanceledTemplate(
               business.businessName,
               subscription.name,
@@ -752,7 +752,7 @@ export class BusinessesService {
 
       return {
         statusCode: HttpStatus.OK,
-        message: 'Pending subscription canceled and refunded successfully',
+        message: 'Pending subscription cancelled and refunded successfully',
         data: businessSub,
       };
     } catch (error) {

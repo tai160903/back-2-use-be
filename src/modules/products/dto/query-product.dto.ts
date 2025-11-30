@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsString, IsEnum, IsNumber, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ProductStatus } from 'src/common/constants/product-status.enum';
 
 export class QueryProductDto {
   @ApiProperty({
@@ -29,11 +30,11 @@ export class QueryProductDto {
 
   @ApiProperty({
     description: 'Filter by status',
-    enum: ['available', 'non-available'],
+    enum: ProductStatus,
     required: false,
   })
   @IsOptional()
-  @IsEnum(['available', 'non-available'])
+  @IsEnum(ProductStatus)
   status?: string;
 
   @ApiProperty({

@@ -1,6 +1,7 @@
 import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateStaffDto } from './create-staff.dto';
 import { IsEmail, IsOptional, IsString, Length, IsIn } from 'class-validator';
+import { StaffStatus } from 'src/common/constants/staff-status.enum';
 
 export class UpdateStaffDto extends PartialType(CreateStaffDto) {
   @ApiPropertyOptional({
@@ -28,9 +29,9 @@ export class UpdateStaffDto extends PartialType(CreateStaffDto) {
 
   @ApiPropertyOptional({
     description: 'Status change',
-    enum: ['active', 'removed'],
+    enum: StaffStatus,
   })
   @IsOptional()
-  @IsIn(['active', 'removed'])
+  @IsIn(Object.values(StaffStatus))
   status?: string;
 }
