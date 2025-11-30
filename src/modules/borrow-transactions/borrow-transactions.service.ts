@@ -53,6 +53,7 @@ import { ConfirmReturnDto } from './dto/confirm-return-condition.dto';
 import { calculateTotalDamagePointsWhenReturn } from './utils/calculateDamagePointsWhenReturn';
 import { determineFinalConditionWhenReturn } from './helpers/determine-final-condition-when-return.helper';
 import { GetTransactionsDto } from './dto/get-borrow-transactions';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -416,15 +417,39 @@ export class BorrowTransactionsService {
 
   async getBusinessTransactions(
     userId: string,
+    role: RolesEnum,
     options: GetTransactionsDto,
   ): Promise<APIResponseDto> {
     try {
-      const business = await this.businessesModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
+      let business;
 
-      if (!business) {
-        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      // === If staff: find staff then business ===
+      if (role === RolesEnum.STAFF) {
+        const staff = await this.staffModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+
+        if (!staff) {
+          throw new NotFoundException('Staff not found');
+        }
+
+        business = await this.businessesModel.findById(staff.businessId);
+        if (!business) {
+          throw new NotFoundException('Business not found for this staff');
+        }
+
+        userId = business.userId.toString();
+      }
+
+      // === If business: find business by own userId ===
+      if (role === RolesEnum.BUSINESS) {
+        business = await this.businessesModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+
+        if (!business) {
+          throw new NotFoundException('Business not found');
+        }
       }
 
       const businessWallet = await this.walletsModel.findOne({
@@ -642,18 +667,38 @@ export class BorrowTransactionsService {
 
   async getBusinessTransactionDetail(
     userId: string,
+    role: RolesEnum,
     transactionId: string,
   ): Promise<APIResponseDto> {
     try {
-      const business = await this.businessesModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
+      let business;
 
-      if (!business) {
-        throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+      if (role === RolesEnum.STAFF) {
+        const staff = await this.staffModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+
+        if (!staff) throw new NotFoundException('Staff not found');
+
+        business = await this.businessesModel.findById(staff.businessId);
+        if (!business)
+          throw new NotFoundException('Business not found for this staff');
+
+        userId = business.userId.toString();
       }
 
-      // Lấy business wallet
+      // ==== BUSINESS OWNER ====
+      if (role === RolesEnum.BUSINESS) {
+        business = await this.businessesModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+
+        if (!business) {
+          throw new NotFoundException('Business not found');
+        }
+      }
+
+      // ==== GET BUSINESS WALLET ====
       const businessWallet = await this.walletsModel.findOne({
         userId: new Types.ObjectId(userId),
         type: 'business',
@@ -663,11 +708,11 @@ export class BorrowTransactionsService {
         throw new NotFoundException('Business wallet not found');
       }
 
-      // Lấy transaction
+      // ==== GET BORROW TRANSACTION DETAIL ====
       const transaction = await this.borrowTransactionModel
         .findOne({
           _id: new Types.ObjectId(transactionId),
-          businessId: business._id,
+          businessId: business._id, // Ensure this tx belongs to this business
         })
         .populate({
           path: 'productId',
@@ -688,17 +733,17 @@ export class BorrowTransactionsService {
         .lean();
 
       if (!transaction) {
-        throw new HttpException('Transaction not found', HttpStatus.NOT_FOUND);
+        throw new NotFoundException('Transaction not found');
       }
 
-      // Lấy toàn bộ wallet transactions của business wallet liên quan tới transactionId
+      // ==== GET ALL WALLET TRANSACTIONS OF THIS BUSINESS WALLET ====
       const walletTransactions = await this.walletTransactionsModel
         .find({
           referenceId: new Types.ObjectId(transactionId),
           referenceType: 'borrow',
           walletId: businessWallet._id,
         })
-        .sort({ createdAt: 1 }) // để xem theo thứ tự thời gian
+        .sort({ createdAt: 1 })
         .lean();
 
       return {
@@ -711,7 +756,7 @@ export class BorrowTransactionsService {
       };
     } catch (error) {
       throw new HttpException(
-        (error as Error).message || 'Failed to fetch transaction detail.',
+        error?.message || 'Failed to fetch transaction detail.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -719,31 +764,43 @@ export class BorrowTransactionsService {
 
   async getBusinessPendingTransactions(
     userId: string,
+    role: RolesEnum,
   ): Promise<APIResponseDto> {
     try {
-      let business = await this.businessesModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
-      if (!business) {
+      let business;
+
+      // ===== STAFF → map sang business.owner =====
+      if (role === RolesEnum.STAFF) {
         const staff = await this.staffModel.findOne({
           userId: new Types.ObjectId(userId),
           status: 'active',
         });
+
         if (!staff) {
-          throw new HttpException(
-            'Business or staff not found',
-            HttpStatus.NOT_FOUND,
-          );
+          throw new NotFoundException('Staff not found');
         }
+
         business = await this.businessesModel.findById(staff.businessId);
         if (!business) {
-          throw new HttpException(
-            'Business not found for staff',
-            HttpStatus.NOT_FOUND,
-          );
+          throw new NotFoundException('Business not found for this staff');
+        }
+
+        // ⚡ CHUYỂN userId về userId của business owner
+        userId = business.userId.toString();
+      }
+
+      // ===== BUSINESS OWNER =====
+      if (role === RolesEnum.BUSINESS) {
+        business = await this.businessesModel.findOne({
+          userId: new Types.ObjectId(userId),
+        });
+
+        if (!business) {
+          throw new NotFoundException('Business not found');
         }
       }
 
+      // ===== FETCH PENDING TRANSACTIONS =====
       const transactions = await this.borrowTransactionModel
         .find({
           businessId: business._id,
@@ -771,25 +828,17 @@ export class BorrowTransactionsService {
           },
         ])
         .select('-businessId')
-        .sort({ createdAt: -1 });
-
-      if (transactions.length === 0) {
-        return {
-          statusCode: HttpStatus.OK,
-          message: 'No pending transactions for business.',
-          data: [],
-        };
-      }
+        .sort({ createdAt: -1 })
+        .lean();
 
       return {
         statusCode: HttpStatus.OK,
-        message: 'Pending transactions for business fetched successfully.',
+        message: 'Pending transactions fetched successfully.',
         data: transactions,
       };
     } catch (error) {
       throw new HttpException(
-        (error as Error).message ||
-          'Failed to fetch pending transactions for business.',
+        error?.message || 'Failed to fetch pending transactions.',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
