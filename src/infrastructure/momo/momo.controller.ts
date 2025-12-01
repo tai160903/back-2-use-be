@@ -47,8 +47,8 @@ export class MomoController {
       status: 'processing',
     });
 
-    const redirectHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
-    const ipnHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`; // reuse for now
+    const redirectHandler = `${process.env.API_BASE_URL}/momo/redirect`;
+    const ipnHandler = `${process.env.API_BASE_URL}/momo/redirect`; // reuse for now
 
     const paymentResponse = await this.momoService.createPaymentUrl({
       amount,
