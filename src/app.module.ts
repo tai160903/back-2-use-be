@@ -30,6 +30,7 @@ import { CronModule } from './common/cron/cron.module';
 import { MonthlyLeaderboardsModule } from './modules/monthly-leaderboards/monthly-leaderboard.module';
 import { MomoModule } from './infrastructure/momo/momo.module';
 import { StaffsModule } from './modules/staffs/staffs.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { StaffsModule } from './modules/staffs/staffs.module';
     MonthlyLeaderboardsModule,
     MomoModule,
     StaffsModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [AppService],
