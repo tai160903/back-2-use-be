@@ -379,6 +379,7 @@ export class BorrowTransactionsController {
     return this.borrowTransactionsService.confirmReturnCondition(
       serialNumber,
       req.user?._id,
+      req.user?.role,
       dto,
     );
   }

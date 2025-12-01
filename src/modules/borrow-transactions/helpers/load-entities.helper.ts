@@ -1,9 +1,11 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Types } from 'mongoose';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 export async function loadEntities(
   serialNumber: string,
   userId: string,
+  role: RolesEnum,
   session,
   models: {
     businessesModel;
@@ -31,26 +33,33 @@ export async function loadEntities(
     staffModel,
   } = models;
 
-  // --- Staff ---
-  const staff = await staffModel
-    .findOne({ userId: new Types.ObjectId(userId) })
-    .session(session);
+  let business;
 
-  if (!staff) {
-    throw new BadRequestException('Staff not found.');
+  // --- Role Staff ---
+  if (role === RolesEnum.STAFF) {
+    const staff = await staffModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .session(session);
+
+    if (!staff) throw new BadRequestException('Staff not found.');
+
+    business = await businessesModel
+      .findById(staff.businessId)
+      .session(session);
+    if (!business)
+      throw new BadRequestException('Business not found for this staff');
+
+    // ⚡ Chuyển userId thành business.ownerId để dùng query ví
+    userId = business.userId.toString();
   }
 
-  // --- Business ---
-  const business = await businessesModel
-    .findById(staff.businessId)
-    .session(session);
+  // --- Role Business ---
+  if (role === RolesEnum.BUSINESS) {
+    business = await businessesModel
+      .findOne({ userId: new Types.ObjectId(userId) })
+      .session(session);
 
-  if (!business) {
-    throw new BadRequestException('Business not found for this staff.');
-  }
-
-  if (business.status !== 'active') {
-    throw new BadRequestException('Business is not active.');
+    if (!business) throw new NotFoundException('Business not found');
   }
 
   // --- Product ---

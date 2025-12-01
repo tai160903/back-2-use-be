@@ -47,6 +47,7 @@ import {
   Customers,
   CustomersDocument,
 } from 'src/modules/users/schemas/customer.schema';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @Injectable()
 export class BusinessVoucherService {
@@ -450,27 +451,48 @@ export class BusinessVoucherService {
   // Business check customer's voucher at store
   async useVoucherAtStore(
     userId: string,
+    role: string,
     dto: UseVoucherAtStoreDto,
   ): Promise<APIResponseDto<VoucherCodes>> {
     const { code } = dto;
 
-    const staff = await this.staffModel.findOne({
-      userId: new Types.ObjectId(userId),
-    });
+    let business;
 
-    if (!staff) {
-      throw new NotFoundException(`No staff found for user '${userId}'.`);
+    //  Role Staff
+    if (role === RolesEnum.STAFF) {
+      const staff = await this.staffModel.findOne({
+        userId: new Types.ObjectId(userId),
+        status: 'active',
+      });
+
+      if (!staff) {
+        throw new BadRequestException('Staff not found.');
+      }
+
+      business = await this.businessModel.findById(staff.businessId);
+      if (!business) {
+        throw new NotFoundException('Business not found for this staff.');
+      }
+
+      userId = business.userId.toString();
     }
 
-    const businessId = staff.businessId?.toString();
-    if (!businessId) {
-      throw new NotFoundException(`Staff is not linked to any business.`);
+    //  Role Business
+    if (role === RolesEnum.BUSINESS) {
+      business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new NotFoundException(`No business found for user '${userId}'.`);
+      }
     }
 
-    const business = await this.businessModel.findById(businessId);
     if (!business) {
-      throw new NotFoundException(`Business not found for staff.`);
+      throw new ForbiddenException('User cannot act on any business.');
     }
+
+    const businessId = business._id.toString();
 
     // 2. Tìm voucher code
     const voucherCode = await this.voucherCodeModel.findOne({ fullCode: code });
@@ -691,16 +713,39 @@ export class BusinessVoucherService {
   // Business get all claimed voucher
   async getMyClaimedVouchers(
     userId: string,
+    role: string,
     query: GetAllClaimVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
     const { page = 1, limit = 10, status, isPublished } = query;
 
-    const business = await this.businessModel.findOne({
-      userId: new Types.ObjectId(userId),
-    });
+    let business;
 
-    if (!business) {
-      throw new NotFoundException(`No business found for user '${userId}'.`);
+    if (role === RolesEnum.STAFF) {
+      const staff = await this.staffModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!staff) {
+        throw new BadRequestException('Staff not found');
+      }
+
+      business = await this.businessModel.findById(staff.businessId);
+
+      if (!business) {
+        throw new NotFoundException('Business not found for this staff');
+      }
+
+      userId = business.userId.toString();
+    }
+
+    if (role === RolesEnum.BUSINESS) {
+      business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new NotFoundException(`Business not found for user '${userId}'`);
+      }
     }
 
     const filter: Record<string, any> = {
@@ -708,50 +753,71 @@ export class BusinessVoucherService {
     };
 
     if (status) filter.status = status;
-    // if (typeof isSetup === 'boolean') filter.isSetup = isSetup;
     if (typeof isPublished === 'boolean') filter.isPublished = isPublished;
 
-    const { data, total, currentPage, totalPages } =
-      await paginate<BusinessVoucherDocument>(
-        this.businessVoucherModel,
-        filter,
-        page,
-        limit,
-        undefined,
-        undefined,
-        {
-          path: 'templateVoucherId',
-          populate: {
-            path: 'ecoRewardPolicyId',
-            select: 'label threshold',
-          },
+    const result = await paginate<BusinessVoucherDocument>(
+      this.businessVoucherModel,
+      filter,
+      page,
+      limit,
+      undefined,
+      undefined,
+      {
+        path: 'templateVoucherId',
+        populate: {
+          path: 'ecoRewardPolicyId',
+          select: 'label threshold',
         },
-      );
+      },
+    );
 
     return {
       statusCode: HttpStatus.OK,
       message: 'Get my claimed vouchers successfully',
-      data,
-      total,
-      currentPage,
-      totalPages,
+      data: result.data,
+      total: result.total,
+      currentPage: result.currentPage,
+      totalPages: result.totalPages,
     };
   }
 
   // Get business voucher detail
   async getBusinessVoucherDetail(
     userId: string,
+    role: string,
     businessVoucherId: string,
     query: GetVoucherDetailQueryDto,
   ): Promise<APIResponseDto<any>> {
     const { page = 1, limit = 10, status } = query;
 
-    const business = await this.businessModel.findOne({
-      userId: new Types.ObjectId(userId),
-    });
+    let business;
 
-    if (!business) {
-      throw new NotFoundException(`No business found for user '${userId}'.`);
+    if (role === RolesEnum.STAFF) {
+      const staff = await this.staffModel.findOne({
+        userId: new Types.ObjectId(userId),
+        status: 'active',
+      });
+
+      if (!staff) {
+        throw new BadRequestException('Staff not found.');
+      }
+
+      business = await this.businessModel.findById(staff.businessId);
+      if (!business) {
+        throw new NotFoundException('Business not found for this staff.');
+      }
+
+      userId = business.userId.toString();
+    }
+
+    if (role === RolesEnum.BUSINESS) {
+      business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (!business) {
+        throw new NotFoundException(`No business found for user '${userId}'.`);
+      }
     }
 
     const businessVoucher = await this.businessVoucherModel.findOne({
@@ -763,7 +829,10 @@ export class BusinessVoucherService {
       throw new NotFoundException('Business voucher not found');
     }
 
-    const filter: any = { voucherId: businessVoucher._id };
+    const filter: Record<string, any> = {
+      voucherId: businessVoucher._id,
+    };
+
     if (status) filter.status = status;
 
     const allCodes = await this.voucherCodeModel.find({
@@ -777,11 +846,17 @@ export class BusinessVoucherService {
       expired: allCodes.filter((v) => v.status === 'expired').length,
     };
 
-    // 4. Paginate voucher codes
     const [voucherCodes, total] = await Promise.all([
       this.voucherCodeModel
         .find(filter)
-        .populate('redeemedBy', 'fullName phone')
+        .populate({
+          path: 'redeemedBy',
+          select: 'fullName phone address yob userId',
+          populate: {
+            path: 'userId',
+            select: 'avatar',
+          },
+        })
         .skip((page - 1) * limit)
         .limit(limit)
         .sort({ createdAt: -1 }),
@@ -809,7 +884,7 @@ export class BusinessVoucherService {
   // Business get voucher code detail
   async getVoucherCodeDetail(
     voucherCodeId: string,
-  ): Promise<APIResponseDto<any>> {
+  ): Promise<APIResponseDto<VoucherCodes>> {
     // 1. Lấy voucher code gốc (không populate)
     const voucherCode = await this.voucherCodeModel.findById(voucherCodeId);
 
