@@ -47,8 +47,19 @@ export class FeedbackController {
   @ApiOperation({ summary: 'Get all feedbacks (paginated)' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  findAll(@Query('page') page?: number, @Query('limit') limit?: number) {
-    return this.feedbackService.findAll(page ?? 1, limit ?? 10);
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: Number,
+    example: 5,
+    description: 'Filter by rating (1-5)',
+  })
+  findAll(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('rating') rating?: number,
+  ) {
+    return this.feedbackService.findAll(page ?? 1, limit ?? 10, rating);
   }
 
   @Get('business/:businessId')
@@ -61,15 +72,24 @@ export class FeedbackController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: Number,
+    example: 5,
+    description: 'Filter by rating (1-5)',
+  })
   findByBusiness(
     @Param('businessId') businessId: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('rating') rating?: number,
   ) {
     return this.feedbackService.findByBusiness(
       businessId,
       page ?? 1,
       limit ?? 10,
+      rating,
     );
   }
 
@@ -79,15 +99,24 @@ export class FeedbackController {
   @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles(['customer']))
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: Number,
+    example: 5,
+    description: 'Filter by rating (1-5)',
+  })
   findMyFeedbacks(
     @Req() req: AuthenticatedRequest,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('rating') rating?: number,
   ) {
     return this.feedbackService.findByCustomer(
       req.user._id,
       page ?? 1,
       limit ?? 10,
+      rating,
     );
   }
 
@@ -101,15 +130,24 @@ export class FeedbackController {
   })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+  @ApiQuery({
+    name: 'rating',
+    required: false,
+    type: Number,
+    example: 5,
+    description: 'Filter by rating (1-5)',
+  })
   findByProduct(
     @Param('productId') productId: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('rating') rating?: number,
   ) {
     return this.feedbackService.findByProduct(
       productId,
       page ?? 1,
       limit ?? 10,
+      rating,
     );
   }
 

@@ -127,12 +127,18 @@ export class FeedbackService {
   async findAll(
     page = 1,
     limit = 10,
+    rating?: number,
   ): Promise<APIPaginatedResponseDto<Feedback[]>> {
     const skip = (page - 1) * limit;
 
+    const query: Record<string, any> = {};
+    if (rating !== undefined && rating >= 1 && rating <= 5) {
+      query.rating = rating;
+    }
+
     const [feedbacks, total] = await Promise.all([
       this.feedbackModel
-        .find()
+        .find(query)
         .populate('customerId', 'userId')
         .populate('businessId', 'businessName businessLogoUrl')
         .populate('productId', 'productName image')
@@ -141,7 +147,7 @@ export class FeedbackService {
         .limit(limit)
         .sort({ createdAt: -1 })
         .lean(),
-      this.feedbackModel.countDocuments(),
+      this.feedbackModel.countDocuments(query),
     ]);
 
     return {
@@ -158,16 +164,23 @@ export class FeedbackService {
     businessId: string,
     page = 1,
     limit = 10,
+    rating?: number,
   ): Promise<APIPaginatedResponseDto<Feedback[]>> {
     const skip = (page - 1) * limit;
 
-    const query = { businessId: new Types.ObjectId(businessId) };
+    const query: Record<string, any> = {
+      businessId: new Types.ObjectId(businessId),
+    };
+    if (rating !== undefined && rating >= 1 && rating <= 5) {
+      query.rating = rating;
+    }
 
     const [feedbacks, total] = await Promise.all([
       this.feedbackModel
         .find(query)
         .populate('customerId', 'userId fullName')
         .populate('productId', 'productName image')
+        .populate('businessId', 'businessName businessLogoUrl')
         .populate('borrowTransactionId', 'borrowDate returnDate status')
         .skip(skip)
         .limit(limit)
@@ -207,6 +220,7 @@ export class FeedbackService {
     userId: string,
     page = 1,
     limit = 10,
+    rating?: number,
   ): Promise<APIPaginatedResponseDto<Feedback[]>> {
     const customer = await this.customersModel.findOne({
       userId: new Types.ObjectId(userId),
@@ -217,7 +231,10 @@ export class FeedbackService {
     }
 
     const skip = (page - 1) * limit;
-    const query = { customerId: customer._id };
+    const query: Record<string, any> = { customerId: customer._id };
+    if (rating !== undefined && rating >= 1 && rating <= 5) {
+      query.rating = rating;
+    }
 
     const [feedbacks, total] = await Promise.all([
       this.feedbackModel
@@ -246,10 +263,16 @@ export class FeedbackService {
     productId: string,
     page = 1,
     limit = 10,
+    rating?: number,
   ): Promise<APIPaginatedResponseDto<Feedback[]>> {
     const skip = (page - 1) * limit;
 
-    const query = { productId: new Types.ObjectId(productId) };
+    const query: Record<string, any> = {
+      productId: new Types.ObjectId(productId),
+    };
+    if (rating !== undefined && rating >= 1 && rating <= 5) {
+      query.rating = rating;
+    }
 
     const [feedbacks, total] = await Promise.all([
       this.feedbackModel
