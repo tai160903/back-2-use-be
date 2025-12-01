@@ -83,8 +83,9 @@ export class BusinessVoucherController {
     @Req() req: AuthenticatedRequest,
     @Body() dto: UseVoucherAtStoreDto,
   ): Promise<APIResponseDto<VoucherCodes>> {
-    const userId = req.user._id;
-    return this.businessesVoucherService.useVoucherAtStore(userId, dto);
+    const userId = req.user?._id;
+    const role = req.user?.role;
+    return this.businessesVoucherService.useVoucherAtStore(userId, role, dto);
   }
 
   // PATCH business-vouchers/:id
@@ -115,12 +116,21 @@ export class BusinessVoucherController {
 
   // GET business-vouchers/my
   @Get('/my')
+  @UseGuards(
+    AuthGuard,
+    RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
+  )
   async getMyVouchers(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetAllClaimVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
-    const userId = req.user._id;
-    return this.businessesVoucherService.getMyClaimedVouchers(userId, query);
+    const userId = req.user?._id;
+    const role = req.user?.role;
+    return this.businessesVoucherService.getMyClaimedVouchers(
+      userId,
+      role,
+      query,
+    );
   }
 
   // GET business-vouchers/:businessVoucherId/voucher-codes
@@ -134,9 +144,11 @@ export class BusinessVoucherController {
     @Param('businessVoucherId') businessVoucherId: string,
     @Query() query: GetVoucherDetailQueryDto,
   ) {
-    const userId = req.user._id;
+    const userId = req.user?._id;
+    const role = req.user?.role;
     return this.businessesVoucherService.getBusinessVoucherDetail(
       userId,
+      role,
       businessVoucherId,
       query,
     );

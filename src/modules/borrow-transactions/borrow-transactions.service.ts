@@ -1493,6 +1493,7 @@ export class BorrowTransactionsService {
   async confirmReturnCondition(
     serialNumber: string,
     userId: string,
+    role: RolesEnum,
     dto: ConfirmReturnDto,
   ) {
     const session = await this.connection.startSession();
@@ -1512,7 +1513,7 @@ export class BorrowTransactionsService {
         rewardPolicy,
         borrowPolicy,
         damagePolicy,
-      } = await loadEntities(serialNumber, userId, session, {
+      } = await loadEntities(serialNumber, userId, role, session, {
         businessesModel: this.businessesModel,
         productModel: this.productModel,
         productGroupModel: this.productGroupModel,
@@ -1529,8 +1530,6 @@ export class BorrowTransactionsService {
 
       // 2. Lấy damageFaces từ preview (đã tính check API)
       const damageFaces = dto.damageFaces;
-
-      console.log(damageFaces);
 
       // Assign
       borrowTransaction.currentDamageFaces = damageFaces;
