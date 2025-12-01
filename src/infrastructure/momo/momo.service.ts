@@ -197,9 +197,6 @@ export class MomoService {
       .update(rawSignature)
       .digest('hex');
 
-    console.log('signature', signature);
-    console.log('signCheck', signCheck);
-
     const isSignatureValid = signCheck === signature;
     const isSuccess = isSignatureValid && resultCode === '0';
 
