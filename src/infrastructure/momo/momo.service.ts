@@ -30,10 +30,7 @@ export class MomoService {
       const secretKey =
         process.env.MOMO_SECRET_KEY || 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
       const partnerCode = process.env.MOMO_PARTNER_CODE || 'MOMO';
-      const redirectUrl =
-        process.env.MOMO_REDIRECT_URL || 'http://localhost:8000/momo/redirect';
-      const ipnUrl =
-        process.env.MOMO_IPN_URL || 'http://localhost:8000/momo/redirect';
+
       const requestType = 'payWithMethod';
 
       const requestId = params.orderId; // reuse internal id
@@ -51,7 +48,7 @@ export class MomoService {
         '&extraData=' +
         extraData +
         '&ipnUrl=' +
-        ipnUrl +
+        params.ipnUrl +
         '&orderId=' +
         params.orderId +
         '&orderInfo=' +
@@ -59,7 +56,7 @@ export class MomoService {
         '&partnerCode=' +
         partnerCode +
         '&redirectUrl=' +
-        redirectUrl +
+        params.redirectUrl +
         '&requestId=' +
         requestId +
         '&requestType=' +
