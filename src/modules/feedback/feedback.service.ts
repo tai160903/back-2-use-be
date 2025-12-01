@@ -178,7 +178,14 @@ export class FeedbackService {
     const [feedbacks, total] = await Promise.all([
       this.feedbackModel
         .find(query)
-        .populate('customerId', 'userId fullName')
+        .populate({
+          path: 'customerId',
+          select: 'userId fullName',
+          populate: {
+            path: 'userId',
+            select: 'avatar',
+          },
+        })
         .populate('productId', 'productName image')
         .populate('businessId', 'businessName businessLogoUrl')
         .populate('borrowTransactionId', 'borrowDate returnDate status')
@@ -277,7 +284,14 @@ export class FeedbackService {
     const [feedbacks, total] = await Promise.all([
       this.feedbackModel
         .find(query)
-        .populate('customerId', 'userId fullName')
+        .populate({
+          path: 'customerId',
+          select: 'userId fullName',
+          populate: {
+            path: 'userId',
+            select: 'avatar',
+          },
+        })
         .populate('businessId', 'businessName businessLogoUrl')
         .populate('borrowTransactionId', 'borrowDate returnDate status')
         .skip(skip)
@@ -317,7 +331,14 @@ export class FeedbackService {
   async findOne(id: string): Promise<APIResponseDto> {
     const feedback = await this.feedbackModel
       .findById(id)
-      .populate('customerId', 'userId fullName')
+      .populate({
+        path: 'customerId',
+        select: 'userId fullName',
+        populate: {
+          path: 'userId',
+          select: 'avatar',
+        },
+      })
       .populate('businessId', 'businessName businessLogoUrl businessAddress')
       .populate('productId', 'productName image productGroup')
       .populate('borrowTransactionId', 'borrowDate returnDate status productId')
