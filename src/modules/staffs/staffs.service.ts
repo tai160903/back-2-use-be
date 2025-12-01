@@ -23,6 +23,54 @@ export class StaffsService {
     private readonly mailerService: MailerService,
   ) {}
 
+  async getStaffProfile(userId: string): Promise<APIResponseDto> {
+    try {
+      const user = await this.usersModel.findById(userId);
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      if (user.role !== RolesEnum.STAFF) {
+        throw new HttpException(
+          'Only staff can access this endpoint',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+
+      const staff = await this.staffModel
+        .findOne({ userId: new Types.ObjectId(userId) })
+        .populate(
+          'businessId',
+          'businessName businessLogoUrl businessAddress businessPhone',
+        )
+        .lean();
+
+      if (!staff) {
+        throw new HttpException('Staff not found', HttpStatus.NOT_FOUND);
+      }
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Staff profile retrieved successfully',
+        data: {
+          ...staff,
+          user: {
+            _id: user._id,
+            username: user.username,
+            email: user.email,
+            avatar: user.avatar,
+            role: user.role,
+          },
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        (error as Error).message || 'Failed to get staff profile',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async createStaff(
     dto: CreateStaffDto,
     businessUserId: string,

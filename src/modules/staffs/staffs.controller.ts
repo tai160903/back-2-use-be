@@ -29,6 +29,17 @@ import { StaffStatus } from 'src/common/constants/staff-status.enum';
 export class StaffsController {
   constructor(private readonly staffsService: StaffsService) {}
 
+  @Get('profile')
+  @ApiOperation({
+    summary: 'Get staff profile',
+    description: 'Get profile information for the logged-in staff.',
+  })
+  @ApiBearerAuth('access-token')
+  @UseGuards(AuthGuard('jwt'), RoleCheckGuard.withRoles([RolesEnum.STAFF]))
+  getProfile(@Request() req: { user: { _id: string } }) {
+    return this.staffsService.getStaffProfile(req.user._id);
+  }
+
   @Post()
   @ApiOperation({
     summary: 'Create staff',
