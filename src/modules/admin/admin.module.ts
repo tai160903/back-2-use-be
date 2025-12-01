@@ -81,6 +81,19 @@ import {
   Subscriptions,
   SubscriptionsSchema,
 } from '../subscriptions/schemas/subscriptions.schema';
+import { AdminDashboardController } from './controllers/admin-dashboard.controller';
+import { AdminDashboardService } from './services/admin-dashboard.service';
+import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
+import {
+  BorrowTransaction,
+  BorrowTransactionSchema,
+} from '../borrow-transactions/schemas/borrow-transactions.schema';
+import {
+  ProductGroup,
+  ProductGroupSchema,
+} from '../product-groups/schemas/product-group.schema';
+import { Product, ProductSchema } from '../products/schemas/product.schema';
+import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
 
 @Module({
   imports: [
@@ -105,10 +118,12 @@ import {
         name: LeaderboardRewardPolicy.name,
         schema: LeaderboardRewardPolicySchema,
       },
-      {
-        name: SystemSetting.name,
-        schema: SystemSettingSchema,
-      },
+      { name: SystemSetting.name, schema: SystemSettingSchema },
+      { name: Staff.name, schema: StaffSchema },
+      { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
+      { name: ProductGroup.name, schema: ProductGroupSchema },
+      { name: Product.name, schema: ProductSchema },
+      { name: Feedback.name, schema: FeedbackSchema },
     ]),
     BusinessesModule,
     MailerModule,
@@ -124,6 +139,7 @@ import {
     AdminLeaderboardPolicyController,
     AdminLeaderboardRewardController,
     AdminSystemSettingController,
+    AdminDashboardController,
   ],
   providers: [
     AdminBusinessFormService,
@@ -135,6 +151,7 @@ import {
     AdminLeaderboardPolicyService,
     AdminLeaderboardRewardService,
     AdminSystemSettingService,
+    AdminDashboardService,
   ],
 })
 export class AdminModule {}
