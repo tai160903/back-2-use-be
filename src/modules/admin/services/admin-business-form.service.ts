@@ -7,7 +7,6 @@ import { Businesses } from '../../businesses/schemas/businesses.schema';
 import { Users } from '../../users/schemas/users.schema';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { BusinessFormStatusEnum } from 'src/common/constants/business-form-status.enum';
-import { BusinessStatusEnum } from 'src/common/constants/business-status.enum';
 import { MailerService } from 'src/infrastructure/mailer/mailer.service';
 import {
   businessApprovedTemplate,
@@ -102,7 +101,6 @@ export class AdminBusinessFormService {
       const business = new this.businessModel({
         userId: user._id,
         businessFormId: businessForm._id,
-        status: BusinessStatusEnum.ACTIVE,
         businessMail: businessForm.businessMail,
         businessName: businessForm.businessName,
         businessAddress: businessForm.businessAddress,

@@ -68,6 +68,12 @@ export class Businesses {
 
   @Prop({ trim: true })
   ecoRankLabel?: string;
+
+  @Prop({ default: 0, min: 0, max: 5 })
+  averageRating: number;
+
+  @Prop({ default: 0, min: 0 })
+  totalReviews: number;
 }
 
 export const BusinessesSchema = SchemaFactory.createForClass(Businesses);
