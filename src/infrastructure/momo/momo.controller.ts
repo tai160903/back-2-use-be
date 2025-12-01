@@ -68,6 +68,7 @@ export class MomoController {
   async redirect(@Query() query: Record<string, string>, @Res() res: Response) {
     try {
       const verify = this.momoService.verifyMomoReturn(query);
+      console.log(verify);
       const orderId = query.orderId;
       const amountStr = query.amount;
       const amount = parseInt(amountStr || '0', 10);
@@ -79,6 +80,8 @@ export class MomoController {
         );
       }
 
+      console.log('Transaction status:', transaction.status);
+
       if (transaction.status === 'completed') {
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-success?status=already-done`,
@@ -87,7 +90,7 @@ export class MomoController {
 
       const wallet = await this.walletsModel.findById(transaction.walletId);
 
-      if (verify.isSuccess) {
+      if (verify.isSuccess === true) {
         transaction.status = 'completed';
         await transaction.save();
         if (wallet) {
@@ -105,6 +108,8 @@ export class MomoController {
             });
           }
         }
+        console.log(transaction);
+        console.log(wallet);
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-success?txnRef=${transaction._id}`,
         );
