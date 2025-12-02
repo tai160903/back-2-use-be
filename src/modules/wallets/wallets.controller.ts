@@ -75,6 +75,7 @@ export class WalletsController {
       depositDto.paymentMethod,
       req,
       userId,
+      depositDto.platform,
     );
   }
 

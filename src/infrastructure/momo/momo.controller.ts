@@ -67,6 +67,7 @@ export class MomoController {
   @Get('redirect')
   async redirect(@Query() query: Record<string, string>, @Res() res: Response) {
     try {
+      const platform = query.platform || 'web';
       const verify = this.momoService.verifyMomoReturn(query);
       console.log(verify);
       const orderId = query.orderId;
@@ -75,6 +76,11 @@ export class MomoController {
 
       const transaction = await this.transactionsModel.findById(orderId);
       if (!transaction) {
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=false&amount=0&orderId=&reason=transaction-not-found`,
+          );
+        }
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=transaction-not-found`,
         );
@@ -83,6 +89,11 @@ export class MomoController {
       console.log('Transaction status:', transaction.status);
 
       if (transaction.status === 'completed') {
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=true&amount=${transaction.amount}&orderId=${transaction._id}`,
+          );
+        }
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-success?status=already-done`,
         );
@@ -110,6 +121,11 @@ export class MomoController {
         }
         console.log(transaction);
         console.log(wallet);
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=true&amount=${amount}&orderId=${transaction._id}`,
+          );
+        }
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-success?txnRef=${transaction._id}`,
         );
@@ -117,10 +133,21 @@ export class MomoController {
 
       transaction.status = 'failed';
       await transaction.save();
+      if (platform === 'mobile') {
+        return res.redirect(
+          `com.back2use://payment-result?success=false&amount=${amount}&orderId=${orderId}&reason=${encodeURIComponent(verify.message)}`,
+        );
+      }
       return res.redirect(
         `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=${encodeURIComponent(verify.message)}`,
       );
     } catch (error) {
+      const platform = query.platform || 'web';
+      if (platform === 'mobile') {
+        return res.redirect(
+          `com.back2use://payment-result?success=false&amount=0&orderId=&reason=server-error`,
+        );
+      }
       return res.redirect(
         `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=server-error`,
       );
@@ -133,6 +160,7 @@ export class MomoController {
     @Res() res: Response,
   ) {
     try {
+      const platform = query.platform || 'web';
       const verify = this.momoService.verifyMomoReturn(query);
       const orderId = query.orderId;
       const amountStr = query.amount;
@@ -140,10 +168,20 @@ export class MomoController {
 
       const transaction = await this.transactionsModel.findById(orderId);
       if (!transaction) {
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=false&amount=0&orderId=`,
+          );
+        }
         return res.redirect('http://192.168.0.199:8081/payment-failed');
       }
 
       if (transaction.status === 'completed') {
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=true&amount=${transaction.amount}&orderId=${transaction._id}`,
+          );
+        }
         return res.redirect(
           `http://192.168.0.199:8081/payment-success/?txnRef=${transaction._id.toString()}`,
         );
@@ -172,6 +210,11 @@ export class MomoController {
           }
         }
 
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=true&amount=${amount}&orderId=${transaction._id}`,
+          );
+        }
         return res.redirect(
           `http://192.168.0.199:8081/payment-success/?txnRef=${transaction._id.toString()}`,
         );
@@ -180,8 +223,19 @@ export class MomoController {
       transaction.status = 'failed';
       await transaction.save();
 
+      if (platform === 'mobile') {
+        return res.redirect(
+          `com.back2use://payment-result?success=false&amount=${amount}&orderId=${orderId}`,
+        );
+      }
       return res.redirect('http://192.168.0.199:8081/payment-failed');
     } catch {
+      const platform = query.platform || 'web';
+      if (platform === 'mobile') {
+        return res.redirect(
+          `com.back2use://payment-result?success=false&amount=0&orderId=`,
+        );
+      }
       return res.redirect('http://192.168.0.199:8081/payment-failed');
     }
   }
