@@ -21,7 +21,14 @@ export class VnpayController {
   @Get('return')
   async vnpayReturn(@Query() query: any, @Res() res: Response) {
     try {
+      const platform = query['platform'] || 'web';
+
       if (!this.vnpayService.verifyVnpayReturn(query)) {
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=false&amount=0&orderId=&reason=invalid-signature`,
+          );
+        }
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-failed?reason=invalid-signature`,
         );
@@ -29,6 +36,9 @@ export class VnpayController {
 
       const transactionId = query['vnp_TxnRef'];
       const responseCode = query['vnp_ResponseCode'];
+      const amount = query['vnp_Amount']
+        ? parseInt(query['vnp_Amount'], 10) / 100
+        : 0;
 
       const transaction = await this.transactionsModel.findById(transactionId);
       if (!transaction) {
@@ -36,6 +46,11 @@ export class VnpayController {
       }
 
       if (transaction.status === 'completed') {
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=true&amount=${transaction.amount}&orderId=${transaction._id}`,
+          );
+        }
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-success?status=already-done`,
         );
@@ -64,6 +79,11 @@ export class VnpayController {
           });
         }
 
+        if (platform === 'mobile') {
+          return res.redirect(
+            `com.back2use://payment-result?success=true&amount=${transaction.amount}&orderId=${transaction._id}`,
+          );
+        }
         return res.redirect(
           `${process.env.CLIENT_RETURN_URL}/payment-success?txnRef=${transaction._id}`,
         );
@@ -74,6 +94,11 @@ export class VnpayController {
 
       // No realtime notification required per updated requirement.
 
+      if (platform === 'mobile') {
+        return res.redirect(
+          `com.back2use://payment-result?success=false&amount=${amount}&orderId=${transactionId}&code=${responseCode}`,
+        );
+      }
       return res.redirect(
         `${process.env.CLIENT_RETURN_URL}/payment-failed?code=${responseCode}`,
       );

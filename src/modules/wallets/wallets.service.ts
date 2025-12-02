@@ -111,6 +111,7 @@ export class WalletsService {
     paymentMethod: PaymentMethod,
     req: AuthenticatedRequest,
     userId?: string,
+    platform?: string,
   ) {
     try {
       if (!amount || typeof amount !== 'number' || amount <= 0) {
@@ -142,8 +143,9 @@ export class WalletsService {
       });
 
       if (paymentMethod === PaymentMethod.MOMO) {
-        const redirectHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
-        const ipnHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect`;
+        const platformParam = platform || 'web';
+        const redirectHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect?platform=${platformParam}`;
+        const ipnHandler = `${process.env.API_BASE_URL || 'http://localhost:8000'}/momo/redirect?platform=${platformParam}`;
 
         const paymentResponse = await this.momoService.createPaymentUrl({
           amount,
@@ -165,7 +167,8 @@ export class WalletsService {
           paymentResponse,
         };
       } else if (paymentMethod === PaymentMethod.VNPAY) {
-        const returnUrl = `${process.env.API_BASE_URL || 'http://localhost:8000'}/vnpay/return`;
+        const platformParam = platform || 'web';
+        const returnUrl = `${process.env.API_BASE_URL || 'http://localhost:8000'}/vnpay/return?platform=${platformParam}`;
 
         const paymentUrl = this.vnpayService.createPaymentUrl({
           vnp_Amount: amount,
