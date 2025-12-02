@@ -11,6 +11,7 @@ export const BusinessProjectionStage = {
     openTime: 1,
     closeTime: 1,
     distance: 1,
+    averageRating: 1,
     // ecoPoints: 1,
     role: '$user.role',
     isActive: '$user.isActive',

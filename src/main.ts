@@ -15,7 +15,7 @@ async function bootstrap() {
     }),
   );
   app.enableCors({
-    origin: '*',
+    origin: ['http://localhost:5173', 'https://back-2-use-fe.vercel.app'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
