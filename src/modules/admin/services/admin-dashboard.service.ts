@@ -47,6 +47,10 @@ import {
   Wallets,
   WalletsDocument,
 } from 'src/modules/wallets/schemas/wallets.schema';
+import { GetTopCustomersQueryDto } from '../dto/admin-dashboard/get-top-customers-query.dto';
+import { GetTopBusinessesQueryDto } from '../dto/admin-dashboard/get-top-business-query.dto';
+import { GetBorrowStatsByMonthDto } from '../dto/admin-dashboard/get-borrow-stats-query.dto';
+import { GetWalletByMonthDto } from '../dto/admin-dashboard/get-wallet-transaction-query.dto';
 
 @Injectable()
 export class AdminDashboardService {
@@ -244,6 +248,360 @@ export class AdminDashboardService {
         averageRating: averageRating,
         totalMoneyInSystem: totalMoneyInSystem,
       },
+    };
+  }
+
+  // Admin get customer by month
+  async getCustomerStatsByMonth(year?: number) {
+    const targetYear = year || new Date().getFullYear();
+
+    const result = await this.customerModel.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: new Date(targetYear, 0, 1),
+            $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { month: { $month: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    // Convert về format 12 tháng (nếu tháng nào không có user thì count = 0)
+    const formatted = Array.from({ length: 12 }, (_, i) => {
+      const found = result.find((r) => r._id.month === i + 1);
+      return {
+        month: i + 1,
+        count: found ? found.count : 0,
+      };
+    });
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get customer by month loaded successfully',
+      year: targetYear,
+      data: formatted,
+    };
+  }
+
+  // Admin get top customer
+  async getTopCustomers(query: GetTopCustomersQueryDto) {
+    const { top = 0, sortBy = 'rankingPoints', order = 'desc' } = query;
+
+    // Lấy tất cả để tính returnRate trước
+    let customers = await this.customerModel
+      .find()
+      .populate({
+        path: 'userId',
+        select: 'avatar',
+      })
+      .lean();
+
+    // Tính returnRate
+    customers = customers.map((c: any) => {
+      const totalReturns =
+        (c.returnSuccessCount ?? 0) + (c.returnFailedCount ?? 0);
+
+      const returnRate =
+        totalReturns > 0 ? (c.returnSuccessCount / totalReturns) * 100 : 0;
+
+      return {
+        ...c,
+        returnRate,
+      };
+    });
+
+    // Sort sau khi đã có returnRate
+    const key: 'rankingPoints' | 'rewardPoints' | 'returnRate' = sortBy;
+
+    customers.sort((a: any, b: any) => {
+      const valA = a[key] ?? 0;
+      const valB = b[key] ?? 0;
+
+      if (order === 'asc') return valA - valB;
+      return valB - valA;
+    });
+
+    // Apply top limit
+    if (top > 0) {
+      customers = customers.slice(0, top);
+    }
+
+    return {
+      status: HttpStatus.OK,
+      message: 'Get top customer successfully',
+      top,
+      data: customers,
+    };
+  }
+
+  // Admin get business by month
+  async getBusinessStatsByMonth(year?: number) {
+    const targetYear = year || new Date().getFullYear();
+
+    const result = await this.businessModel.aggregate([
+      {
+        $match: {
+          createdAt: {
+            $gte: new Date(targetYear, 0, 1),
+            $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { month: { $month: '$createdAt' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    // Format đủ 12 tháng
+    const formatted = Array.from({ length: 12 }, (_, i) => {
+      const found = result.find((r) => r._id.month === i + 1);
+      return {
+        month: i + 1,
+        count: found ? found.count : 0,
+      };
+    });
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Get business by month loaded successfully',
+      year: targetYear,
+      data: formatted,
+    };
+  }
+
+  // Admin get top business
+  async getTopBusinesses(query: GetTopBusinessesQueryDto) {
+    const { top = 0, sortBy = 'co2Reduced', order = 'desc' } = query;
+
+    // Lấy tất cả business
+    let businesses = await this.businessModel.find();
+
+    // Sort theo co2Reduced hoặc ecoPoints
+    const key: 'co2Reduced' | 'ecoPoints' | 'averageRating' = sortBy;
+
+    businesses.sort((a: any, b: any) => {
+      const valA = a[key] ?? 0;
+      const valB = b[key] ?? 0;
+
+      if (order === 'asc') return valA - valB;
+      return valB - valA;
+    });
+
+    // lấy top n
+    if (top > 0) {
+      businesses = businesses.slice(0, top);
+    }
+
+    return {
+      status: HttpStatus.OK,
+      message: 'Get top business successfully',
+      top,
+      data: businesses,
+    };
+  }
+
+  // Admin get borrow transactions by month
+  async getBorrowStatsByMonth(query: GetBorrowStatsByMonthDto) {
+    const { year, type, status } = query;
+    const targetYear = year || new Date().getFullYear();
+
+    const match: any = {
+      borrowDate: {
+        $gte: new Date(targetYear, 0, 1),
+        $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+      },
+    };
+
+    if (type) match.borrowTransactionType = type;
+    if (status) match.status = status;
+
+    const monthly = await this.borrowTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { month: { $month: '$borrowDate' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    // 🎯 TÍNH TỔNG CÁC FIELD QUAN TRỌNG
+    const totals = await this.borrowTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalRewardPoints: { $sum: '$rewardPointChanged' },
+          totalRankingPoints: { $sum: '$rankingPointChanged' },
+          totalEcoPoints: { $sum: '$ecoPointChanged' },
+          totalCo2Reduced: { $sum: '$co2Changed' },
+          totalDepositAmount: { $sum: '$depositAmount' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalRewardPoints: 1,
+          totalRankingPoints: 1,
+          totalEcoPoints: 1,
+          totalCo2Reduced: 1,
+          totalDepositAmount: 1,
+        },
+      },
+    ]);
+
+    const formatted = Array.from({ length: 12 }, (_, i) => {
+      const found = monthly.find((r) => r._id.month === i + 1);
+      return {
+        month: i + 1,
+        count: found ? found.count : 0,
+      };
+    });
+
+    return {
+      statusCode: 200,
+      message: 'Get borrow stats by month successfully',
+      year: targetYear,
+      filter: { type: type ?? 'all', status: status ?? 'all' },
+      data: formatted,
+      totals: totals[0] ?? {
+        totalRewardPoints: 0,
+        totalRankingPoints: 0,
+        totalEcoPoints: 0,
+        totalCo2Reduced: 0,
+        totalDepositAmount: 0,
+      },
+    };
+  }
+
+  // Admin get wallet transactions overview
+  async getWalletTransactionsOverview() {
+    const result = await this.walletTransactionModel.aggregate([
+      { $match: { status: 'completed' } },
+      {
+        $group: {
+          _id: null,
+          totalTopUp: {
+            $sum: {
+              $cond: [{ $eq: ['$transactionType', 'top_up'] }, '$amount', 0],
+            },
+          },
+          totalWithdraw: {
+            $sum: {
+              $cond: [
+                { $eq: ['$transactionType', 'withdrawal'] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalDeposit: {
+            $sum: {
+              $cond: [
+                { $eq: ['$transactionType', 'borrow_deposit'] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalRefund: {
+            $sum: {
+              $cond: [
+                { $eq: ['$transactionType', 'return_refund'] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalSubscriptionFee: {
+            $sum: {
+              $cond: [
+                { $eq: ['$transactionType', 'subscription_fee'] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+          totalPenalty: {
+            $sum: {
+              $cond: [{ $eq: ['$transactionType', 'penalty'] }, '$amount', 0],
+            },
+          },
+          totalForfeited: {
+            $sum: {
+              $cond: [
+                { $eq: ['$transactionType', 'deposit_forfeited'] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+        },
+      },
+    ]);
+
+    return {
+      status: 200,
+      message: 'Wallet overview loaded successfully',
+      data: result[0] || {},
+    };
+  }
+
+  // Admin get wallet transactions by month
+  async getWalletTransactionsByMonth(query: GetWalletByMonthDto) {
+    const { year, transactionType, direction, status } = query;
+    const targetYear = year || new Date().getFullYear();
+
+    const match: any = {
+      createdAt: {
+        $gte: new Date(targetYear, 0, 1),
+        $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+      },
+    };
+
+    if (transactionType) match.transactionType = transactionType;
+    if (direction) match.direction = direction;
+    if (status) match.status = status;
+
+    const result = await this.walletTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { month: { $month: '$createdAt' } },
+          totalAmount: { $sum: '$amount' },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    const formatted = Array.from({ length: 12 }, (_, i) => {
+      const found = result.find((r) => r._id.month === i + 1);
+      return {
+        month: i + 1,
+        count: found?.count || 0,
+        totalAmount: found?.totalAmount || 0,
+      };
+    });
+
+    return {
+      status: 200,
+      message: 'Wallet transactions by month loaded successfully',
+      year: targetYear,
+      filter: { transactionType, direction, status },
+      data: formatted,
     };
   }
 }
