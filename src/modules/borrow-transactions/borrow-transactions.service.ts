@@ -521,7 +521,11 @@ export class BorrowTransactionsService {
             { path: 'productSizeId', select: 'sizeName' },
           ],
         })
-        .populate({ path: 'customerId', select: 'userId fullName phone' })
+        .populate({
+          path: 'customerId',
+          select: 'userId fullName phone',
+          populate: { path: 'userId', select: 'email' },
+        })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
