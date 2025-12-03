@@ -303,6 +303,8 @@ export class BusinessesService {
         HttpStatus.BAD_REQUEST,
       );
 
+    console.log('trialSub', trialSub);
+
     const trialName: string = trialSub.name;
 
     let businessTrial = await this.businessSubscriptionModel.findOne({
@@ -310,21 +312,14 @@ export class BusinessesService {
       subscriptionId: trialSub._id,
     });
 
-    if (!businessTrial) {
-      businessTrial = new this.businessSubscriptionModel({
-        businessId: business._id,
-        subscriptionId: trialSub._id,
-        isTrialUsed: false,
-      });
-      await businessTrial.save();
-    }
-
-    if (businessTrial.isTrialUsed) {
+    if (businessTrial && businessTrial.isTrialUsed) {
       throw new HttpException(
         'Trial subscription has already been used',
         HttpStatus.BAD_REQUEST,
       );
     }
+
+    console.log('businessTrial', businessTrial);
 
     const now = new Date();
 
@@ -378,10 +373,16 @@ export class BusinessesService {
 
     endDate.setDate(endDate.getDate() + durationDays);
 
-    businessTrial.startDate = startDate;
-    businessTrial.endDate = endDate;
-    businessTrial.status = startDate <= now ? 'active' : 'pending';
-    businessTrial.isTrialUsed = true;
+    businessTrial = new this.businessSubscriptionModel({
+      businessId: business._id,
+      subscriptionId: trialSub._id,
+      startDate: startDate,
+      endDate: endDate,
+      status: startDate <= now ? 'active' : 'pending',
+      isTrialUsed: true,
+    });
+    await businessTrial.save();
+
     await this.notificationsService.create({
       receiverId: new Types.ObjectId(userId),
       receiverType: 'business',
