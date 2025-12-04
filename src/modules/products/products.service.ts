@@ -337,7 +337,7 @@ export class ProductsService {
 
       const product = await this.productModel
         .findOne({ _id: new Types.ObjectId(id), isDeleted: false })
-        .populate('productGroupId', 'name description image')
+        .populate('productGroupId', 'name description imageUrl')
         .populate('productSizeId', 'name description');
 
       console.log(product);
