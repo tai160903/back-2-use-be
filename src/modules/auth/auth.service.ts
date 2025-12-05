@@ -285,10 +285,21 @@ export class AuthService {
     };
   }
 
-  async switchRole(userId: string, targetRole: 'customer' | 'business') {
+  async switchRole(
+    userId: string,
+    currentRole: 'customer' | 'business',
+    targetRole: 'customer' | 'business',
+  ) {
     const user = await this.usersModel.findById(userId);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    if (currentRole === targetRole) {
+      throw new HttpException(
+        'You are already in the selected role',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (targetRole === 'business') {

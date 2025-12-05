@@ -230,6 +230,6 @@ export class AuthController {
     @Body() body: { role: 'customer' | 'business' },
     @Request() req: any,
   ) {
-    return this.authService.switchRole(req.user._id, body.role);
+    return this.authService.switchRole(req.user._id, req.user.role, body.role);
   }
 }
