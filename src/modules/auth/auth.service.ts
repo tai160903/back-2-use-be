@@ -203,11 +203,18 @@ export class AuthService {
       throw new HttpException('Account is blocked', HttpStatus.UNAUTHORIZED);
     }
 
-    let userRole: string;
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new HttpException(
+        'Invalid username or password',
+        HttpStatus.UNAUTHORIZED,
+      );
+    }
 
-    if (user.role === RolesEnum.ADMIN) {
-      userRole = RolesEnum.ADMIN;
-    } else if (user.role === RolesEnum.STAFF) {
+    // Filter roles to only include CUSTOMER and STAFF for login
+    const loginRoles: RolesEnum[] = [];
+
+    if (user.role.includes(RolesEnum.STAFF)) {
       const staff = await this.staffModel.findOne({
         userId: new Types.ObjectId(user._id),
         status: 'active',
@@ -218,8 +225,10 @@ export class AuthService {
           HttpStatus.FORBIDDEN,
         );
       }
-      userRole = RolesEnum.STAFF;
-    } else {
+      loginRoles.push(RolesEnum.STAFF);
+    }
+
+    if (user.role.includes(RolesEnum.CUSTOMER)) {
       const customer = await this.customersModel.findOne({
         userId: new Types.ObjectId(user._id),
       });
@@ -229,18 +238,15 @@ export class AuthService {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-      userRole = 'customer';
+      loginRoles.push(RolesEnum.CUSTOMER);
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      throw new HttpException(
-        'Invalid username or password',
-        HttpStatus.UNAUTHORIZED,
-      );
+    // If user has no CUSTOMER or STAFF role, default to CUSTOMER
+    if (loginRoles.length === 0) {
+      loginRoles.push(RolesEnum.CUSTOMER);
     }
 
-    const payload = { _id: user._id, role: userRole };
+    const payload = { _id: user._id, role: loginRoles };
     let accessToken: string;
     let refreshToken: string;
     try {
@@ -273,7 +279,7 @@ export class AuthService {
           _id: user._id,
           username: user.username,
           email: user.email,
-          role: userRole,
+          role: loginRoles,
         },
       },
     };
@@ -283,6 +289,16 @@ export class AuthService {
     const user = await this.usersModel.findById(userId);
     if (!user) {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    const roleEnum = targetRole === 'business' ? RolesEnum.BUSINESS : RolesEnum.CUSTOMER;
+
+    // Check if role already exists
+    if (user.role.includes(roleEnum)) {
+      throw new HttpException(
+        `User already has ${targetRole} role`,
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     if (targetRole === 'business') {
@@ -309,7 +325,11 @@ export class AuthService {
       throw new HttpException('Invalid role', HttpStatus.BAD_REQUEST);
     }
 
-    const payload = { _id: user._id, role: targetRole };
+    // Add role to user's role array
+    user.role.push(roleEnum);
+    await user.save();
+
+    const payload = { _id: user._id, role: user.role };
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('jwt.accessToken.secret'),
       expiresIn: this.configService.get(

@@ -417,14 +417,14 @@ export class BorrowTransactionsService {
 
   async getBusinessTransactions(
     userId: string,
-    role: RolesEnum,
+    role: RolesEnum[],
     options: GetTransactionsDto,
   ): Promise<APIResponseDto> {
     try {
       let business;
 
       // === If staff: find staff then business ===
-      if (role === RolesEnum.STAFF) {
+      if (role.includes(RolesEnum.STAFF)) {
         const staff = await this.staffModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -442,7 +442,7 @@ export class BorrowTransactionsService {
       }
 
       // === If business: find business by own userId ===
-      if (role === RolesEnum.BUSINESS) {
+      if (role.includes(RolesEnum.BUSINESS)) {
         business = await this.businessesModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -671,13 +671,13 @@ export class BorrowTransactionsService {
 
   async getBusinessTransactionDetail(
     userId: string,
-    role: RolesEnum,
+    role: RolesEnum[],
     transactionId: string,
   ): Promise<APIResponseDto> {
     try {
       let business;
 
-      if (role === RolesEnum.STAFF) {
+      if (role.includes(RolesEnum.STAFF)) {
         const staff = await this.staffModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -692,7 +692,7 @@ export class BorrowTransactionsService {
       }
 
       // ==== BUSINESS OWNER ====
-      if (role === RolesEnum.BUSINESS) {
+      if (role.includes(RolesEnum.BUSINESS)) {
         business = await this.businessesModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -768,13 +768,13 @@ export class BorrowTransactionsService {
 
   async getBusinessPendingTransactions(
     userId: string,
-    role: RolesEnum,
+    role: RolesEnum[],
   ): Promise<APIResponseDto> {
     try {
       let business;
 
       // ===== STAFF → map sang business.owner =====
-      if (role === RolesEnum.STAFF) {
+      if (role.includes(RolesEnum.STAFF)) {
         const staff = await this.staffModel.findOne({
           userId: new Types.ObjectId(userId),
           status: 'active',
@@ -794,7 +794,7 @@ export class BorrowTransactionsService {
       }
 
       // ===== BUSINESS OWNER =====
-      if (role === RolesEnum.BUSINESS) {
+      if (role.includes(RolesEnum.BUSINESS)) {
         business = await this.businessesModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -1497,7 +1497,7 @@ export class BorrowTransactionsService {
   async confirmReturnCondition(
     serialNumber: string,
     userId: string,
-    role: RolesEnum,
+    role: RolesEnum[],
     dto: ConfirmReturnDto,
   ) {
     const session = await this.connection.startSession();
