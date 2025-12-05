@@ -53,6 +53,14 @@ import {
   VoucherCodesSchema,
 } from '../voucher-codes/schema/voucher-codes.schema';
 import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
+import { BusinessDashboardController } from './controller/business-dashboard.controller';
+import { BusinessDashboardService } from './services/business-dashboard.service';
+import {
+  BorrowTransaction,
+  BorrowTransactionSchema,
+} from '../borrow-transactions/schemas/borrow-transactions.schema';
+import { Material, MaterialSchema } from '../materials/schemas/material.schema';
+import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
 
 @Module({
   imports: [
@@ -76,16 +84,24 @@ import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
       { name: Vouchers.name, schema: VouchersSchema },
       { name: VoucherCodes.name, schema: VoucherCodesSchema },
       { name: Staff.name, schema: StaffSchema },
+      { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
+      { name: Material.name, schema: MaterialSchema },
+      { name: Feedback.name, schema: FeedbackSchema },
     ]),
     CloudinaryModule,
     MailerModule,
     NotificationsModule,
     GeocodingModule,
   ],
-  controllers: [BusinessesController, BusinessVoucherController],
+  controllers: [
+    BusinessesController,
+    BusinessVoucherController,
+    BusinessDashboardController,
+  ],
   providers: [
     BusinessesService,
     BusinessVoucherService,
+    BusinessDashboardService,
     BusinessSubscriptionGuard,
   ],
   exports: [BusinessesService],
