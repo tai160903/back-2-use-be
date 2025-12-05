@@ -5,7 +5,7 @@ import { RolesEnum } from 'src/common/constants/roles.enum';
 export async function loadEntities(
   serialNumber: string,
   userId: string,
-  role: RolesEnum,
+  role: RolesEnum[],
   session,
   models: {
     businessesModel;
@@ -36,7 +36,7 @@ export async function loadEntities(
   let business;
 
   // --- Role Staff ---
-  if (role === RolesEnum.STAFF) {
+  if (role.includes(RolesEnum.STAFF)) {
     const staff = await staffModel
       .findOne({ userId: new Types.ObjectId(userId) })
       .session(session);
@@ -54,7 +54,7 @@ export async function loadEntities(
   }
 
   // --- Role Business ---
-  if (role === RolesEnum.BUSINESS) {
+  if (role.includes(RolesEnum.BUSINESS)) {
     business = await businessesModel
       .findOne({ userId: new Types.ObjectId(userId) })
       .session(session);

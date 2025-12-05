@@ -19,11 +19,11 @@ export class Users {
   avatar: string;
 
   @Prop({
-    required: true,
+    type: [String],
     enum: Object.values(RolesEnum),
-    default: RolesEnum.CUSTOMER,
+    default: [RolesEnum.CUSTOMER],
   })
-  role: RolesEnum;
+  role: RolesEnum[];
 
   @Prop({ required: true, default: false })
   isActive: boolean;

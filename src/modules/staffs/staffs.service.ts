@@ -30,7 +30,7 @@ export class StaffsService {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
-      if (user.role !== RolesEnum.STAFF) {
+      if (!user.role.includes(RolesEnum.STAFF)) {
         throw new HttpException(
           'Only staff can access this endpoint',
           HttpStatus.FORBIDDEN,

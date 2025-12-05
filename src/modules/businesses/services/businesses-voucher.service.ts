@@ -451,7 +451,7 @@ export class BusinessVoucherService {
   // Business check customer's voucher at store
   async useVoucherAtStore(
     userId: string,
-    role: string,
+    role: RolesEnum[],
     dto: UseVoucherAtStoreDto,
   ): Promise<APIResponseDto<VoucherCodes>> {
     const { code } = dto;
@@ -459,7 +459,7 @@ export class BusinessVoucherService {
     let business;
 
     //  Role Staff
-    if (role === RolesEnum.STAFF) {
+    if (role.includes(RolesEnum.STAFF)) {
       const staff = await this.staffModel.findOne({
         userId: new Types.ObjectId(userId),
         status: 'active',
@@ -478,7 +478,7 @@ export class BusinessVoucherService {
     }
 
     //  Role Business
-    if (role === RolesEnum.BUSINESS) {
+    if (role.includes(RolesEnum.BUSINESS)) {
       business = await this.businessModel.findOne({
         userId: new Types.ObjectId(userId),
       });
@@ -713,14 +713,14 @@ export class BusinessVoucherService {
   // Business get all claimed voucher
   async getMyClaimedVouchers(
     userId: string,
-    role: string,
+    role: RolesEnum[],
     query: GetAllClaimVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
     const { page = 1, limit = 10, status, isPublished } = query;
 
     let business;
 
-    if (role === RolesEnum.STAFF) {
+    if (role.includes(RolesEnum.STAFF)) {
       const staff = await this.staffModel.findOne({
         userId: new Types.ObjectId(userId),
       });
@@ -738,15 +738,7 @@ export class BusinessVoucherService {
       userId = business.userId.toString();
     }
 
-    if (role === RolesEnum.BUSINESS) {
-      business = await this.businessModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
-
-      if (!business) {
-        throw new NotFoundException(`Business not found for user '${userId}'`);
-      }
-    }
+    if (role.includes(RolesEnum.BUSINESS)) {
 
     const filter: Record<string, any> = {
       businessId: business._id,
@@ -784,7 +776,7 @@ export class BusinessVoucherService {
   // Get business voucher detail
   async getBusinessVoucherDetail(
     userId: string,
-    role: string,
+    role: RolesEnum[],
     businessVoucherId: string,
     query: GetVoucherDetailQueryDto,
   ): Promise<APIResponseDto<any>> {
@@ -792,7 +784,7 @@ export class BusinessVoucherService {
 
     let business;
 
-    if (role === RolesEnum.STAFF) {
+    if (role.includes(RolesEnum.STAFF)) {
       const staff = await this.staffModel.findOne({
         userId: new Types.ObjectId(userId),
         status: 'active',
@@ -810,15 +802,7 @@ export class BusinessVoucherService {
       userId = business.userId.toString();
     }
 
-    if (role === RolesEnum.BUSINESS) {
-      business = await this.businessModel.findOne({
-        userId: new Types.ObjectId(userId),
-      });
-
-      if (!business) {
-        throw new NotFoundException(`No business found for user '${userId}'.`);
-      }
-    }
+    if (role.includes(RolesEnum.BUSINESS)) {
 
     const businessVoucher = await this.businessVoucherModel.findOne({
       _id: businessVoucherId,
