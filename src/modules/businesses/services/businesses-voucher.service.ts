@@ -739,6 +739,13 @@ export class BusinessVoucherService {
     }
 
     if (role.includes(RolesEnum.BUSINESS)) {
+      business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!business) {
+        throw new NotFoundException(`No business found for user '${userId}'.`);
+      }
+    }
 
     const filter: Record<string, any> = {
       businessId: business._id,
@@ -803,7 +810,13 @@ export class BusinessVoucherService {
     }
 
     if (role.includes(RolesEnum.BUSINESS)) {
-
+      business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!business) {
+        throw new NotFoundException(`No business found for user '${userId}'.`);
+      }
+    }
     const businessVoucher = await this.businessVoucherModel.findOne({
       _id: businessVoucherId,
       businessId: business._id,
@@ -812,7 +825,6 @@ export class BusinessVoucherService {
     if (!businessVoucher) {
       throw new NotFoundException('Business voucher not found');
     }
-
     const filter: Record<string, any> = {
       voucherId: businessVoucher._id,
     };
