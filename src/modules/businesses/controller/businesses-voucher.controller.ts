@@ -84,7 +84,13 @@ export class BusinessVoucherController {
     @Body() dto: UseVoucherAtStoreDto,
   ): Promise<APIResponseDto<VoucherCodes>> {
     const userId = req.user?._id;
-    const role = req.user?.role;
+    interface RequestUser {
+      _id: string;
+      role?: RolesEnum;
+    }
+
+    const user = req.user as RequestUser | undefined;
+    const role: RolesEnum[] = user?.role ? [user.role] : [];
     return this.businessesVoucherService.useVoucherAtStore(userId, role, dto);
   }
 
@@ -125,7 +131,9 @@ export class BusinessVoucherController {
     @Query() query: GetAllClaimVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
     const userId = req.user?._id;
-    const role = req.user?.role;
+    const role: RolesEnum[] = req.user?.role
+      ? [req.user.role as RolesEnum]
+      : [];
     return this.businessesVoucherService.getMyClaimedVouchers(
       userId,
       role,
@@ -145,7 +153,9 @@ export class BusinessVoucherController {
     @Query() query: GetVoucherDetailQueryDto,
   ) {
     const userId = req.user?._id;
-    const role = req.user?.role;
+    const role: RolesEnum[] = req.user?.role
+      ? [req.user.role as RolesEnum]
+      : [];
     return this.businessesVoucherService.getBusinessVoucherDetail(
       userId,
       role,

@@ -113,7 +113,7 @@ export class BorrowTransactionsController {
   ) {
     return this.borrowTransactionsService.getBusinessTransactions(
       req.user._id,
-      req.user.role,
+      [req.user.role],
       query,
     );
   }
@@ -153,7 +153,7 @@ export class BorrowTransactionsController {
   ) {
     return this.borrowTransactionsService.getBusinessTransactionDetail(
       req.user._id,
-      req.user.role,
+      [req.user.role],
       id,
     );
   }
@@ -173,7 +173,7 @@ export class BorrowTransactionsController {
   ) {
     return this.borrowTransactionsService.getBusinessPendingTransactions(
       req.user._id,
-      req.user.role,
+      [req.user.role],
     );
   }
 
