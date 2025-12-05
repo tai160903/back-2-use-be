@@ -337,10 +337,8 @@ export class ProductsService {
 
       const product = await this.productModel
         .findOne({ _id: new Types.ObjectId(id), isDeleted: false })
-        .populate('productGroupId', 'name description image')
-        .populate('productSizeId', 'name description');
-
-      console.log(product);
+        .populate('productGroupId', 'name description imageUrl')
+        .populate('productSizeId', 'sizeName description depositValue');
 
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
