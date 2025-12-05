@@ -75,7 +75,7 @@ export class AdminBusinessFormService {
         );
       }
 
-      if (user.role !== RolesEnum.CUSTOMER) {
+      if (!user.role.includes(RolesEnum.CUSTOMER)) {
         throw new HttpException(
           'Only customers can be approved as businesses',
           HttpStatus.BAD_REQUEST,
@@ -148,8 +148,11 @@ export class AdminBusinessFormService {
         );
       }
 
-      user.role = RolesEnum.BUSINESS;
-      await user.save();
+      // Add BUSINESS role to user's roles array if not already present
+      if (!user.role.includes(RolesEnum.BUSINESS)) {
+        user.role.push(RolesEnum.BUSINESS);
+        await user.save();
+      }
 
       businessForm.status = BusinessFormStatusEnum.APPROVED;
       await businessForm.save();

@@ -54,7 +54,7 @@ export class AdminBusinessService {
       {
         $match: {
           ...(isBlocked !== undefined ? { 'user.isBlocked': isBlocked } : {}),
-          'user.role': RolesEnum.BUSINESS,
+          'user.role': { $in: [RolesEnum.BUSINESS] },
         },
       },
       {

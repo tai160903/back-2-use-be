@@ -25,7 +25,7 @@ export const BusinessDetailProjectionStage = {
   $addFields: {
     username: { $arrayElemAt: ['$user.username', 0] },
     email: { $arrayElemAt: ['$user.email', 0] },
-    role: { $arrayElemAt: ['$user.role', 0] },
+    role: '$user.role',
     isActive: { $arrayElemAt: ['$user.isActive', 0] },
     isBlocked: { $arrayElemAt: ['$user.isBlocked', 0] },
   },
