@@ -291,16 +291,6 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    const roleEnum = targetRole === 'business' ? RolesEnum.BUSINESS : RolesEnum.CUSTOMER;
-
-    // Check if role already exists
-    if (user.role.includes(roleEnum)) {
-      throw new HttpException(
-        `User already has ${targetRole} role`,
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-
     if (targetRole === 'business') {
       const business = await this.businessModel.findOne({
         userId: new Types.ObjectId(user._id),
@@ -325,11 +315,7 @@ export class AuthService {
       throw new HttpException('Invalid role', HttpStatus.BAD_REQUEST);
     }
 
-    // Add role to user's role array
-    user.role.push(roleEnum);
-    await user.save();
-
-    const payload = { _id: user._id, role: user.role };
+    const payload = { _id: user._id, role: targetRole };
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.configService.get('jwt.accessToken.secret'),
       expiresIn: this.configService.get(
