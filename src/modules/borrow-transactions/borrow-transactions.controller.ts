@@ -85,7 +85,7 @@ export class BorrowTransactionsController {
   )
   confirm(
     @Param('id') id: string,
-    @Request() req: { user: { _id: string; role: RolesEnum } },
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
   ) {
     return this.borrowTransactionsService.confirmBorrowTransaction(
       req.user._id,

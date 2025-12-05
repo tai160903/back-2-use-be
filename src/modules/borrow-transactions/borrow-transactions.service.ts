@@ -349,9 +349,10 @@ export class BorrowTransactionsService {
   async confirmBorrowTransaction(
     userId: string,
     transactionId: string,
-    userRole: string,
+    userRole: RolesEnum[],
   ): Promise<APIResponseDto> {
     try {
+      console.log(userRole);
       const transaction =
         await this.borrowTransactionModel.findById(transactionId);
       if (!transaction)
@@ -364,7 +365,7 @@ export class BorrowTransactionsService {
       }
 
       // Role-based ownership validation
-      if (userRole === 'business') {
+      if (userRole.includes(RolesEnum.BUSINESS)) {
         const business = await this.businessesModel.findOne({
           userId: new Types.ObjectId(userId),
         });
@@ -376,7 +377,7 @@ export class BorrowTransactionsService {
             HttpStatus.FORBIDDEN,
           );
         }
-      } else if (userRole === 'staff' || userRole === 'manager') {
+      } else if (userRole.includes(RolesEnum.STAFF)) {
         const staff = await this.staffModel.findOne({
           userId: new Types.ObjectId(userId),
           status: 'active',
