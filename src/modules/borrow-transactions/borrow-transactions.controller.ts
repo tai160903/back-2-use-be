@@ -108,12 +108,12 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessTransactions(
-    @Request() req: { user: { _id: string; role: RolesEnum } },
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
     @Query() query: GetTransactionsDto,
   ) {
     return this.borrowTransactionsService.getBusinessTransactions(
       req.user._id,
-      [req.user.role],
+      req.user.role,
       query,
     );
   }
@@ -148,12 +148,12 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessTransactionDetail(
-    @Request() req: { user: { _id: string; role: RolesEnum } },
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
     @Param('id') id: string,
   ) {
     return this.borrowTransactionsService.getBusinessTransactionDetail(
       req.user._id,
-      [req.user.role],
+      req.user.role,
       id,
     );
   }
@@ -169,11 +169,11 @@ export class BorrowTransactionsController {
     RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   getBusinessPendingTransactions(
-    @Request() req: { user: { _id: string; role: RolesEnum } },
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
   ) {
     return this.borrowTransactionsService.getBusinessPendingTransactions(
       req.user._id,
-      [req.user.role],
+      req.user.role,
     );
   }
 

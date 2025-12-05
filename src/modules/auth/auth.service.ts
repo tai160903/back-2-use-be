@@ -211,8 +211,11 @@ export class AuthService {
       );
     }
 
-    // Filter roles to only include CUSTOMER and STAFF for login
     const loginRoles: RolesEnum[] = [];
+
+    if (user.role.includes(RolesEnum.ADMIN)) {
+      loginRoles.push(RolesEnum.ADMIN);
+    }
 
     if (user.role.includes(RolesEnum.STAFF)) {
       const staff = await this.staffModel.findOne({
@@ -241,7 +244,6 @@ export class AuthService {
       loginRoles.push(RolesEnum.CUSTOMER);
     }
 
-    // If user has no CUSTOMER or STAFF role, default to CUSTOMER
     if (loginRoles.length === 0) {
       loginRoles.push(RolesEnum.CUSTOMER);
     }
