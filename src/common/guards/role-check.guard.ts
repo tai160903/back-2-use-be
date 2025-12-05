@@ -41,8 +41,14 @@ export class RoleCheckGuard implements CanActivate {
       }
     }
 
-    if (user && this.allowedRoles.includes(user.role)) {
-      return true;
+    if (user && user.role && Array.isArray(user.role)) {
+      // Check if any of the user's roles are in the allowedRoles
+      const hasPermission = user.role.some((userRole: string) =>
+        this.allowedRoles.includes(userRole),
+      );
+      if (hasPermission) {
+        return true;
+      }
     }
 
     throw new ForbiddenException(

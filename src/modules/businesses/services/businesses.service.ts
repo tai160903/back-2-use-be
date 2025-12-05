@@ -936,7 +936,7 @@ export class BusinessesService {
       },
       {
         $match: {
-          'user.role': RolesEnum.BUSINESS,
+          'user.role': { $in: [RolesEnum.BUSINESS] },
           'user.isBlocked': false,
         },
       },
