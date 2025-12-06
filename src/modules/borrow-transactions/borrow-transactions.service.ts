@@ -194,7 +194,7 @@ export class BorrowTransactionsService {
       const dueDate = new Date(borrowDate);
       dueDate.setDate(borrowDate.getDate() + dto.durationInDays);
 
-      const { depositValue, durationInDays, type } = dto;
+      const { depositValue, durationInDays } = dto;
       const depositAmount =
         (Math.round(Number(depositValue) * 100) * Number(durationInDays)) / 100;
 
@@ -238,8 +238,6 @@ export class BorrowTransactionsService {
           HttpStatus.NOT_FOUND,
         );
 
-      const status = type === 'online' ? 'pending_pickup' : 'borrowing';
-
       const [transaction] = await this.borrowTransactionModel.create(
         [
           {
@@ -249,7 +247,7 @@ export class BorrowTransactionsService {
             dueDate,
             depositAmount,
             customerId: customer._id,
-            status,
+            status: 'pending_pickup',
             borrowTransactionType: 'borrow',
             previousConditionImages,
             previousDamageFaces,
