@@ -101,7 +101,7 @@ export class LeaderboardRewardCron {
         // E. Create voucher code
         let voucherCode;
         const leaderboardExpireAt = new Date();
-        leaderboardExpireAt.setDate(leaderboardExpireAt.getDate() + 14);
+        leaderboardExpireAt.setDate(leaderboardExpireAt.getDate() + 28);
 
         for (let i = 0; i < 3; i++) {
           const suffix = generateRandomString(6);

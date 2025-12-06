@@ -41,6 +41,8 @@ import {
   ProductSize,
   ProductSizeDocument,
 } from '../product-sizes/schemas/product-size.schema';
+import { UserType } from 'src/common/constants/user-type.enum';
+import { WalletReferenceType } from 'src/common/constants/wallet-reference-type.enum';
 
 @Injectable()
 export class WalletTransactionsService {
@@ -139,10 +141,79 @@ export class WalletTransactionsService {
         limit,
       );
 
+    const populated = await Promise.all(
+      data.map(async (tx) => {
+        // ----- MUST CHECK SUBSCRIPTION FIRST -----
+        if (tx.referenceType === WalletReferenceType.SUBSCRIPTION) {
+          const businessSub: any = await this.businessSubscriptionsModel
+            .findById(tx.referenceId)
+            .select('businessId subscriptionId startDate endDate status')
+            .populate({
+              path: 'subscriptionId',
+              model: 'Subscriptions',
+              select: 'name price durationInDays limits isTrial isActive',
+            });
+
+          return {
+            ...tx.toObject(),
+            referenceDetail: businessSub
+              ? {
+                  _id: businessSub._id,
+                  startDate: businessSub.startDate,
+                  endDate: businessSub.endDate,
+                  status: businessSub.status,
+                  subscriptionInfo: businessSub.subscriptionId || null,
+                }
+              : null,
+          };
+        }
+
+        // ----- STOP RETURN HERE, CHECK USER CASES LATER -----
+        if (!tx.relatedUserId || !tx.relatedUserType) return tx;
+
+        // ----- CUSTOMER -----
+        if (tx.relatedUserType === UserType.CUSTOMER) {
+          const customer: any = await this.customerModel
+            .findById(tx.relatedUserId)
+            .select('fullName phone address userId')
+            .populate({
+              path: 'userId',
+              select: 'email',
+              model: 'Users',
+            });
+
+          return {
+            ...tx.toObject(),
+            relatedUser: {
+              _id: customer?._id,
+              fullName: customer?.fullName,
+              phone: customer?.phone,
+              address: customer?.address,
+              email: customer?.userId?.email || null,
+            },
+          };
+        }
+
+        // ----- BUSINESS -----
+        if (tx.relatedUserType === UserType.BUSINESS) {
+          const business = await this.businessModel
+            .findById(tx.relatedUserId)
+            .select('businessMail businessName businessAddress businessPhone');
+
+          return {
+            ...tx.toObject(),
+            relatedUser: business || null,
+          };
+        }
+
+        return tx;
+      }),
+    );
+
     return {
       statusCode: HttpStatus.OK,
       message: `Get ${walletType} wallet transactions successfully`,
-      data,
+      data: populated,
       total,
       currentPage,
       totalPages,
@@ -258,6 +329,7 @@ export class WalletTransactionsService {
                       name: 1,
                       price: 1,
                       durationInDays: 1,
+                      limits: 1,
                     },
                   },
                 ],
@@ -300,14 +372,15 @@ export class WalletTransactionsService {
               $project: {
                 _id: 1,
                 serialNumber: 1,
-                status: 1,
-                condition: 1,
+                // status: 1,
+                // condition: 1,
                 qrCode: 1,
                 productGroupId: 1,
                 productSizeId: 1,
-                reuseCount: 1,
-                lastConditionNote: 1,
-                lastConditionImages: 1,
+                // reuseCount: 1,
+                // lastConditionNote: 1,
+                // lastConditionImages: 1,
+                // lastDamageFaces: 1,
               },
             },
 
