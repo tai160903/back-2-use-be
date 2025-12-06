@@ -192,14 +192,14 @@ export class AuthController {
         result.data.accessToken
       ) {
         return {
-          url: `http://localhost:5173/auth/googleCallback?token=${result.data.accessToken}`,
+          url: `${process.env.CLIENT_RETURN_URL}/auth/googleCallback?token=${result.data.accessToken}`,
         };
       }
     } catch (error) {
       console.error('Error resetting password:', error);
     }
     return {
-      url: 'http://localhost:5173/',
+      url: `${process.env.CLIENT_RETURN_URL}/`,
     };
   }
 
