@@ -32,7 +32,7 @@ export class Product {
   @Prop({ default: 0 })
   reuseCount: number;
 
-  @Prop()
+  @Prop({ default: '' })
   lastConditionNote: string;
 
   @Prop({
