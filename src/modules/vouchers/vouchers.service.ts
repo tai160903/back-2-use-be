@@ -203,9 +203,9 @@ export class VouchersService {
 
   //Get all business voucher
   async getAllVouchers(
-    userId: string,
+    userId: string | undefined,
     query: GetAllVouchersQueryDto,
-  ): Promise<APIPaginatedResponseDto<any>> {
+  ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
     const { page = 1, limit = 10, status } = query;
 
     const filter: any = { isPublished: true };
@@ -219,20 +219,24 @@ export class VouchersService {
         limit,
       );
 
-    const customer = await this.customerModel.findOne({
-      userId: new Types.ObjectId(userId),
-    });
-    if (!customer) {
-      throw new NotFoundException('Customer not found');
+    let customer: CustomersDocument | null = null;
+    let redeemedVoucherIds = new Set<string>();
+
+    if (userId) {
+      customer = await this.customerModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+
+      if (customer) {
+        const redeemed = await this.voucherCodeModel.find({
+          redeemedBy: new Types.ObjectId(customer._id),
+        });
+
+        redeemedVoucherIds = new Set(
+          redeemed.map((v) => v.voucherId.toString()),
+        );
+      }
     }
-
-    const redeemed = await this.voucherCodeModel.find({
-      redeemedBy: new Types.ObjectId(customer._id),
-    });
-
-    const redeemedVoucherIds = new Set(
-      redeemed.map((v) => v.voucherId.toString()),
-    );
 
     const enrichedData = await Promise.all(
       data.map(async (v) => {
@@ -245,20 +249,26 @@ export class VouchersService {
           )
           .lean();
 
+        let isRedeemable = false;
+
+        if (customer) {
+          isRedeemable =
+            v.status === VouchersStatus.ACTIVE &&
+            customer.rewardPoints >= (v.rewardPointCost ?? 0) &&
+            !redeemedVoucherIds.has(v._id.toString());
+        }
+
         return {
           ...voucherObj,
           businessInfo,
-          isRedeemable:
-            v.status === VouchersStatus.ACTIVE &&
-            customer.rewardPoints >= (v.rewardPointCost ?? 0) &&
-            !redeemedVoucherIds.has(v._id.toString()),
+          isRedeemable,
         };
       }),
     );
 
     return {
       statusCode: HttpStatus.OK,
-      message: 'Get customer business vouchers successfully',
+      message: 'Get business vouchers successfully',
       data: enrichedData,
       total,
       currentPage,

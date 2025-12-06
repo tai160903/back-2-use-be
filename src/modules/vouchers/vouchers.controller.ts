@@ -21,14 +21,15 @@ import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.
 import { GetAllVouchersQueryDto } from './dto/get-all-active-voucher.dto';
 import { BusinessVouchers } from '../businesses/schemas/business-voucher.schema';
 import { GetMyVouchersQueryDto } from './dto/get-my-voucher-query.dto';
+import { OptionalAuthGuard } from 'src/common/guards/optional-auth.guard';
 
 @ApiTags('Voucher (Customer)')
 @Controller('customer/vouchers')
-@ApiBearerAuth('access-token')
-@UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.CUSTOMER]))
 export class VouchersController {
   constructor(private readonly voucherService: VouchersService) {}
 
+  @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.CUSTOMER]))
+  @ApiBearerAuth('access-token')
   @Post('redeem')
   async redeemVoucher(
     @Body() redeemVoucherDto: RedeemVoucherDto,
@@ -39,14 +40,18 @@ export class VouchersController {
   }
 
   @Get('')
+  @ApiBearerAuth('access-token')
+  @UseGuards(OptionalAuthGuard)
   async getAllVouchers(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetAllVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
-    const userId = req.user._id;
+    const userId = req?.user?._id;
     return this.voucherService.getAllVouchers(userId, query);
   }
 
+  @UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.CUSTOMER]))
+  @ApiBearerAuth('access-token')
   @Get('my')
   async getMyVouchers(
     @Req() req: AuthenticatedRequest,
