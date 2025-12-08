@@ -66,9 +66,6 @@ export class Businesses {
   @Prop({ default: 0 })
   ecoPoints: number;
 
-  @Prop({ trim: true })
-  ecoRankLabel?: string;
-
   @Prop({ default: 0, min: 0, max: 5 })
   averageRating: number;
 

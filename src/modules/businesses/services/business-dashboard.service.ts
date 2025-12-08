@@ -52,6 +52,7 @@ import {
   Wallets,
   WalletsDocument,
 } from 'src/modules/wallets/schemas/wallets.schema';
+import { GetBorrowStatsByMonthDto } from 'src/modules/admin/dto/admin-dashboard/get-borrow-stats-query.dto';
 
 @Injectable()
 export class BusinessDashboardService {
@@ -108,7 +109,6 @@ export class BusinessDashboardService {
     const [
       totalBorrowTransactions,
       totalBusinessVouchers,
-      totalFeedbacks,
       totalProductGroups,
       totalProducts,
       totalStaffs,
@@ -122,9 +122,6 @@ export class BusinessDashboardService {
       this.businessVoucherModel.countDocuments({
         businessId: businessId,
       }),
-
-      // Feedback given to this business
-      this.feedbackModel.countDocuments({ businessId: businessId }),
 
       // Product groups
       this.productGroupModel.countDocuments({ businessId: businessId }),
@@ -142,14 +139,107 @@ export class BusinessDashboardService {
       data: {
         borrowTransactions: totalBorrowTransactions,
         businessVouchers: totalBusinessVouchers,
-        feedbacks: totalFeedbacks,
         productGroups: totalProductGroups,
         products: totalProducts,
         staffs: totalStaffs,
+        co2Reduced: business.co2Reduced,
+        ecoPoints: business.ecoPoints,
+        averageRating: business.averageRating,
+        totalReviews: business.totalReviews,
       },
     };
   }
 
   //   Business get borrow transaction monthly
-  
+  async getBusinessBorrowStatsByMonth(
+    userId: string,
+    query: GetBorrowStatsByMonthDto,
+  ) {
+    const { year, type, status } = query;
+    const targetYear = year || new Date().getFullYear();
+    const userObjectId = new Types.ObjectId(userId);
+
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+
+    if (!business) {
+      throw new NotFoundException('Business not found');
+    }
+
+    const businessId = business._id;
+
+    const match: any = {
+      businessId: businessId,
+      borrowDate: {
+        $gte: new Date(targetYear, 0, 1),
+        $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+      },
+    };
+
+    if (type) match.borrowTransactionType = type;
+    if (status) match.status = status;
+
+    const monthly = await this.borrowTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { month: { $month: '$borrowDate' } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    // 🎯 TÍNH TỔNG CÁC FIELD QUAN TRỌNG
+    const totals = await this.borrowTransactionModel.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: null,
+          totalRewardPoints: { $sum: '$rewardPointChanged' },
+          totalRankingPoints: { $sum: '$rankingPointChanged' },
+          totalEcoPoints: { $sum: '$ecoPointChanged' },
+          totalCo2Reduced: { $sum: '$co2Changed' },
+          totalDepositAmount: { $sum: '$depositAmount' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalRewardPoints: 1,
+          totalRankingPoints: 1,
+          totalEcoPoints: 1,
+          totalCo2Reduced: 1,
+          totalDepositAmount: 1,
+        },
+      },
+    ]);
+
+    const formatted = Array.from({ length: 12 }, (_, i) => {
+      const found = monthly.find((r) => r._id.month === i + 1);
+      return {
+        month: i + 1,
+        count: found ? found.count : 0,
+      };
+    });
+
+    return {
+      statusCode: 200,
+      message: 'Business borrow month statistics loaded successfully',
+      year: targetYear,
+      filter: {
+        type: type ?? 'all',
+        status: status ?? 'all',
+      },
+      data: formatted,
+      totals: totals[0] ?? {
+        totalRewardPoints: 0,
+        totalRankingPoints: 0,
+        totalEcoPoints: 0,
+        totalCo2Reduced: 0,
+        totalDepositAmount: 0,
+      },
+    };
+  }
 }

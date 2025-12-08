@@ -45,6 +45,16 @@ export class GetTransactionsDto {
   @IsEnum(BorrowTransactionType)
   borrowTransactionType?: BorrowTransactionType;
 
+  @ApiPropertyOptional({ example: '2025-01-01' })
+  @IsOptional()
+  @IsString()
+  fromDate?: string;
+
+  @ApiPropertyOptional({ example: '2025-01-31' })
+  @IsOptional()
+  @IsString()
+  toDate?: string;
+
   @ApiPropertyOptional({ example: 1 })
   @Type(() => Number)
   @IsOptional()

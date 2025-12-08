@@ -569,11 +569,11 @@ export class AdminDashboardService {
         $gte: new Date(targetYear, 0, 1),
         $lte: new Date(targetYear, 11, 31, 23, 59, 59),
       },
+      status: status || 'completed',
     };
 
     if (transactionType) match.transactionType = transactionType;
     if (direction) match.direction = direction;
-    if (status) match.status = status;
 
     const result = await this.walletTransactionModel.aggregate([
       { $match: match },
@@ -600,7 +600,7 @@ export class AdminDashboardService {
       status: 200,
       message: 'Wallet transactions by month loaded successfully',
       year: targetYear,
-      filter: { transactionType, direction, status },
+      filter: { transactionType, direction, status: status || 'completed' },
       data: formatted,
     };
   }

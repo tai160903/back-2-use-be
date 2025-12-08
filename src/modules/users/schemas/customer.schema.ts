@@ -31,6 +31,9 @@ export class Customers {
 
   @Prop({ default: 0 })
   returnFailedCount: number;
+
+  @Prop({ default: 0 })
+  co2Reduced: number;
 }
 
 export const CustomersSchema = SchemaFactory.createForClass(Customers);

@@ -273,6 +273,7 @@ export class LateTransactionCron {
 
       // 9️⃣ Apply eco point for business (because lost → negative eco impact)
       const ecoResult = applyEcoPointChange(
+        customer,
         business,
         productSize,
         material,

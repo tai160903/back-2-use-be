@@ -124,6 +124,16 @@ export class UsersService {
         );
       }
 
+      const totalReturns =
+        (customer.returnSuccessCount || 0) + (customer.returnFailedCount || 0);
+
+      const returnRate =
+        totalReturns > 0
+          ? Number(
+              ((customer.returnSuccessCount / totalReturns) * 100).toFixed(2),
+            )
+          : 0;
+
       const data = {
         _id: user._id,
         email: user.email,
@@ -141,6 +151,8 @@ export class UsersService {
         rankingPoints: customer.rankingPoints || 0,
         returnSuccessCount: customer.returnSuccessCount || 0,
         returnFailedCount: customer.returnFailedCount || 0,
+        returnRate, // 👈 thêm field trả về
+        co2Reduced: customer.co2Reduced || 0,
       };
 
       return {

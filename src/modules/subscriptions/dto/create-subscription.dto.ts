@@ -11,12 +11,6 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-enum ExportLevel {
-  none = 'none',
-  basic = 'basic',
-  advanced = 'advanced',
-}
-
 class LimitsDto {
   @ApiProperty({
     example: 12,
@@ -33,23 +27,6 @@ class LimitsDto {
   })
   @IsNumber()
   productItemLimit: number;
-
-  @ApiProperty({
-    example: ExportLevel.basic,
-    description: 'Export Level',
-    enum: ExportLevel,
-  })
-  @IsEnum(ExportLevel)
-  exportLevel: ExportLevel;
-
-  @ApiProperty({
-    example: 10,
-    description: 'Eco Bonus Percent',
-    minimum: 0,
-  })
-  @IsNumber()
-  @Min(0)
-  ecoBonusPercent: number;
 }
 
 export class CreateSubscriptionDto {
@@ -102,8 +79,6 @@ export class CreateSubscriptionDto {
     example: {
       productGroupLimit: 12,
       productItemLimit: 2,
-      exportLevel: ExportLevel.basic,
-      ecoBonusPercent: 10,
     },
     description: 'Limits of the subscription',
     required: true,
