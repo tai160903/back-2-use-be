@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsMongoId, IsNotEmpty, IsNumber, Min } from 'class-validator';
+import { IsMongoId, IsNotEmpty, IsNumber, Max, Min } from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateBorrowTransactionDto {
@@ -24,6 +24,8 @@ export class CreateBorrowTransactionDto {
     example: 30,
   })
   @IsNotEmpty()
+  @Min(1, { message: 'Duration must be at least 1 day' })
+  @Max(10, { message: 'Duration cannot exceed 10 days' })
   durationInDays: number;
 
   @ApiProperty({
