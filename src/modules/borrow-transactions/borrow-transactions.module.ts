@@ -32,6 +32,7 @@ import {
 } from '../system-settings/schemas/system-setting.schema';
 import { Material, MaterialSchema } from '../materials/schemas/material.schema';
 import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
     ]),
     UsersModule,
     CloudinaryModule,
+    NotificationsModule,
   ],
   controllers: [BorrowTransactionsController],
   providers: [BorrowTransactionsService],

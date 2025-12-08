@@ -508,15 +508,32 @@ export class AuthService {
       throw new HttpException('User not found', HttpStatus.NOT_FOUND);
     }
 
-    const customer = await this.customersModel.findOne({
-      userId: new Types.ObjectId(user._id),
-    });
-    if (!customer) {
-      throw new HttpException(
-        'Customer not found',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+    // Support multiple roles: customer, staff, business
+    let fullName: string = user.username;
+    let userProfile: any = null;
+
+    if (user.role.includes(RolesEnum.CUSTOMER)) {
+      userProfile = await this.customersModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
+      if (userProfile?.fullName) {
+        fullName = userProfile.fullName;
+      }
+    } else if (user.role.includes(RolesEnum.STAFF)) {
+      userProfile = await this.staffModel.findOne({
+        userId: new Types.ObjectId(user._id),
+      });
+      if (userProfile?.fullName) {
+        fullName = userProfile.fullName;
+      }
+    } else if (user.role.includes(RolesEnum.ADMIN)) {
+      // Admin can also reset password using their username
+      fullName = user.username;
+    } else {
+      // Default to username if no specific role profile found
+      fullName = user.username;
     }
+
     // Generate secure 6-digit OTP using crypto
     const otpCode = (
       (parseInt(crypto.randomBytes(3).toString('hex'), 16) % 900000) +
@@ -533,9 +550,9 @@ export class AuthService {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-    const html = otpForgotPasswordTemplate(customer?.fullName, otpCode);
+    const html = otpForgotPasswordTemplate(fullName, otpCode);
     const mailer: MailerDto = {
-      to: [{ name: customer?.fullName, address: user.email }],
+      to: [{ name: fullName, address: user.email }],
       subject: 'Password Reset OTP',
       html,
     };
