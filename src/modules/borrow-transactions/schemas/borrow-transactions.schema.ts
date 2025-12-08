@@ -139,6 +139,18 @@ export class BorrowTransaction {
 
   @Prop({ type: Number, default: 0 })
   totalConditionPoints: number;
+
+  @Prop({ type: Boolean, default: false })
+  dueNotificationSent: boolean;
+
+  @Prop({ type: Date })
+  dueNotificationSentAt: Date;
+
+  @Prop({ type: Boolean, default: false })
+  dueDateNotificationSent: boolean;
+
+  @Prop({ type: Date })
+  dueDateNotificationSentAt: Date;
 }
 
 export const BorrowTransactionSchema =
