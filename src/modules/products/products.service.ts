@@ -340,7 +340,6 @@ export class ProductsService {
         .populate('productGroupId', 'name description imageUrl')
         .populate('productSizeId', 'sizeName description depositValue');
 
-
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
       }
