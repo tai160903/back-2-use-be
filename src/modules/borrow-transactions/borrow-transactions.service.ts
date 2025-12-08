@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateBorrowTransactionDto } from './dto/create-borrow-transaction.dto';
@@ -54,9 +55,12 @@ import { calculateTotalDamagePointsWhenReturn } from './utils/calculateDamagePoi
 import { determineFinalConditionWhenReturn } from './helpers/determine-final-condition-when-return.helper';
 import { GetTransactionsDto } from './dto/get-borrow-transactions';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class BorrowTransactionsService {
+  private readonly logger = new Logger(BorrowTransactionsService.name);
+
   constructor(
     @InjectModel(BorrowTransaction.name)
     private readonly borrowTransactionModel: Model<BorrowTransaction>,
@@ -92,6 +96,7 @@ export class BorrowTransactionsService {
 
     private readonly cloudinaryService: CloudinaryService,
     private readonly configService: ConfigService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async createBorrowTransaction(
@@ -350,7 +355,7 @@ export class BorrowTransactionsService {
     userRole: RolesEnum[],
   ): Promise<APIResponseDto> {
     try {
-      console.log(userRole);
+      this.logger.debug('confirmBorrowTransaction called');
       const transaction =
         await this.borrowTransactionModel.findById(transactionId);
       if (!transaction)
@@ -1706,6 +1711,125 @@ export class BorrowTransactionsService {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE, {
+    timeZone: 'Asia/Ho_Chi_Minh',
+  })
+  async notifyUpcomingDueDates() {
+    try {
+      const now = new Date();
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0); // Start of today
+
+      // Get all borrowing transactions
+      const allTransactions = await this.borrowTransactionModel.find({
+        status: 'borrowing',
+      });
+
+      this.logger.log(
+        `Checking ${allTransactions.length} borrowing transactions for countdown notifications`,
+      );
+
+      for (const transaction of allTransactions) {
+        try {
+          const dueDate = new Date(transaction.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
+
+          // Calculate days until due date
+          const daysUntilDue = Math.floor(
+            (dueDate.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24),
+          );
+
+          // Only send notification for the 3 days before due date + due date itself (3, 2, 1, 0 days)
+          if (daysUntilDue < 0 || daysUntilDue > 3) {
+            continue; // Skip if not in the countdown window
+          }
+
+          const customer = await this.customerModel.findById(
+            transaction.customerId,
+          );
+
+          if (!customer) {
+            this.logger.warn(
+              `Customer not found for transaction ${transaction._id.toString()}`,
+            );
+            continue;
+          }
+
+          // Check if notification was already sent today
+          const lastNotificationDate = transaction.dueNotificationSentAt
+            ? new Date(transaction.dueNotificationSentAt)
+            : null;
+          const lastNotificationDateStart = lastNotificationDate
+            ? new Date(lastNotificationDate)
+            : null;
+          if (lastNotificationDateStart) {
+            lastNotificationDateStart.setHours(0, 0, 0, 0);
+          }
+
+          // If notification was sent today, skip
+          if (
+            lastNotificationDateStart &&
+            lastNotificationDateStart.getTime() === todayStart.getTime()
+          ) {
+            this.logger.debug(
+              `Countdown notification already sent today for transaction ${transaction._id.toString()}`,
+            );
+            continue;
+          }
+
+          const product = await this.productModel.findById(
+            transaction.productId,
+          );
+          const productName = product?.productGroupId
+            ? (await this.productGroupModel.findById(product.productGroupId))
+                ?.name || 'Unknown Product'
+            : 'Unknown Product';
+
+          const notificationTitle =
+            daysUntilDue === 0
+              ? 'Return Due Today'
+              : `${daysUntilDue} day(s) until return due`;
+
+          const notificationMessage =
+            daysUntilDue === 0
+              ? `Your borrowed item "${productName}" must be returned TODAY! Please return it immediately to avoid late fees.`
+              : `Your borrowed item "${productName}" must be returned in ${daysUntilDue} day(s) (due on ${dueDate.toLocaleDateString()}). Please ensure timely return to avoid late fees.`;
+
+          // Create notification in DB
+          await this.notificationsService.create({
+            receiverId: customer.userId,
+            receiverType: 'customer',
+            title: notificationTitle,
+            message: notificationMessage,
+            type: 'borrow',
+            referenceType: 'borrow',
+            referenceId: transaction._id,
+          });
+
+          // Mark notification as sent with today's date
+          transaction.dueNotificationSent = true;
+          transaction.dueNotificationSentAt = now;
+          await transaction.save();
+
+          this.logger.log(
+            `Countdown notification sent for customer ${customer._id.toString()} - Transaction ${transaction._id.toString()} (${daysUntilDue} days remaining)`,
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          this.logger.error(
+            `Error processing countdown notification for transaction ${transaction._id.toString()}: ${errorMessage}`,
+          );
+        }
+      }
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.error(`Error in notifyUpcomingDueDates: ${errorMessage}`);
+      // Silently fail - cron jobs should not throw
     }
   }
 }
