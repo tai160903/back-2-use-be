@@ -1,6 +1,7 @@
 import { calculateEcoPoint } from '../utils/calculate-eco-point';
 
 export function applyEcoPointChange(
+  customer,
   business,
   productSize,
   material,
@@ -23,6 +24,7 @@ export function applyEcoPointChange(
 
       business.ecoPoints += addedEcoPoints;
       business.co2Reduced += addedCo2;
+      customer.co2Reduced += addedCo2;
       break;
 
     case 'rejected':
@@ -31,6 +33,7 @@ export function applyEcoPointChange(
       addedCo2 = -co2Reduced;
 
       business.co2Reduced += addedCo2;
+      customer.co2Reduced += addedCo2;
       break;
 
     default:

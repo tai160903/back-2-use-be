@@ -36,6 +36,10 @@ import * as moment from 'moment-timezone';
 import { Product } from '../../products/schemas/product.schema';
 import { ProductGroup } from '../../product-groups/schemas/product-group.schema';
 import { subscriptionCanceledTemplate } from 'src/infrastructure/mailer/templates/subscription-canceled.template';
+import {
+  EcoRewardPolicy,
+  EcoRewardPolicyDocument,
+} from 'src/modules/eco-reward-policies/schemas/eco-reward-policy.schema';
 
 @Injectable()
 export class BusinessesService {
@@ -43,20 +47,33 @@ export class BusinessesService {
 
   constructor(
     @InjectModel(Businesses.name) private businessesModel: Model<Businesses>,
+
     @InjectModel(BusinessForm.name)
     private businessFormModel: Model<BusinessForm>,
+
     @InjectModel(BusinessSubscriptions.name)
     private businessSubscriptionModel: Model<BusinessSubscriptions>,
+
     @InjectModel(Customers.name) private customersModel: Model<Customers>,
+
     @InjectModel(Subscriptions.name)
     private subscriptionModel: Model<Subscriptions>,
+
     @InjectModel(Users.name) private usersModel: Model<Users>,
+
     @InjectModel(Wallets.name) private walletsModel: Model<Wallets>,
+
     @InjectModel(WalletTransactions.name)
     private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
+
     @InjectModel(Product.name) private productModel: Model<Product>,
+
     @InjectModel(ProductGroup.name)
     private productGroupModel: Model<ProductGroup>,
+
+    @InjectModel(EcoRewardPolicy.name)
+    private ecoRewardPolicyModel: Model<EcoRewardPolicyDocument>,
+
     @InjectConnection() private readonly connection: Connection,
     private readonly cloudinaryService: CloudinaryService,
     private readonly mailerService: MailerService,
@@ -774,28 +791,76 @@ export class BusinessesService {
       const business = await this.businessesModel
         .findOne({ userId: new Types.ObjectId(userId) })
         .populate('userId', 'username email phone');
-      // .populate('businessFormId');
 
       if (!business) {
         throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
       }
 
-      const [activeSubscription, wallet] = await Promise.all([
-        this.businessSubscriptionModel
-          .find({
-            businessId: new Types.ObjectId(business._id),
-            status: ['active', 'pending'],
-            endDate: { $gte: new Date() },
-          })
-          .populate('subscriptionId')
-          .sort({ endDate: -1 }),
-        this.walletsModel.findOne({
-          userId: new Types.ObjectId(userId),
-          type: 'business',
-        }),
-      ]);
+      const [activeSubscription, wallet, ecoPolicy, nextRank] =
+        await Promise.all([
+          this.businessSubscriptionModel
+            .find({
+              businessId: new Types.ObjectId(business._id),
+              status: ['active', 'pending'],
+              endDate: { $gte: new Date() },
+            })
+            .populate('subscriptionId')
+            .sort({ endDate: -1 }),
+
+          this.walletsModel.findOne({
+            userId: new Types.ObjectId(userId),
+            type: 'business',
+          }),
+
+          // rank hiện tại (threshold <= points, lấy mốc lớn nhất)
+          this.ecoRewardPolicyModel
+            .findOne({
+              threshold: { $lte: business.ecoPoints },
+              isActive: true,
+            })
+            .sort({ threshold: -1 }),
+
+          // rank kế tiếp (threshold > current points)
+          this.ecoRewardPolicyModel
+            .findOne({
+              threshold: { $gt: business.ecoPoints },
+              isActive: true,
+            })
+            .sort({ threshold: 1 }),
+        ]);
+
       if (!wallet) {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
+      }
+
+      // xử lý rank hiện tại
+      const ecoRankLabel = ecoPolicy?.label || null;
+
+      // xử lý next rank + remaining + progress
+      let nextRankData: any = null;
+      let progress: any = null;
+
+      if (nextRank) {
+        const remainingPoints = nextRank.threshold - business.ecoPoints;
+        const range = nextRank.threshold - (ecoPolicy?.threshold ?? 0);
+
+        progress = {
+          current: business.ecoPoints,
+          currentThreshold: ecoPolicy?.threshold ?? 0,
+          nextThreshold: nextRank.threshold,
+          percent: Number(
+            (
+              ((business.ecoPoints - (ecoPolicy?.threshold ?? 0)) / range) *
+              100
+            ).toFixed(2),
+          ),
+        };
+
+        nextRankData = {
+          label: nextRank.label,
+          threshold: nextRank.threshold,
+          remainingPoints,
+        };
       }
 
       return {
@@ -805,6 +870,10 @@ export class BusinessesService {
           business,
           activeSubscription: activeSubscription || 'No active subscription',
           wallet,
+
+          ecoRankLabel,
+          nextRank: nextRankData,
+          progress,
         },
       };
     } catch (error) {
@@ -813,7 +882,6 @@ export class BusinessesService {
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
   async updateBusinessProfile(
     userId: string,
     updateDto: {

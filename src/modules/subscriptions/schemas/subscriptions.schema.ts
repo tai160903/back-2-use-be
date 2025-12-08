@@ -3,12 +3,6 @@ import { HydratedDocument } from 'mongoose';
 
 export type SubscriptionsDocument = HydratedDocument<Subscriptions>;
 
-export enum ExportLevel {
-  NONE = 'none',
-  BASIC = 'basic',
-  ADVANCED = 'advanced',
-}
-
 @Schema({ timestamps: true })
 export class Limits {
   @Prop({ required: true })
@@ -16,12 +10,6 @@ export class Limits {
 
   @Prop({ required: true })
   productItemLimit: number; // -1 = unlimited
-
-  @Prop({ required: true, enum: Object.values(ExportLevel) })
-  exportLevel: ExportLevel;
-
-  @Prop({ required: true })
-  ecoBonusPercent: number;
 }
 
 export const LimitsSchema = SchemaFactory.createForClass(Limits);

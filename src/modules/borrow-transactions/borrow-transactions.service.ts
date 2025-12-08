@@ -467,6 +467,21 @@ export class BorrowTransactionsService {
       if (options.borrowTransactionType)
         query.borrowTransactionType = options.borrowTransactionType;
 
+      // ===== DATE FILTER =====
+      if (options.fromDate || options.toDate) {
+        query.createdAt = {};
+
+        if (options.fromDate) {
+          query.createdAt.$gte = new Date(options.fromDate);
+        }
+
+        if (options.toDate) {
+          const endOfDay = new Date(options.toDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = endOfDay;
+        }
+      }
+
       // ===== FILTER PRODUCT =====
       const productIdSet = new Set<string>();
 
@@ -877,6 +892,20 @@ export class BorrowTransactionsService {
       if (options.status) query.status = options.status;
       if (options.borrowTransactionType)
         query.borrowTransactionType = options.borrowTransactionType;
+      // ===== DATE FILTER =====
+      if (options.fromDate || options.toDate) {
+        query.createdAt = {};
+
+        if (options.fromDate) {
+          query.createdAt.$gte = new Date(options.fromDate);
+        }
+
+        if (options.toDate) {
+          const endOfDay = new Date(options.toDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = endOfDay;
+        }
+      }
 
       // ===== FILTER PRODUCT =====
       const productIdSet = new Set<string>();
@@ -1577,6 +1606,7 @@ export class BorrowTransactionsService {
       );
 
       const { addedEcoPoints, addedCo2 } = applyEcoPointChange(
+        customer,
         business,
         productSize,
         material,
