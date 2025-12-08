@@ -22,6 +22,15 @@ export class BusinessDashboardController {
     return this.businessDashboardService.getBusinessOverview(userId);
   }
 
+  @Get('top-borrowed')
+  async getTopProductBorrowed(
+    @Req() req: AuthenticatedRequest,
+    @Query('top') top: number,
+  ) {
+    const userId = req.user?._id;
+    return this.businessDashboardService.getBusinessTopProduct(userId, top);
+  }
+
   @Get('borrow-transactions/monthly')
   async getBorrowTransactionsStatsByMonth(
     @Req() req: AuthenticatedRequest,
@@ -31,6 +40,18 @@ export class BusinessDashboardController {
     return this.businessDashboardService.getBusinessBorrowStatsByMonth(
       userId,
       query,
+    );
+  }
+
+  @Get('wallet-transactions/monthly')
+  async getWalletTransactionsStatsByMonth(
+    @Req() req: AuthenticatedRequest,
+    @Query('year') year?: number,
+  ) {
+    const userId = req.user?._id;
+    return this.businessDashboardService.getBusinessWalletStatsByMonth(
+      userId,
+      year,
     );
   }
 }

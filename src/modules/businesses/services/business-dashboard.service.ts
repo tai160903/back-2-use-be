@@ -4,6 +4,7 @@ import {
   Inject,
   HttpStatus,
   NotFoundException,
+  HttpException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
@@ -85,7 +86,7 @@ export class BusinessDashboardService {
     private readonly productModel: Model<ProductDocument>,
 
     @InjectModel(WalletTransactions.name)
-    private readonly walletTransactionModel: Model<WalletTransactionsDocument>,
+    private readonly walletTransactionsModel: Model<WalletTransactionsDocument>,
 
     @InjectModel(Feedback.name)
     private readonly feedbackModel: Model<FeedbackDocument>,
@@ -99,10 +100,8 @@ export class BusinessDashboardService {
     const userObjectId = new Types.ObjectId(userId);
 
     const business = await this.businessModel.findOne({ userId: userObjectId });
-
-    if (!business) {
+    if (!business)
       throw new NotFoundException('Business not found for this user');
-    }
 
     const businessId = business._id;
 
@@ -110,28 +109,65 @@ export class BusinessDashboardService {
       totalBorrowTransactions,
       totalBusinessVouchers,
       totalProductGroups,
-      totalProducts,
+      totalProductsAgg,
       totalStaffs,
+      productConditionAgg, // 👈 new
     ] = await Promise.all([
-      // Borrow transactions of this business
-      this.borrowTransactionModel.countDocuments({
-        businessId: businessId,
-      }),
+      this.borrowTransactionModel.countDocuments({ businessId }),
+      this.businessVoucherModel.countDocuments({ businessId }),
+      this.productGroupModel.countDocuments({ businessId }),
 
-      // Business vouchers created by this business
-      this.businessVoucherModel.countDocuments({
-        businessId: businessId,
-      }),
+      // count product join group
+      this.productModel.aggregate([
+        {
+          $lookup: {
+            from: 'productgroups',
+            localField: 'productGroupId',
+            foreignField: '_id',
+            as: 'group',
+          },
+        },
+        { $unwind: '$group' },
+        { $match: { 'group.businessId': businessId, isDeleted: false } },
+        { $count: 'total' },
+      ]),
 
-      // Product groups
-      this.productGroupModel.countDocuments({ businessId: businessId }),
+      this.staffModel.countDocuments({ businessId }),
 
-      // Products
-      this.productModel.countDocuments({ businessId: businessId }),
-
-      // Staffs
-      this.staffModel.countDocuments({ businessId: businessId }),
+      // 🔥 Count product by condition
+      this.productModel.aggregate([
+        {
+          $lookup: {
+            from: 'productgroups',
+            localField: 'productGroupId',
+            foreignField: '_id',
+            as: 'group',
+          },
+        },
+        { $unwind: '$group' },
+        { $match: { 'group.businessId': businessId, isDeleted: false } },
+        {
+          $group: {
+            _id: '$condition',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
+
+    const totalProducts = totalProductsAgg[0]?.total || 0;
+
+    // format condition result thành object
+    const conditionStats: Record<string, number> = {
+      good: 0,
+      damaged: 0,
+      expired: 0,
+      lost: 0,
+    };
+
+    productConditionAgg.forEach((item) => {
+      conditionStats[item._id] = item.count;
+    });
 
     return {
       statusCode: HttpStatus.OK,
@@ -146,6 +182,9 @@ export class BusinessDashboardService {
         ecoPoints: business.ecoPoints,
         averageRating: business.averageRating,
         totalReviews: business.totalReviews,
+
+        // 👇 New condition breakdown
+        productConditionStats: conditionStats,
       },
     };
   }
@@ -239,6 +278,381 @@ export class BusinessDashboardService {
         totalEcoPoints: 0,
         totalCo2Reduced: 0,
         totalDepositAmount: 0,
+      },
+    };
+  }
+
+  // Business get top product
+  async getBusinessTopProduct(userId: string, top: number = 5) {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new HttpException('Invalid user ID', HttpStatus.BAD_REQUEST);
+    }
+
+    const business = await this.businessModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+
+    if (!business) {
+      throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+    }
+
+    const businessId = business._id;
+
+    const topBorrowedProducts = await this.productModel.aggregate([
+      {
+        $lookup: {
+          from: 'productgroups',
+          localField: 'productGroupId',
+          foreignField: '_id',
+          as: 'group',
+        },
+      },
+      { $unwind: '$group' },
+      {
+        $lookup: {
+          from: 'productsizes',
+          localField: 'productSizeId',
+          foreignField: '_id',
+          as: 'size',
+        },
+      },
+      { $unwind: '$size' },
+      {
+        $lookup: {
+          from: 'materials',
+          localField: 'group.materialId',
+          foreignField: '_id',
+          as: 'material',
+        },
+      },
+      { $unwind: '$material' },
+      {
+        $match: {
+          'group.businessId': businessId,
+          isDeleted: false,
+          reuseCount: { $gt: 0 },
+        },
+      },
+      { $sort: { reuseCount: -1 } },
+      { $limit: Number(top) },
+      {
+        $project: {
+          _id: 1,
+          serialNumber: 1,
+          status: 1,
+          condition: 1,
+          reuseCount: 1,
+          lastConditionNote: 1,
+          lastConditionImages: 1,
+          lastDamageFaces: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          'group._id': 1,
+          'group.name': 1,
+          'group.imageUrl': 1,
+          // size info
+          'size._id': 1,
+          'size.sizeName': 1,
+          'size.depositValue': 1,
+          'size.description': 1,
+          'size.plasticEquivalentWeight': 1,
+          // material info
+          'material._id': 1,
+          'material.co2EmissionPerKg': 1,
+        },
+      },
+    ]);
+
+    // === Calculate co2Reduced for each product ===
+    const productsWithEco = topBorrowedProducts.map((prod) => {
+      let co2Reduced = 0;
+
+      if (
+        prod.size?.plasticEquivalentWeight &&
+        prod.material?.co2EmissionPerKg
+      ) {
+        const plasticWeightKg = prod.size.plasticEquivalentWeight / 1000;
+        const co2 = prod.material.co2EmissionPerKg;
+
+        co2Reduced = Number((plasticWeightKg * co2).toFixed(3));
+      }
+
+      return {
+        ...prod,
+        co2Reduced,
+      };
+    });
+
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Top borrowed products loaded successfully',
+      data: {
+        top,
+        products: productsWithEco,
+      },
+    };
+  }
+
+  // Business get wallet transactions
+  async getBusinessWalletStatsByMonth(userId: string, year?: number) {
+    const targetYear = year ?? new Date().getFullYear();
+    const userObjectId = new Types.ObjectId(userId);
+
+    // Lấy business
+    const business = await this.businessModel
+      .findOne({ userId: userObjectId })
+      .lean();
+    if (!business) throw new NotFoundException('Business not found');
+
+    // Lấy wallet
+    const wallet = await this.walletModel.findOne({
+      userId: userObjectId,
+      type: 'business',
+    });
+    if (!wallet) throw new NotFoundException('Wallet not found');
+
+    const walletId = wallet._id;
+
+    // =============================
+    // AGGREGATION MONTHLY SUMMARY
+    // =============================
+    const monthlyTx = await this.walletTransactionsModel.aggregate([
+      {
+        $match: {
+          walletId,
+          status: 'completed',
+          createdAt: {
+            $gte: new Date(targetYear, 0, 1),
+            $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: { month: { $month: '$createdAt' } },
+
+          totalIn: {
+            $sum: { $cond: [{ $eq: ['$direction', 'in'] }, '$amount', 0] },
+          },
+
+          totalInAvailable: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'in'] },
+                    { $eq: ['$balanceType', 'available'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalInHolding: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'in'] },
+                    { $eq: ['$balanceType', 'holding'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalOut: {
+            $sum: { $cond: [{ $eq: ['$direction', 'out'] }, '$amount', 0] },
+          },
+
+          totalOutAvailable: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'out'] },
+                    { $eq: ['$balanceType', 'available'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalOutHolding: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'out'] },
+                    { $eq: ['$balanceType', 'holding'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          revenue: {
+            $sum: {
+              $cond: [
+                { $in: ['$transactionType', ['penalty', 'deposit_forfeited']] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { '_id.month': 1 } },
+    ]);
+
+    // =============================
+    // FORMAT 12 THÁNG
+    // =============================
+    const formatted = Array.from({ length: 12 }, (_, i) => {
+      const m = monthlyTx.find((r) => r._id.month === i + 1);
+      return {
+        month: i + 1,
+        totalIn: m?.totalIn || 0,
+        totalInAvailable: m?.totalInAvailable || 0,
+        totalInHolding: m?.totalInHolding || 0,
+        totalOut: m?.totalOut || 0,
+        totalOutAvailable: m?.totalOutAvailable || 0,
+        totalOutHolding: m?.totalOutHolding || 0,
+
+        // net chỉ tính tiền thật (available)
+        net: m ? m.totalInAvailable - m.totalOutAvailable : 0,
+
+        revenue: m?.revenue || 0,
+      };
+    });
+
+    // =============================
+    // TOTAL SUMMARY FULL YEAR
+    // =============================
+    const totals = await this.walletTransactionsModel.aggregate([
+      {
+        $match: {
+          walletId,
+          status: 'completed',
+          createdAt: {
+            $gte: new Date(targetYear, 0, 1),
+            $lte: new Date(targetYear, 11, 31, 23, 59, 59),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+
+          totalIn: {
+            $sum: { $cond: [{ $eq: ['$direction', 'in'] }, '$amount', 0] },
+          },
+
+          totalInAvailable: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'in'] },
+                    { $eq: ['$balanceType', 'available'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalInHolding: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'in'] },
+                    { $eq: ['$balanceType', 'holding'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalOut: {
+            $sum: { $cond: [{ $eq: ['$direction', 'out'] }, '$amount', 0] },
+          },
+
+          totalOutAvailable: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'out'] },
+                    { $eq: ['$balanceType', 'available'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalOutHolding: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$direction', 'out'] },
+                    { $eq: ['$balanceType', 'holding'] },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          revenue: {
+            $sum: {
+              $cond: [
+                { $in: ['$transactionType', ['penalty', 'deposit_forfeited']] },
+                '$amount',
+                0,
+              ],
+            },
+          },
+        },
+      },
+      { $project: { _id: 0 } },
+    ]);
+
+    return {
+      statusCode: 200,
+      message: 'Business wallet monthly statistics loaded successfully',
+      year: targetYear,
+      data: formatted,
+      totals: {
+        totalIn: totals[0]?.totalIn || 0,
+        totalInAvailable: totals[0]?.totalInAvailable || 0,
+        totalInHolding: totals[0]?.totalInHolding || 0,
+        totalOut: totals[0]?.totalOut || 0,
+        totalOutAvailable: totals[0]?.totalOutAvailable || 0,
+        totalOutHolding: totals[0]?.totalOutHolding || 0,
+
+        // net chỉ tính available
+        net: totals[0]
+          ? totals[0].totalInAvailable - totals[0].totalOutAvailable
+          : 0,
+
+        revenue: totals[0]?.revenue || 0,
       },
     };
   }

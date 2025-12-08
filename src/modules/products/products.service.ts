@@ -18,6 +18,7 @@ import { BorrowTransaction } from '../borrow-transactions/schemas/borrow-transac
 import { SystemSetting } from '../system-settings/schemas/system-setting.schema';
 import { calculateLateReturnInfo } from '../borrow-transactions/utils/calculate-late-return';
 import { ProductFace } from 'src/common/constants/product-face.enum';
+import { calculateEcoPoint } from '../borrow-transactions/utils/calculate-eco-point';
 
 @Injectable()
 export class ProductsService {
@@ -219,18 +220,21 @@ export class ProductsService {
         productGroupId: new Types.ObjectId(productGroupId),
       };
 
-      if (query.status) {
-        filter.status = query.status;
-      }
-
-      if (query.search) {
+      if (query.status) filter.status = query.status;
+      if (query.search)
         filter.serialNumber = { $regex: query.search, $options: 'i' };
-      }
 
       const [products, total] = await Promise.all([
         this.productModel
           .find(filter)
-          .populate('productGroupId')
+          .populate({
+            path: 'productGroupId',
+            select: 'name materialId',
+            populate: {
+              path: 'materialId',
+              select: 'co2EmissionPerKg',
+            },
+          })
           .populate('productSizeId')
           .skip(skip)
           .limit(limit)
@@ -238,9 +242,32 @@ export class ProductsService {
         this.productModel.countDocuments(filter),
       ]);
 
+      const finalProducts = products.map((p: any) => {
+        const size = p.productSizeId;
+        const material = p.productGroupId?.materialId;
+
+        let ecoPoint = 0;
+        let co2Reduced = 0;
+        let plasticPrevented = 0;
+
+        if (size && material) {
+          const eco = calculateEcoPoint(size, material);
+          // ecoPoint = eco.ecoPoint;
+          co2Reduced = eco.co2Reduced;
+          // plasticPrevented = eco.plasticPrevented;
+        }
+
+        return {
+          ...p.toObject(),
+          // ecoPoint,
+          co2Reduced,
+          // plasticPrevented,
+        };
+      });
+
       return {
         success: true,
-        data: products,
+        data: finalProducts,
         pagination: {
           page,
           limit,
@@ -249,11 +276,9 @@ export class ProductsService {
         },
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        (error as Error).message || 'Failed to get products',
+        error?.message || 'Failed to get products',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -337,23 +362,45 @@ export class ProductsService {
 
       const product = await this.productModel
         .findOne({ _id: new Types.ObjectId(id), isDeleted: false })
-        .populate('productGroupId', 'name description imageUrl')
-        .populate('productSizeId', 'sizeName description depositValue');
+        .populate({
+          path: 'productGroupId',
+          select: 'name description imageUrl materialId',
+          populate: {
+            path: 'materialId',
+            select: 'co2EmissionPerKg',
+          },
+        })
+        .populate(
+          'productSizeId',
+          'sizeName description depositValue plasticEquivalentWeight',
+        );
 
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
       }
 
+      const group: any = product.productGroupId;
+      const size: any = product.productSizeId;
+      const material = group?.materialId;
+
+      let co2Reduced = 0;
+
+      if (size && material) {
+        const eco = calculateEcoPoint(size, material);
+        co2Reduced = eco.co2Reduced;
+      }
+
       return {
         success: true,
-        data: product,
+        data: {
+          ...product.toObject(),
+          co2Reduced,
+        },
       };
     } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
+      if (error instanceof HttpException) throw error;
       throw new HttpException(
-        (error as Error).message || 'Failed to get product',
+        error?.message || 'Failed to get product',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -443,31 +490,52 @@ export class ProductsService {
         isDeleted: false,
       };
 
-      if (status) {
-        filter.status = status;
-      } else {
-        filter.status = 'available';
-      }
+      if (status) filter.status = status;
+      else filter.status = 'available';
 
-      if (condition) {
-        filter.condition = condition;
-      }
+      if (condition) filter.condition = condition;
 
-      const products = await this.productModel
-        .find(filter)
-        .skip(skip)
-        .populate('productSizeId')
-        .populate('productGroupId')
-        .limit(limit)
-        .sort({ createdAt: -1 });
+      const [products, total] = await Promise.all([
+        this.productModel
+          .find(filter)
+          .populate({
+            path: 'productGroupId',
+            select: 'name materialId',
+            populate: {
+              path: 'materialId',
+              select: 'co2EmissionPerKg',
+            },
+          })
+          .populate('productSizeId')
+          .skip(skip)
+          .limit(limit)
+          .sort({ createdAt: -1 }),
+        this.productModel.countDocuments(filter),
+      ]);
 
-      const total = await this.productModel.countDocuments(filter);
+      // 🎯 add co2Reduced theo calculateEcoPoint
+      const finalProducts = products.map((p: any) => {
+        const size = p.productSizeId;
+        const material = p.productGroupId?.materialId;
+
+        let co2Reduced = 0;
+
+        if (size && material) {
+          const eco = calculateEcoPoint(size, material);
+          co2Reduced = eco.co2Reduced;
+        }
+
+        return {
+          ...p.toObject(),
+          co2Reduced,
+        };
+      });
 
       return {
         statusCode: HttpStatus.OK,
         message: 'Products fetched successfully',
         data: {
-          products,
+          products: finalProducts,
           total,
           currentPage: page,
           totalPages: Math.ceil(total / limit),
