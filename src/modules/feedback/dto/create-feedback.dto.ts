@@ -27,8 +27,8 @@ export class CreateFeedbackDto {
   })
   @IsNotEmpty()
   @IsNumber()
-  @Min(1)
-  @Max(5)
+  @Min(1, { message: 'Rating must be at least 1' })
+  @Max(5, { message: 'Rating cannot be more than 5' })
   rating: number;
 
   @ApiPropertyOptional({
@@ -38,6 +38,6 @@ export class CreateFeedbackDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(500)
+  @MaxLength(500, { message: 'Comment cannot exceed 500 characters' })
   comment?: string;
 }
