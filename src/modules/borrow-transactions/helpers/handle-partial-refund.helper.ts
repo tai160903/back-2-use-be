@@ -19,20 +19,56 @@ export async function handlePartialRefund(
   customerWallet.availableBalance += refundAmount;
 
   // Transaction for business (late fee income)
-  await new walletTransactionsModel({
-    walletId: businessWallet._id,
-    relatedUserId: transaction.customerId,
-    relatedUserType: 'customer',
-    amount: lateFee,
-    transactionType: TransactionType.PENALTY,
-    direction: 'in',
-    balanceType: 'holding',
-    toBalanceType: 'available',
-    description: 'Late return fee collected',
-    status: 'completed',
-    referenceType: 'borrow',
-    referenceId: transaction._id,
-  }).save({ session });
+  // await new walletTransactionsModel({
+  //   walletId: businessWallet._id,
+  //   relatedUserId: transaction.customerId,
+  //   relatedUserType: 'customer',
+  //   amount: lateFee,
+  //   transactionType: TransactionType.PENALTY,
+  //   direction: 'in',
+  //   balanceType: 'holding',
+  //   toBalanceType: 'available',
+  //   description: 'Late return fee collected',
+  //   status: 'completed',
+  //   referenceType: 'borrow',
+  //   referenceId: transaction._id,
+  // }).save({ session });
+  await walletTransactionsModel.create(
+    [
+      // A. Business takes penalty fee
+      {
+        walletId: businessWallet._id,
+        relatedUserId: transaction.customerId,
+        relatedUserType: 'customer',
+        amount: lateFee,
+        transactionType: TransactionType.PENALTY,
+        direction: 'in',
+        balanceType: 'holding',
+        toBalanceType: 'available', // reduce holding, increase available
+        description: 'Late return fee collected',
+        status: 'completed',
+        referenceType: 'borrow',
+        referenceId: transaction._id,
+      },
+
+      // B. Customer receives partial refund
+      {
+        walletId: businessWallet._id,
+        relatedUserId: transaction.customerId,
+        relatedUserType: 'customer',
+        amount: refundAmount,
+        transactionType: TransactionType.RETURN_REFUND,
+        direction: 'out',
+        balanceType: 'holding',
+        toBalanceType: null,
+        description: 'Partial deposit refund after late return',
+        status: 'completed',
+        referenceType: 'borrow',
+        referenceId: transaction._id,
+      },
+    ],
+    { session, ordered: true },
+  );
 
   // Transaction for customer refund
   await new walletTransactionsModel({

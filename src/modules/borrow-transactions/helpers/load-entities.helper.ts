@@ -106,7 +106,7 @@ export async function loadEntities(
     .session(session);
 
   if (!borrowTransaction)
-    throw new BadRequestException('No active borrowing transaction found.');
+    throw new NotFoundException('No active borrowing transaction found.');
 
   // --- Customer ---
   const customer = await customerModel

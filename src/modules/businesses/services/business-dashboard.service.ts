@@ -441,7 +441,22 @@ export class BusinessDashboardService {
                 {
                   $and: [
                     { $eq: ['$direction', 'in'] },
-                    { $eq: ['$balanceType', 'available'] },
+                    {
+                      $or: [
+                        { $eq: ['$balanceType', 'available'] },
+                        {
+                          $and: [
+                            { $eq: ['$toBalanceType', 'available'] },
+                            {
+                              $in: [
+                                '$transactionType',
+                                ['penalty', 'deposit_forfeited'],
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
                   ],
                 },
                 '$amount',
@@ -457,6 +472,37 @@ export class BusinessDashboardService {
                   $and: [
                     { $eq: ['$direction', 'in'] },
                     { $eq: ['$balanceType', 'holding'] },
+                    {
+                      $not: [
+                        {
+                          $in: [
+                            '$transactionType',
+                            ['penalty', 'deposit_forfeited'],
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalConvertedHolding: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$balanceType', 'holding'] },
+                    { $eq: ['$toBalanceType', 'available'] },
+                    {
+                      $in: [
+                        '$transactionType',
+                        ['penalty', 'deposit_forfeited'],
+                      ],
+                    },
                   ],
                 },
                 '$amount',
@@ -525,11 +571,9 @@ export class BusinessDashboardService {
         totalInHolding: m?.totalInHolding || 0,
         totalOut: m?.totalOut || 0,
         totalOutAvailable: m?.totalOutAvailable || 0,
-        totalOutHolding: m?.totalOutHolding || 0,
-
-        // net chỉ tính tiền thật (available)
+        totalHoldingConvertToAvailable: m?.totalConvertedHolding || 0,
+        totalHoldingReturnToCustomer: m?.totalOutHolding || 0,
         net: m ? m.totalInAvailable - m.totalOutAvailable : 0,
-
         revenue: m?.revenue || 0,
       };
     });
@@ -562,7 +606,22 @@ export class BusinessDashboardService {
                 {
                   $and: [
                     { $eq: ['$direction', 'in'] },
-                    { $eq: ['$balanceType', 'available'] },
+                    {
+                      $or: [
+                        { $eq: ['$balanceType', 'available'] },
+                        {
+                          $and: [
+                            { $eq: ['$toBalanceType', 'available'] },
+                            {
+                              $in: [
+                                '$transactionType',
+                                ['penalty', 'deposit_forfeited'],
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
                   ],
                 },
                 '$amount',
@@ -578,6 +637,37 @@ export class BusinessDashboardService {
                   $and: [
                     { $eq: ['$direction', 'in'] },
                     { $eq: ['$balanceType', 'holding'] },
+                    {
+                      $not: [
+                        {
+                          $in: [
+                            '$transactionType',
+                            ['penalty', 'deposit_forfeited'],
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+                '$amount',
+                0,
+              ],
+            },
+          },
+
+          totalConvertedHolding: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$balanceType', 'holding'] },
+                    { $eq: ['$toBalanceType', 'available'] },
+                    {
+                      $in: [
+                        '$transactionType',
+                        ['penalty', 'deposit_forfeited'],
+                      ],
+                    },
                   ],
                 },
                 '$amount',
@@ -640,18 +730,17 @@ export class BusinessDashboardService {
       year: targetYear,
       data: formatted,
       totals: {
+        month: 12,
         totalIn: totals[0]?.totalIn || 0,
         totalInAvailable: totals[0]?.totalInAvailable || 0,
         totalInHolding: totals[0]?.totalInHolding || 0,
         totalOut: totals[0]?.totalOut || 0,
         totalOutAvailable: totals[0]?.totalOutAvailable || 0,
-        totalOutHolding: totals[0]?.totalOutHolding || 0,
-
-        // net chỉ tính available
+        totalHoldingConvertToAvailable: totals[0]?.totalConvertedHolding || 0,
+        totalHoldingReturnToCustomer: totals[0]?.totalOutHolding || 0,
         net: totals[0]
           ? totals[0].totalInAvailable - totals[0].totalOutAvailable
           : 0,
-
         revenue: totals[0]?.revenue || 0,
       },
     };
