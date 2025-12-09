@@ -131,7 +131,7 @@ export class ProductsService {
 
       const FACE_LIST = Object.values(ProductFace);
 
-      const prefix = productGroup.name.slice(0, 3).toUpperCase();
+      const prefix = productGroup.name.slice(0, 3).toUpperCase().padEnd(3, 'X');
       const timestamp = Date.now();
 
       const products = await Promise.all(
