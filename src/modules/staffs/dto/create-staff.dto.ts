@@ -6,7 +6,6 @@ import {
   IsOptional,
   IsString,
   Length,
-  IsIn,
 } from 'class-validator';
 import { Types } from 'mongoose';
 
@@ -22,7 +21,7 @@ export class CreateStaffDto {
   @ApiProperty({ description: 'Full name of staff', example: 'Nguyen Van A' })
   @IsNotEmpty()
   @IsString()
-  @Length(2, 100)
+  @Length(2, 100, { message: 'Full name must be between 2 and 100 characters' })
   fullName: string;
 
   @ApiProperty({
@@ -40,6 +39,8 @@ export class CreateStaffDto {
   })
   @IsOptional()
   @IsString()
-  @Length(8, 20)
+  @Length(8, 20, {
+    message: 'Phone number must be between 8 and 20 characters',
+  })
   phone?: string;
 }
