@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
-  IsEnum,
   IsNotEmpty,
   IsNumber,
   IsObject,
@@ -36,7 +35,7 @@ export class CreateSubscriptionDto {
     required: true,
   })
   @IsString()
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Name cannot be empty' })
   name: string;
 
   @ApiProperty({
@@ -45,8 +44,8 @@ export class CreateSubscriptionDto {
     minimum: 0,
     required: true,
   })
-  @IsNumber()
-  @Min(0)
+  @IsNumber({}, { message: 'Price must be a number' })
+  @Min(0, { message: 'Price cannot be negative' })
   price: number;
 
   @ApiProperty({
@@ -55,8 +54,8 @@ export class CreateSubscriptionDto {
     minimum: 0,
     required: true,
   })
-  @IsNumber()
-  @Min(0)
+  @IsNumber({}, { message: 'Duration in days must be a number' })
+  @Min(1, { message: 'Duration in days must be at least 1' })
   durationInDays: number;
 
   @ApiPropertyOptional({
