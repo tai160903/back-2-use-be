@@ -229,13 +229,16 @@ export class ProductsService {
           .find(filter)
           .populate({
             path: 'productGroupId',
-            select: 'name materialId',
+            select: 'name description imageUrl materialId',
             populate: {
               path: 'materialId',
               select: 'co2EmissionPerKg',
             },
           })
-          .populate('productSizeId')
+          .populate(
+            'productSizeId',
+            'sizeName description depositValue plasticEquivalentWeight',
+          )
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 }),
@@ -291,7 +294,14 @@ export class ProductsService {
         .select(
           '_id serialNumber qrCode status condition reuseCount lastConditionImages lastConditionNote lastDamageFaces',
         )
-        .populate('productGroupId', 'name businessId description imageUrl')
+        .populate({
+          path: 'productGroupId',
+          select: 'name businessId description imageUrl materialId',
+          populate: {
+            path: 'materialId',
+            select: 'co2EmissionPerKg',
+          },
+        })
         .populate(
           'productSizeId',
           'sizeName businessId depositValue weight plasticEquivalentWeight description',
@@ -299,6 +309,16 @@ export class ProductsService {
 
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
+      }
+
+      let co2Reduced = 0;
+
+      const size: any = product.productSizeId;
+      const group: any = product.productGroupId;
+
+      if (size && group?.materialId) {
+        const eco = calculateEcoPoint(size, group.materialId);
+        co2Reduced = eco.co2Reduced;
       }
 
       const activeTransaction = await this.borrowTransactionModel
@@ -339,7 +359,10 @@ export class ProductsService {
       return {
         success: true,
         data: {
-          product,
+          product: {
+            ...product.toObject(),
+            co2Reduced, // 🌱 thêm vào response
+          },
           transaction: activeTransaction || null,
           lateInfo: lateInfo || null,
         },
@@ -500,13 +523,16 @@ export class ProductsService {
           .find(filter)
           .populate({
             path: 'productGroupId',
-            select: 'name materialId',
+            select: 'name description imageUrl materialId',
             populate: {
               path: 'materialId',
               select: 'co2EmissionPerKg',
             },
           })
-          .populate('productSizeId')
+          .populate(
+            'productSizeId',
+            'sizeName description depositValue plasticEquivalentWeight',
+          )
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 }),
