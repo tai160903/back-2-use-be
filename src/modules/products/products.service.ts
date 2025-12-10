@@ -229,16 +229,12 @@ export class ProductsService {
           .find(filter)
           .populate({
             path: 'productGroupId',
-            select: 'name description imageUrl materialId',
             populate: {
               path: 'materialId',
               select: 'co2EmissionPerKg',
             },
           })
-          .populate(
-            'productSizeId',
-            'sizeName description depositValue plasticEquivalentWeight',
-          )
+          .populate('productSizeId')
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 }),
@@ -296,16 +292,12 @@ export class ProductsService {
         )
         .populate({
           path: 'productGroupId',
-          select: 'name businessId description imageUrl materialId',
           populate: {
             path: 'materialId',
             select: 'co2EmissionPerKg',
           },
         })
-        .populate(
-          'productSizeId',
-          'sizeName businessId depositValue weight plasticEquivalentWeight description',
-        );
+        .populate('productSizeId');
 
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
@@ -387,16 +379,12 @@ export class ProductsService {
         .findOne({ _id: new Types.ObjectId(id), isDeleted: false })
         .populate({
           path: 'productGroupId',
-          select: 'name description imageUrl materialId',
           populate: {
             path: 'materialId',
             select: 'co2EmissionPerKg',
           },
         })
-        .populate(
-          'productSizeId',
-          'sizeName description depositValue plasticEquivalentWeight',
-        );
+        .populate('productSizeId');
 
       if (!product) {
         throw new HttpException('Product not found', HttpStatus.NOT_FOUND);
@@ -523,23 +511,18 @@ export class ProductsService {
           .find(filter)
           .populate({
             path: 'productGroupId',
-            select: 'name description imageUrl materialId',
             populate: {
               path: 'materialId',
               select: 'co2EmissionPerKg',
             },
           })
-          .populate(
-            'productSizeId',
-            'sizeName description depositValue plasticEquivalentWeight',
-          )
+          .populate('productSizeId')
           .skip(skip)
           .limit(limit)
           .sort({ createdAt: -1 }),
         this.productModel.countDocuments(filter),
       ]);
 
-      // 🎯 add co2Reduced theo calculateEcoPoint
       const finalProducts = products.map((p: any) => {
         const size = p.productSizeId;
         const material = p.productGroupId?.materialId;
