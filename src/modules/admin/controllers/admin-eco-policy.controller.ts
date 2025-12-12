@@ -43,7 +43,7 @@ export class AdminEcoRewardPoliciesController {
   async create(
     @Body() dto: CreateEcoRewardPolicyDto,
   ): Promise<APIResponseDto<EcoRewardPolicy>> {
-    return this.ecoRewardPoliciesService.create(dto);
+    return this.ecoRewardPoliciesService.createEcoPolicy(dto);
   }
 
   // GET /admin/eco-reward-policies

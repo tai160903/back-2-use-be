@@ -7,6 +7,7 @@ import {
   Post,
   Query,
   Req,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -80,18 +81,14 @@ export class BusinessVoucherController {
   )
   @Post('voucher-codes/use')
   async useVoucherAtStore(
-    @Req() req: AuthenticatedRequest,
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
     @Body() dto: UseVoucherAtStoreDto,
   ): Promise<APIResponseDto<VoucherCodes>> {
-    const userId = req.user?._id;
-    interface RequestUser {
-      _id: string;
-      role?: RolesEnum;
-    }
-
-    const user = req.user as RequestUser | undefined;
-    const role: RolesEnum[] = user?.role ? [user.role] : [];
-    return this.businessesVoucherService.useVoucherAtStore(userId, role, dto);
+    return this.businessesVoucherService.useVoucherAtStore(
+      req.user._id,
+      req.user.role,
+      dto,
+    );
   }
 
   // PATCH business-vouchers/:id
@@ -127,16 +124,12 @@ export class BusinessVoucherController {
     RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
   )
   async getMyVouchers(
-    @Req() req: AuthenticatedRequest,
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
     @Query() query: GetAllClaimVouchersQueryDto,
   ): Promise<APIPaginatedResponseDto<BusinessVouchers[]>> {
-    const userId = req.user?._id;
-    const role: RolesEnum[] = req.user?.role
-      ? [req.user.role as RolesEnum]
-      : [];
     return this.businessesVoucherService.getMyClaimedVouchers(
-      userId,
-      role,
+      req.user._id,
+      req.user.role,
       query,
     );
   }
@@ -148,17 +141,13 @@ export class BusinessVoucherController {
   )
   @Get(':businessVoucherId/voucher-codes')
   async getBusinessVoucherDetail(
-    @Req() req: AuthenticatedRequest,
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
     @Param('businessVoucherId') businessVoucherId: string,
     @Query() query: GetVoucherDetailQueryDto,
   ) {
-    const userId = req.user?._id;
-    const role: RolesEnum[] = req.user?.role
-      ? [req.user.role as RolesEnum]
-      : [];
     return this.businessesVoucherService.getBusinessVoucherDetail(
-      userId,
-      role,
+      req.user._id,
+      req.user.role,
       businessVoucherId,
       query,
     );

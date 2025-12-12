@@ -27,7 +27,7 @@ export class AdminEcoRewardPoliciesService {
   ) {}
 
   //  Admin create eco policy
-  async create(
+  async createEcoPolicy(
     dto: CreateEcoRewardPolicyDto,
   ): Promise<APIResponseDto<EcoRewardPolicy>> {
     const trimmedLabel = dto.label.trim();
