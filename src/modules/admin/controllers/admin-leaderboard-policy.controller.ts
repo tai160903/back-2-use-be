@@ -25,7 +25,7 @@ export class AdminLeaderboardPolicyController {
   async createPolicy(
     @Body() dto: CreateLeaderboardRewardPolicyDto,
   ): Promise<APIResponseDto<LeaderboardRewardPolicy>> {
-    return this.leaderboardPolicyService.createPolicy(dto);
+    return this.leaderboardPolicyService.createLeaderboardPolicy(dto);
   }
 
   // POST admin/leaderboard-policy/:id

@@ -34,7 +34,7 @@ export class AdminLeaderboardPolicyService {
   ) {}
 
   // Admin create policy
-  async createPolicy(
+  async createLeaderboardPolicy(
     dto: CreateLeaderboardRewardPolicyDto,
   ): Promise<APIResponseDto<LeaderboardRewardPolicy>> {
     const { voucherId, month, year, rankFrom, rankTo, note } = dto;

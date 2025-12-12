@@ -456,8 +456,6 @@ export class BusinessVoucherService {
   ): Promise<APIResponseDto<VoucherCodes>> {
     const { code } = dto;
 
-    console.log(role);
-
     let business;
 
     //  Role Staff
