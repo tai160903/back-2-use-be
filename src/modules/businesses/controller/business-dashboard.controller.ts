@@ -1,4 +1,11 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  Req,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { AuthGuard } from 'src/common/guards/auth.guard';
@@ -9,7 +16,7 @@ import { GetBorrowStatsByMonthDto } from 'src/modules/admin/dto/admin-dashboard/
 
 @ApiTags('Dashboard (Business)')
 @ApiBearerAuth('access-token')
-@UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
+@UseGuards(AuthGuard)
 @Controller('business/dashboard')
 export class BusinessDashboardController {
   constructor(
@@ -17,9 +24,13 @@ export class BusinessDashboardController {
   ) {}
 
   @Get('overview')
-  async getOverview(@Req() req: AuthenticatedRequest) {
-    const userId = req.user?._id;
-    return this.businessDashboardService.getBusinessOverview(userId);
+  async getOverview(
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
+  ) {
+    return this.businessDashboardService.getBusinessOverview(
+      req.user._id,
+      req.user.role,
+    );
   }
 
   @Get('top-borrowed')

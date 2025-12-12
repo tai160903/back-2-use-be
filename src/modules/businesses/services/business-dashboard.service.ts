@@ -5,6 +5,8 @@ import {
   HttpStatus,
   NotFoundException,
   HttpException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
@@ -54,6 +56,7 @@ import {
   WalletsDocument,
 } from 'src/modules/wallets/schemas/wallets.schema';
 import { GetBorrowStatsByMonthDto } from 'src/modules/admin/dto/admin-dashboard/get-borrow-stats-query.dto';
+import { RolesEnum } from 'src/common/constants/roles.enum';
 
 @Injectable()
 export class BusinessDashboardService {
@@ -96,12 +99,46 @@ export class BusinessDashboardService {
   ) {}
 
   //   Business get dashboard overview
-  async getBusinessOverview(userId: string) {
+  async getBusinessOverview(userId: string, role: RolesEnum[]) {
     const userObjectId = new Types.ObjectId(userId);
 
-    const business = await this.businessModel.findOne({ userId: userObjectId });
-    if (!business)
-      throw new NotFoundException('Business not found for this user');
+    let business;
+
+    // 1. Role Staff
+    if (role.includes(RolesEnum.STAFF)) {
+      const staff = await this.staffModel.findOne({
+        userId: userObjectId,
+        status: 'active',
+      });
+
+      if (!staff) {
+        throw new BadRequestException('Staff not found.');
+      }
+
+      business = await this.businessModel.findById(staff.businessId);
+      if (!business) {
+        throw new NotFoundException('Business not found for this staff.');
+      }
+
+      // override userId = business owner userId
+      userId = business.userId.toString();
+    }
+
+    // 2. Role Business
+    if (role.includes(RolesEnum.BUSINESS)) {
+      business = await this.businessModel.findOne({
+        userId: userObjectId,
+      });
+
+      if (!business) {
+        throw new NotFoundException(`No business found for user '${userId}'.`);
+      }
+    }
+
+    // 3. If no matching business
+    if (!business) {
+      throw new ForbiddenException('User cannot act on any business.');
+    }
 
     const businessId = business._id;
 
