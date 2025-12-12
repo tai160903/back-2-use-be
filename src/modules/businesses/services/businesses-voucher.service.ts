@@ -456,6 +456,8 @@ export class BusinessVoucherService {
   ): Promise<APIResponseDto<VoucherCodes>> {
     const { code } = dto;
 
+    console.log(role);
+
     let business;
 
     //  Role Staff
@@ -469,7 +471,10 @@ export class BusinessVoucherService {
         throw new BadRequestException('Staff not found.');
       }
 
-      business = await this.businessModel.findById(staff.businessId);
+      business = await this.businessModel.findOne({
+        _id: new Types.ObjectId(staff.businessId),
+      });
+
       if (!business) {
         throw new NotFoundException('Business not found for this staff.');
       }

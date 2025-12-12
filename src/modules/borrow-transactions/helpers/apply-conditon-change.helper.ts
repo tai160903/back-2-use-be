@@ -1,14 +1,14 @@
 export function applyConditionChange(
   product,
   transaction,
-  dto,
+  finalCondition,
   isLate: boolean,
 ) {
-  product.lastConditionNote = dto.note;
+  product.lastConditionNote = finalCondition.note;
 
   transaction.returnDate = new Date();
 
-  if (dto.condition === 'good') {
+  if (finalCondition.condition === 'good') {
     product.condition = 'good';
     product.status = 'available';
     product.reuseCount += 1;
