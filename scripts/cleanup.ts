@@ -70,6 +70,9 @@ async function cleanup(options: CleanupOptions = {}) {
 
     for (const collectionName of collectionsToClean) {
       try {
+        if (!db) {
+          throw new Error('Database connection failed');
+        }
         const result = await db.collection(collectionName).deleteMany({});
         const deleted = result.deletedCount || 0;
         totalDeleted += deleted;

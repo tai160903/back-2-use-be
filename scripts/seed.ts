@@ -14,6 +14,9 @@ async function seed() {
     console.log('Connected to MongoDB');
 
     const db = connection.db;
+    if (!db) {
+      throw new Error('Database connection failed');
+    }
 
     // Clear existing data
     console.log('Clearing existing data...');
@@ -100,7 +103,8 @@ async function seed() {
         username: 'alice_nguyen',
         email: 'alice.nguyen@example.com',
         password: hashedPassword,
-        avatar: 'https://ui-avatars.com/api/?name=Alice+Nguyen&background=random',
+        avatar:
+          'https://ui-avatars.com/api/?name=Alice+Nguyen&background=random',
         role: [RolesEnum.CUSTOMER],
         isActive: true,
         isBlocked: false,
@@ -636,7 +640,9 @@ async function seed() {
           updatedAt: new Date(),
         },
       ]);
-    console.log(`Seeded ${businessSubscriptions.insertedCount} business subscriptions`);
+    console.log(
+      `Seeded ${businessSubscriptions.insertedCount} business subscriptions`,
+    );
 
     // Seed Staffs
     console.log('Seeding staffs...');
@@ -805,7 +811,7 @@ async function seed() {
 
     // Seed Products
     console.log('Seeding products...');
-    const products = [];
+    const products: any[] = [];
 
     // Coffee cups - small
     for (let i = 1; i <= 10; i++) {
@@ -814,7 +820,7 @@ async function seed() {
         productSizeId: coffeeSmallSizeId,
         qrCode: `QR-COFFEE-S-${String(i).padStart(3, '0')}`,
         serialNumber: `SN-COFFEE-S-${String(i).padStart(3, '0')}`,
-        status: i <= 7 ? ProductStatus.AVAILABLE : ProductStatus.IN_USE,
+        status: i <= 7 ? ProductStatus.AVAILABLE : ProductStatus.NON_AVAILABLE,
         condition: ProductCondition.GOOD,
         reuseCount: Math.floor(Math.random() * 30),
         lastConditionNote: '',
@@ -833,7 +839,7 @@ async function seed() {
         productSizeId: coffeeLargeSizeId,
         qrCode: `QR-COFFEE-L-${String(i).padStart(3, '0')}`,
         serialNumber: `SN-COFFEE-L-${String(i).padStart(3, '0')}`,
-        status: i <= 6 ? ProductStatus.AVAILABLE : ProductStatus.IN_USE,
+        status: i <= 6 ? ProductStatus.AVAILABLE : ProductStatus.NON_AVAILABLE,
         condition: ProductCondition.GOOD,
         reuseCount: Math.floor(Math.random() * 25),
         lastConditionNote: '',
@@ -871,8 +877,8 @@ async function seed() {
         productSizeId: foodContainerSizeId,
         qrCode: `QR-FOOD-${String(i).padStart(3, '0')}`,
         serialNumber: `SN-FOOD-${String(i).padStart(3, '0')}`,
-        status: i <= 10 ? ProductStatus.AVAILABLE : ProductStatus.IN_USE,
-        condition: i === 14 ? ProductCondition.FAIR : ProductCondition.GOOD,
+        status: i <= 10 ? ProductStatus.AVAILABLE : ProductStatus.NON_AVAILABLE,
+        condition: i === 14 ? ProductCondition.DAMAGED : ProductCondition.GOOD,
         reuseCount: Math.floor(Math.random() * 40),
         lastConditionNote: i === 14 ? 'Minor scratches on lid' : '',
         lastConditionImages: {},
@@ -890,7 +896,7 @@ async function seed() {
         productSizeId: bambooSizeId,
         qrCode: `QR-BAMBOO-${String(i).padStart(3, '0')}`,
         serialNumber: `SN-BAMBOO-${String(i).padStart(3, '0')}`,
-        status: i <= 9 ? ProductStatus.AVAILABLE : ProductStatus.IN_USE,
+        status: i <= 9 ? ProductStatus.AVAILABLE : ProductStatus.NON_AVAILABLE,
         condition: ProductCondition.GOOD,
         reuseCount: Math.floor(Math.random() * 15),
         lastConditionNote: '',
@@ -909,7 +915,7 @@ async function seed() {
     console.log('Seeding vouchers...');
     const vouchers = await db.collection('vouchers').insertMany([
       {
-        voucherType: VoucherType.DISCOUNT,
+        voucherType: VoucherType.BUSINESS,
         name: '10% Off First Order',
         description: 'Get 10% discount on your first reusable container order',
         discountPercent: 10,
@@ -925,7 +931,7 @@ async function seed() {
         updatedAt: new Date(),
       },
       {
-        voucherType: VoucherType.DISCOUNT,
+        voucherType: VoucherType.BUSINESS,
         name: '20% Eco Warrior Discount',
         description: 'Special discount for eco-conscious users',
         discountPercent: 20,
@@ -941,7 +947,7 @@ async function seed() {
         updatedAt: new Date(),
       },
       {
-        voucherType: VoucherType.REWARD,
+        voucherType: VoucherType.LEADERBOARD,
         name: 'Free Coffee Cup Rental',
         description: 'Get a free coffee cup rental with your eco points',
         baseCode: 'FREECUP',
@@ -956,7 +962,7 @@ async function seed() {
         updatedAt: new Date(),
       },
       {
-        voucherType: VoucherType.DISCOUNT,
+        voucherType: VoucherType.BUSINESS,
         name: 'Summer Special 15% Off',
         description: 'Summer promotion - 15% off all rentals',
         discountPercent: 15,
@@ -1038,7 +1044,9 @@ async function seed() {
           updatedAt: new Date(),
         },
       ]);
-    console.log(`Seeded ${borrowTransactions.insertedCount} borrow transactions`);
+    console.log(
+      `Seeded ${borrowTransactions.insertedCount} borrow transactions`,
+    );
 
     // Seed Feedback
     console.log('Seeding feedback...');
@@ -1076,7 +1084,8 @@ async function seed() {
         receiverType: 'customer',
         type: 'borrow_reminder',
         title: 'Return Reminder',
-        message: 'Your borrowed item is due in 2 days. Please return it on time.',
+        message:
+          'Your borrowed item is due in 2 days. Please return it on time.',
         referenceId: borrowTransactions.insertedIds[0],
         referenceType: 'borrow_transaction',
         isRead: false,
@@ -1115,73 +1124,79 @@ async function seed() {
     console.log('Seeding monthly leaderboards...');
     const currentMonth = currentDate.getMonth() + 1;
     const currentYear = currentDate.getFullYear();
-    const leaderboards = await db
-      .collection('monthlyleaderboards')
-      .insertMany([
-        {
-          customerId: customers.insertedIds[6], // Emily Vo
-          month: currentMonth,
-          year: currentYear,
-          rankingPoints: 720,
-          rank: 1,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          customerId: customers.insertedIds[4], // Carol Le
-          month: currentMonth,
-          year: currentYear,
-          rankingPoints: 610,
-          rank: 2,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          customerId: customers.insertedIds[2], // Alice Nguyen
-          month: currentMonth,
-          year: currentYear,
-          rankingPoints: 520,
-          rank: 3,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          customerId: customers.insertedIds[0], // John Doe
-          month: currentMonth,
-          year: currentYear,
-          rankingPoints: 450,
-          rank: 4,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-        {
-          customerId: customers.insertedIds[1], // Jane Doe
-          month: currentMonth,
-          year: currentYear,
-          rankingPoints: 380,
-          rank: 5,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        },
-      ]);
-    console.log(`Seeded ${leaderboards.insertedCount} monthly leaderboard entries`);
+    const leaderboards = await db.collection('monthlyleaderboards').insertMany([
+      {
+        customerId: customers.insertedIds[6], // Emily Vo
+        month: currentMonth,
+        year: currentYear,
+        rankingPoints: 720,
+        rank: 1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        customerId: customers.insertedIds[4], // Carol Le
+        month: currentMonth,
+        year: currentYear,
+        rankingPoints: 610,
+        rank: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        customerId: customers.insertedIds[2], // Alice Nguyen
+        month: currentMonth,
+        year: currentYear,
+        rankingPoints: 520,
+        rank: 3,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        customerId: customers.insertedIds[0], // John Doe
+        month: currentMonth,
+        year: currentYear,
+        rankingPoints: 450,
+        rank: 4,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        customerId: customers.insertedIds[1], // Jane Doe
+        month: currentMonth,
+        year: currentYear,
+        rankingPoints: 380,
+        rank: 5,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]);
+    console.log(
+      `Seeded ${leaderboards.insertedCount} monthly leaderboard entries`,
+    );
 
     console.log('\n✅ Database seeding completed successfully!');
     console.log('\n📊 Summary:');
-    console.log(`- Users: ${users.insertedCount}`);    console.log(`- Customer Profiles: ${customers.insertedCount}`);    console.log(`- Materials: ${materials.insertedCount}`);
+    console.log(`- Users: ${users.insertedCount}`);
+    console.log(`- Customer Profiles: ${customers.insertedCount}`);
+    console.log(`- Materials: ${materials.insertedCount}`);
     console.log(`- Subscriptions: ${subscriptions.insertedCount}`);
     console.log(`- Businesses: ${businesses.insertedCount}`);
-    console.log(`- Business Subscriptions: ${businessSubscriptions.insertedCount}`);
+    console.log(
+      `- Business Subscriptions: ${businessSubscriptions.insertedCount}`,
+    );
     console.log(`- Staffs: ${staffs.insertedCount}`);
     console.log(`- Product Groups: ${productGroups.insertedCount}`);
     console.log(`- Product Sizes: ${productSizes.insertedCount}`);
     console.log(`- Products: ${products.length}`);
     console.log(`- Borrow Transactions: ${borrowTransactions.insertedCount}`);
     console.log(`- Vouchers: ${vouchers.insertedCount}`);
-    console.log(`- Wallets: ${wallets.insertedCount} (7 customer + 2 business)`);
-    console.log(`- Feedback: ${feedbacks.insertedCount}`);
+    console.log(
+      `- Wallets: ${wallets.insertedCount} (7 customer + 2 business)`,
+    );
+    console.log(`- Feedback: ${feedback.insertedCount}`);
     console.log(`- Notifications: ${notifications.insertedCount}`);
-    console.log(`- Monthly Leaderboards: ${monthlyLeaderboards.insertedCount}`);
+    console.log(`- Monthly Leaderboards: ${leaderboards.insertedCount}`);
     console.log(`- System Settings: ${systemSettings.insertedCount}`);
 
     console.log('\n🔑 Test Credentials:');
@@ -1208,4 +1223,7 @@ async function seed() {
 }
 
 // Run the seed function
-seed();
+seed().catch((error) => {
+  console.error('Fatal error:', error);
+  process.exit(1);
+});
