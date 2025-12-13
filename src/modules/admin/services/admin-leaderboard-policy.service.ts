@@ -52,9 +52,9 @@ export class AdminLeaderboardPolicyService {
     }
 
     // 2. Validate rank
-    if (rankFrom > rankTo) {
+    if (rankFrom >= rankTo) {
       throw new BadRequestException(
-        `rankFrom (${rankFrom}) must be <= rankTo (${rankTo}).`,
+        `rankFrom (${rankFrom}) must be < rankTo (${rankTo}).`,
       );
     }
 
