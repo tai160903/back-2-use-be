@@ -299,11 +299,11 @@ export class BusinessVoucherService {
       throw new NotFoundException(`No business found for user '${userId}'.`);
     }
 
-    // 2️⃣ Validate ngày tháng
-    const now = new Date();
+    // 2️⃣ Chuẩn hoá thời gian về UTC
+    const nowUtc = new Date(new Date().toISOString());
 
-    // Nếu không truyền startDate → auto = now
-    const start = startDate ? new Date(startDate) : now;
+    // Nếu không truyền startDate → dùng now (UTC)
+    const start = startDate ? new Date(startDate) : nowUtc;
 
     if (isNaN(start.getTime())) {
       throw new BadRequestException(`Invalid startDate format.`);
@@ -320,20 +320,26 @@ export class BusinessVoucherService {
       throw new BadRequestException(`Invalid endDate format.`);
     }
 
+    // end phải sau start
     if (end <= start) {
       throw new BadRequestException(`endDate must be later than startDate.`);
     }
 
-    // Nếu start là do user truyền → validate không được trước hiện tại
-    if (startDate && start < now) {
+    // Nếu startDate do user truyền → không được nhỏ hơn hiện tại (UTC)
+    if (startDate && start < nowUtc) {
       throw new BadRequestException(`startDate cannot be in the past.`);
     }
 
-    //  Xác định status
+    // 3️⃣ Xác định status (dựa trên UTC)
     let status: VouchersStatus;
-    if (now < start) status = VouchersStatus.INACTIVE;
-    else if (now >= start && now <= end) status = VouchersStatus.ACTIVE;
-    else status = VouchersStatus.EXPIRED;
+
+    if (nowUtc < start) {
+      status = VouchersStatus.INACTIVE;
+    } else if (nowUtc >= start && nowUtc <= end) {
+      status = VouchersStatus.ACTIVE;
+    } else {
+      status = VouchersStatus.EXPIRED;
+    }
 
     const businessVoucher = await this.businessVoucherModel.create({
       businessId: business._id,
@@ -345,6 +351,7 @@ export class BusinessVoucherService {
       maxUsage,
       discountPercent,
       rewardPointCost,
+
       startDate: start,
       endDate: end,
 
