@@ -9,6 +9,8 @@ import {
   UseFilters,
   Put,
   Patch,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 
@@ -175,32 +177,44 @@ export class AuthController {
       body.confirmNewPassword,
     );
   }
-
   @ApiOperation({
     summary: 'Google OAuth redirect (web)',
     description: 'Google redirects here after login (web client)',
   })
   @Get('google-redirect')
   @UseGuards(GoogleOAuthGuard)
-  @Redirect('http://localhost:5173/auth/googleCallback', 302)
-  async googleAuthRedirect(@Request() req) {
+  async googleAuthRedirect(@Req() req, @Res() res) {
     try {
-      const result = await this.authService.googleLogin(req);
-      if (
-        typeof result === 'object' &&
-        result.data &&
-        result.data.accessToken
-      ) {
-        return {
-          url: `${process.env.CLIENT_RETURN_URL}/auth/googleCallback?token=${result.data.accessToken}`,
-        };
-      }
+      const result = await this.authService.googleLogin(req.user);
+
+      // Set cookie (recommended)
+      res.cookie('accessToken', result.data.accessToken, {
+        httpOnly: true,
+        secure: false, // true nếu HTTPS
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60,
+      });
+
+      res.cookie('refreshToken', result.data.refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24 * 7,
+      });
+
+      const redirectUrl = new URL(
+        `${process.env.CLIENT_RETURN_URL}/auth/googleCallback`,
+      );
+      redirectUrl.searchParams.append('accessToken', result.data.accessToken);
+      redirectUrl.searchParams.append('refreshToken', result.data.refreshToken);
+
+      return res.redirect(redirectUrl.toString());
     } catch (error) {
-      console.error('Error resetting password:', error);
+      console.error('Google OAuth error:', error);
+      return res.redirect(
+        `${process.env.CLIENT_RETURN_URL}/auth/login?error=google_auth_failed`,
+      );
     }
-    return {
-      url: `${process.env.CLIENT_RETURN_URL}/`,
-    };
   }
 
   @ApiOperation({ summary: 'Refresh access token' })

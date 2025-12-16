@@ -678,69 +678,65 @@ export class AuthService {
   }
 
   // Google OAuth2 login
-  async googleLogin(req: { user: any }): Promise<APIResponseDto> {
+  async googleLogin(googleUser: any): Promise<APIResponseDto> {
+    console.log(googleUser);
+    if (!googleUser) {
+      throw new HttpException('No user from Google', HttpStatus.UNAUTHORIZED);
+    }
+
+    const session = await this.usersModel.db.startSession();
+    session.startTransaction();
+
     try {
-      if (!req.user) {
-        throw new HttpException('No user from google', HttpStatus.UNAUTHORIZED);
-      }
+      let user = await this.usersModel.findOne(
+        { email: googleUser.email },
+        null,
+        { session },
+      );
 
-      const user = await this.usersModel.findOne({ email: req.user.email });
       if (!user) {
-        let newUser;
-        try {
-          newUser = new this.usersModel({
-            name: `${req.user.firstName} ${req.user.lastName}`,
-            email: req.user.email,
-            avatar: req.user.picture,
-            phone: '',
-            isActive: true,
-            password: crypto.randomBytes(16).toString('hex'),
-          });
-          await newUser.save();
-        } catch (error: any) {
-          throw new HttpException(
-            error.message || 'Failed to create user',
-            error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
+        const [newUser] = await this.usersModel.create(
+          [
+            {
+              username: `google_${googleUser.id}_${Date.now()}`,
+              email: googleUser.email,
+              avatar: googleUser.picture,
+              password: Math.random().toString(36).slice(-20),
+              role: ['customer'],
+              isActive: true,
+            },
+          ],
+          { session },
+        );
+        user = newUser;
 
-        try {
-          await this.walletsService.create({
-            userId: newUser._id.toString(),
-            type: 'customer',
-            availableBalance: 0,
-            holdingBalance: 0,
-          });
-        } catch (error: any) {
-          throw new HttpException(
-            error.message || 'Failed to create wallet',
-            error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
+        await this.walletsService.create({
+          userId: user._id.toString(),
+          type: 'customer',
+          availableBalance: 0,
+          holdingBalance: 0,
+        });
 
-        req.user = newUser;
-
-        try {
-          await new this.customersModel({
-            userId: newUser._id,
-          }).save();
-        } catch (error: any) {
-          throw new HttpException(
-            error.message || 'Failed to create customer',
-            error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-          );
-        }
-      } else {
-        req.user = user;
+        await this.customersModel.create(
+          [
+            {
+              userId: user._id,
+              fullName: `${googleUser.firstName} ${googleUser.lastName}`,
+            },
+          ],
+          { session },
+        );
       }
 
-      const payload = { _id: req.user._id, role: req.user.role };
+      const payload = { _id: user._id, role: user.role };
+
       const accessToken = await this.jwtService.signAsync(payload, {
         secret: this.configService.get('jwt.accessToken.secret'),
         expiresIn: this.configService.get(
           'jwt.accessToken.signOptions.expiresIn',
         ),
       });
+
       const refreshToken = await this.jwtService.signAsync(payload, {
         secret: this.configService.get('jwt.refreshToken.secret'),
         expiresIn: this.configService.get(
@@ -748,21 +744,26 @@ export class AuthService {
         ),
       });
 
+      await session.commitTransaction();
+
       return {
         statusCode: HttpStatus.OK,
         message: 'Login successful',
         data: {
           accessToken,
           refreshToken,
-          user: req.user,
+          user,
         },
       };
-    } catch (error: any) {
-      console.error(error.message);
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Google login failed:', error);
       throw new HttpException(
-        'Something went wrong',
+        'Google login failed',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    } finally {
+      session.endSession();
     }
   }
 
