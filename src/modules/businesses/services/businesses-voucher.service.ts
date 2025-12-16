@@ -422,17 +422,24 @@ export class BusinessVoucherService {
     }
 
     // --- Validate time consistency ---
-    const now = new Date();
+    const ALLOWED_DRIFT_MS = 5 * 60 * 1000;
+
+    const nowUtc = new Date(new Date().toISOString());
+
     const start = dto.startDate
       ? new Date(dto.startDate)
       : businessVoucher.startDate;
+
     const end = dto.endDate ? new Date(dto.endDate) : businessVoucher.endDate;
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       throw new BadRequestException(`Invalid date format.`);
     }
 
-    if (dto.startDate && start < now) {
+    if (
+      dto.startDate &&
+      start.getTime() < nowUtc.getTime() - ALLOWED_DRIFT_MS
+    ) {
       throw new BadRequestException(`startDate cannot be in the past.`);
     }
 
@@ -440,11 +447,15 @@ export class BusinessVoucherService {
       throw new BadRequestException(`endDate must be later than startDate.`);
     }
 
-    // --- Recalculate status ---
-    if (now < start) businessVoucher.status = VouchersStatus.INACTIVE;
-    else if (now >= start && now <= end)
+    // Recalculate status
+    if (nowUtc < start) {
+      businessVoucher.status = VouchersStatus.INACTIVE;
+    } else if (nowUtc <= end) {
       businessVoucher.status = VouchersStatus.ACTIVE;
-    else businessVoucher.status = VouchersStatus.EXPIRED;
+      businessVoucher.isPublished = true;
+    } else {
+      businessVoucher.status = VouchersStatus.EXPIRED;
+    }
 
     await businessVoucher.save();
 
