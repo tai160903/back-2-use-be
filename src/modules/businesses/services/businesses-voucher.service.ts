@@ -325,8 +325,8 @@ export class BusinessVoucherService {
       throw new BadRequestException(`endDate must be later than startDate.`);
     }
 
-    // Nếu startDate do user truyền → không được nhỏ hơn hiện tại (UTC)
-    if (startDate && start < nowUtc) {
+    const ALLOWED_DRIFT_MS = 5 * 60 * 1000;
+    if (startDate && start.getTime() < nowUtc.getTime() - ALLOWED_DRIFT_MS) {
       throw new BadRequestException(`startDate cannot be in the past.`);
     }
 
