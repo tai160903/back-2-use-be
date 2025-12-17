@@ -39,7 +39,7 @@ export class BusinessDashboardController {
     @Query('top') top: number,
   ) {
     const userId = req.user?._id;
-    return this.businessDashboardService.getBusinessTopProduct(userId, top);
+    return this.businessDashboardService.getBusinessTopProductGroup(userId, top);
   }
 
   @Get('borrow-transactions/monthly')

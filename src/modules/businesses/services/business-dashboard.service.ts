@@ -319,8 +319,8 @@ export class BusinessDashboardService {
     };
   }
 
-  // Business get top product
-  async getBusinessTopProduct(userId: string, top: number = 5) {
+  // Business get top product groups
+  async getBusinessTopProductGroup(userId: string, top: number = 5) {
     if (!Types.ObjectId.isValid(userId)) {
       throw new HttpException('Invalid user ID', HttpStatus.BAD_REQUEST);
     }
@@ -335,7 +335,8 @@ export class BusinessDashboardService {
 
     const businessId = business._id;
 
-    const topBorrowedProducts = await this.productModel.aggregate([
+    const topGroups = await this.productModel.aggregate([
+      // 1. Join ProductGroup
       {
         $lookup: {
           from: 'productgroups',
@@ -345,87 +346,81 @@ export class BusinessDashboardService {
         },
       },
       { $unwind: '$group' },
-      {
-        $lookup: {
-          from: 'productsizes',
-          localField: 'productSizeId',
-          foreignField: '_id',
-          as: 'size',
-        },
-      },
-      { $unwind: '$size' },
-      {
-        $lookup: {
-          from: 'materials',
-          localField: 'group.materialId',
-          foreignField: '_id',
-          as: 'material',
-        },
-      },
-      { $unwind: '$material' },
+
+      // 2. Filter theo business + product còn tồn tại
       {
         $match: {
           'group.businessId': businessId,
           isDeleted: false,
-          reuseCount: { $gt: 0 },
         },
       },
-      { $sort: { reuseCount: -1 } },
+
+      // 3. Group theo ProductGroup
+      {
+        $group: {
+          _id: '$group._id',
+          name: { $first: '$group.name' },
+          imageUrl: { $first: '$group.imageUrl' },
+          materialId: { $first: '$group.materialId' },
+          description: { $first: '$group.description' },
+
+          // Tổng số lần reuse của group
+          totalReuseCount: { $sum: '$reuseCount' },
+
+          // Tổng số product trong group
+          totalProducts: { $sum: 1 },
+        },
+      },
+
+      // 4. Chỉ lấy group đã từng được reuse
+      {
+        $match: {
+          totalReuseCount: { $gt: 0 },
+        },
+      },
+
+      // 5. Join Material
+      // {
+      //   $lookup: {
+      //     from: 'materials',
+      //     localField: 'materialId',
+      //     foreignField: '_id',
+      //     as: 'material',
+      //   },
+      // },
+      // {
+      //   $unwind: {
+      //     path: '$material',
+      //     preserveNullAndEmptyArrays: true,
+      //   },
+      // },
+
+      // 6. Sort & limit
+      { $sort: { totalReuseCount: -1 } },
       { $limit: Number(top) },
+
+      // 7. Final response shape
       {
         $project: {
           _id: 1,
-          serialNumber: 1,
-          status: 1,
-          condition: 1,
-          reuseCount: 1,
-          lastConditionNote: 1,
-          lastConditionImages: 1,
-          lastDamageFaces: 1,
-          createdAt: 1,
-          updatedAt: 1,
-          'group._id': 1,
-          'group.name': 1,
-          'group.imageUrl': 1,
-          // size info
-          'size._id': 1,
-          'size.sizeName': 1,
-          'size.depositValue': 1,
-          'size.description': 1,
-          'size.plasticEquivalentWeight': 1,
-          // material info
+          name: 1,
+          description: 1,
+          imageUrl: 1,
+          totalReuseCount: 1,
+          totalProducts: 1,
           'material._id': 1,
           'material.co2EmissionPerKg': 1,
+          'material.materialName': 1,
         },
       },
     ]);
 
-    // === Calculate co2Reduced for each product ===
-    const productsWithEco = topBorrowedProducts.map((prod) => {
-      let co2Reduced = 0;
-
-      if (
-        prod.size?.plasticEquivalentWeight &&
-        prod.material?.co2EmissionPerKg
-      ) {
-        const plasticWeightKg = prod.size.plasticEquivalentWeight / 1000;
-        const co2 = prod.material.co2EmissionPerKg;
-
-        co2Reduced = Number((plasticWeightKg * co2).toFixed(3));
-      }
-
-      return {
-        ...prod,
-        co2Reduced,
-      };
-    });
-
     return {
       statusCode: HttpStatus.OK,
-      message: 'Top borrowed products loaded successfully',
+      message: 'Top product groups loaded successfully',
       data: {
         top,
-        products: productsWithEco,
+        productGroups: topGroups,
       },
     };
   }
