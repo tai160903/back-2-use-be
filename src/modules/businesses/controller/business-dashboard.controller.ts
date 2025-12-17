@@ -4,15 +4,18 @@ import {
   Query,
   Req,
   Request,
+  Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { AuthGuard } from 'src/common/guards/auth.guard';
 import { RoleCheckGuard } from 'src/common/guards/role-check.guard';
 import { BusinessDashboardService } from '../services/business-dashboard.service';
 import { AuthenticatedRequest } from 'src/common/interfaces/authenticated-request.interface';
 import { GetBorrowStatsByMonthDto } from 'src/modules/admin/dto/admin-dashboard/get-borrow-stats-query.dto';
+import { GetTransactionsDto } from 'src/modules/borrow-transactions/dto/get-borrow-transactions';
+import { Response } from 'express';
 
 @ApiTags('Dashboard (Business)')
 @ApiBearerAuth('access-token')
@@ -39,7 +42,10 @@ export class BusinessDashboardController {
     @Query('top') top: number,
   ) {
     const userId = req.user?._id;
-    return this.businessDashboardService.getBusinessTopProductGroup(userId, top);
+    return this.businessDashboardService.getBusinessTopProductGroup(
+      userId,
+      top,
+    );
   }
 
   @Get('borrow-transactions/monthly')
@@ -51,6 +57,27 @@ export class BusinessDashboardController {
     return this.businessDashboardService.getBusinessBorrowStatsByMonth(
       userId,
       query,
+    );
+  }
+
+  @Get('borrow-transactions/export')
+  @ApiBearerAuth('access-token')
+  @ApiQuery({ name: 'fromDate', required: false })
+  @ApiQuery({ name: 'toDate', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'productName', required: false })
+  @ApiQuery({ name: 'serialNumber', required: false })
+  @ApiQuery({ name: 'borrowTransactionType', required: false })
+  exportBusinessTransactions(
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
+    @Res() res: Response,
+    @Query() query: GetTransactionsDto,
+  ) {
+    return this.businessDashboardService.exportBusinessTransactions(
+      req.user._id,
+      req.user.role,
+      query,
+      res,
     );
   }
 
