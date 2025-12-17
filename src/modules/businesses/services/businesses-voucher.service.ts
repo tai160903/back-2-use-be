@@ -333,9 +333,11 @@ export class BusinessVoucherService {
     // 3️⃣ Xác định status (dựa trên UTC)
     let status: VouchersStatus;
 
-    if (nowUtc < start) {
+    const effectiveNow = new Date(nowUtc.getTime() + 60000);
+
+    if (effectiveNow < start) {
       status = VouchersStatus.INACTIVE;
-    } else if (nowUtc >= start && nowUtc <= end) {
+    } else if (effectiveNow >= start && effectiveNow <= end) {
       status = VouchersStatus.ACTIVE;
     } else {
       status = VouchersStatus.EXPIRED;
