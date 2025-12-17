@@ -57,6 +57,9 @@ import {
 } from 'src/modules/wallets/schemas/wallets.schema';
 import { GetBorrowStatsByMonthDto } from 'src/modules/admin/dto/admin-dashboard/get-borrow-stats-query.dto';
 import { RolesEnum } from 'src/common/constants/roles.enum';
+import { format, writeToStream } from 'fast-csv';
+import { GetTransactionsDto } from 'src/modules/borrow-transactions/dto/get-borrow-transactions';
+import { Response } from 'express';
 
 @Injectable()
 export class BusinessDashboardService {
@@ -97,6 +100,11 @@ export class BusinessDashboardService {
     @InjectModel(Wallets.name)
     private readonly walletModel: Model<WalletsDocument>,
   ) {}
+
+  private formatDate(date?: Date) {
+    if (!date) return '';
+    return new Date(date).toISOString().slice(0, 19).replace('T', ' ');
+  }
 
   //   Business get dashboard overview
   async getBusinessOverview(userId: string, role: RolesEnum[]) {
@@ -776,5 +784,117 @@ export class BusinessDashboardService {
         revenue: totals[0]?.revenue || 0,
       },
     };
+  }
+
+  async exportBusinessTransactions(
+    userId: string,
+    role: RolesEnum[],
+    options: GetTransactionsDto,
+    res: Response,
+  ) {
+    let business;
+
+    // ===== Resolve business =====
+    if (role.includes(RolesEnum.STAFF)) {
+      const staff = await this.staffModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!staff) throw new NotFoundException('Staff not found');
+
+      business = await this.businessModel.findById(staff.businessId);
+      if (!business)
+        throw new NotFoundException('Business not found for staff');
+    }
+
+    if (role.includes(RolesEnum.BUSINESS)) {
+      business = await this.businessModel.findOne({
+        userId: new Types.ObjectId(userId),
+      });
+      if (!business) throw new NotFoundException('Business not found');
+    }
+
+    // ===== Build query (giống list API) =====
+    const query: any = { businessId: business._id };
+
+    if (options.status) query.status = options.status;
+    if (options.borrowTransactionType)
+      query.borrowTransactionType = options.borrowTransactionType;
+
+    if (options.fromDate || options.toDate) {
+      query.createdAt = {};
+      if (options.fromDate) query.createdAt.$gte = new Date(options.fromDate);
+
+      if (options.toDate) {
+        const end = new Date(options.toDate);
+        end.setHours(23, 59, 59, 999);
+        query.createdAt.$lte = end;
+      }
+    }
+
+    // ===== Prepare response headers =====
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=borrow-transactions-report-co2.csv`,
+    );
+
+    // ===== create csv stream =====
+    const csvStream = format({
+      headers: [
+        'No',
+        'transactionId',
+        'status',
+        'transactionType',
+        'productName',
+        'serialNumber',
+        'co2Changed',
+        'customerName',
+        'customerPhone',
+        'borrowDate',
+        'dueDate',
+      ],
+    });
+
+    csvStream.pipe(res);
+
+    // ===== mongo cursor =====
+    const cursor = this.borrowTransactionModel
+      .find(query)
+      .populate({
+        path: 'productId',
+        select: 'serialNumber',
+        populate: { path: 'productGroupId', select: 'name' },
+      })
+      .populate({
+        path: 'customerId',
+        select: 'fullName phone',
+      })
+      .sort({ createdAt: -1 })
+      .cursor();
+
+    // ===== write row by row =====
+    let index = 1;
+
+    for await (const doc of cursor) {
+      const t = doc as any;
+      const product = t.productId as any;
+      const customer = t.customerId as any;
+
+      csvStream.write({
+        No: index++,
+        transactionId: t._id.toString(),
+        status: t.status,
+        transactionType: t.borrowTransactionType,
+        productName: product?.productGroupId?.name || '',
+        serialNumber: product?.serialNumber || '',
+        co2Changed: Number(t.co2Changed || 0).toFixed(3),
+        customerName: customer?.fullName || '',
+        customerPhone: customer?.phone || '',
+        borrowDate: this.formatDate(t.borrowDate),
+        dueDate: this.formatDate(t.dueDate),
+      });
+    }
+
+    csvStream.end();
   }
 }
