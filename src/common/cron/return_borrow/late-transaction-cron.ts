@@ -259,18 +259,6 @@ export class LateTransactionCron {
       borrowTransaction.rewardPointChanged = rewardResult.addedRewardPoints;
       borrowTransaction.rankingPointChanged = rewardResult.addedRankingPoints;
 
-      await this.customerModel.updateOne(
-        { _id: customer._id },
-        {
-          $inc: {
-            rewardPoints: rewardResult.addedRewardPoints,
-            rankingPoints: rewardResult.addedRankingPoints,
-            returnFailedCount: 1,
-          },
-        },
-        { session },
-      );
-
       // 9️⃣ Apply eco point for business (because lost → negative eco impact)
       const ecoResult = applyEcoPointChange(
         customer,
@@ -288,6 +276,22 @@ export class LateTransactionCron {
         {
           $inc: {
             ecoPoints: ecoResult.addedEcoPoints,
+            co2Reduced: ecoResult.addedCo2,
+          },
+        },
+        { session },
+      );
+
+      this.logger.warn(
+        `[ECO DEBUG] customer=${customer._id} | addedCo2=${ecoResult.addedCo2} | current=${customer.co2Reduced}`,
+      );
+      await this.customerModel.updateOne(
+        { _id: customer._id },
+        {
+          $inc: {
+            rewardPoints: rewardResult.addedRewardPoints,
+            rankingPoints: rewardResult.addedRankingPoints,
+            returnFailedCount: 1,
             co2Reduced: ecoResult.addedCo2,
           },
         },
