@@ -187,6 +187,17 @@ export class BusinessesService {
         );
       }
 
+      const existingTaxCode = await this.businessFormModel.findOne({
+        taxCode: dto.taxCode,
+      });
+
+      if (existingTaxCode) {
+        throw new HttpException(
+          'This tax code is already registered',
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       const logoRes = await this.cloudinaryService.uploadFile(
         businessLogoFile,
         'business/logos',
