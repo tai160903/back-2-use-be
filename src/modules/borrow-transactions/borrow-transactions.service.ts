@@ -607,6 +607,167 @@ export class BorrowTransactionsService {
     }
   }
 
+  // Get business borrow transaction by businessId
+  async getBusinessTransactionsByBusinessId(
+    businessId: string,
+    options: GetTransactionsDto,
+  ): Promise<APIResponseDto> {
+    try {
+      // ===== FIND BUSINESS =====
+      const business = await this.businessesModel.findById(businessId);
+      if (!business) {
+        throw new NotFoundException('Business not found');
+      }
+
+      const businessWallet = await this.walletsModel.findOne({
+        userId: business.userId,
+        type: 'business',
+      });
+
+      if (!businessWallet) {
+        throw new NotFoundException('Business wallet not found');
+      }
+
+      // ===== BUILD QUERY =====
+      const query: any = { businessId: business._id };
+
+      if (options.status) query.status = options.status;
+      if (options.borrowTransactionType) {
+        query.borrowTransactionType = options.borrowTransactionType;
+      }
+
+      // ===== DATE FILTER =====
+      if (options.fromDate || options.toDate) {
+        query.createdAt = {};
+
+        if (options.fromDate) {
+          query.createdAt.$gte = new Date(options.fromDate);
+        }
+
+        if (options.toDate) {
+          const endOfDay = new Date(options.toDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = endOfDay;
+        }
+      }
+
+      // ===== FILTER PRODUCT =====
+      const productIdSet = new Set<string>();
+
+      if (options.productName) {
+        const regex = new RegExp(options.productName, 'i');
+
+        const matchedGroupIds = await this.productGroupModel
+          .find({ name: regex })
+          .distinct('_id');
+
+        const matchedProductIds = await this.productModel
+          .find({ productGroupId: { $in: matchedGroupIds } })
+          .distinct('_id');
+
+        matchedProductIds.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (options.serialNumber) {
+        const regex = new RegExp(options.serialNumber, 'i');
+
+        const matchedBySerial = await this.productModel
+          .find({ serialNumber: regex })
+          .distinct('_id');
+
+        matchedBySerial.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (productIdSet.size > 0) {
+        query.productId = {
+          $in: Array.from(productIdSet).map((id) => new Types.ObjectId(id)),
+        };
+      }
+
+      // ===== PAGINATION =====
+      const page = options.page && options.page > 0 ? options.page : 1;
+      const limit = options.limit && options.limit > 0 ? options.limit : 10;
+
+      const total = await this.borrowTransactionModel.countDocuments(query);
+
+      // ===== FETCH TRANSACTIONS =====
+      const transactions = await this.borrowTransactionModel
+        .find(query)
+        .select(
+          '-previousConditionImages -currentConditionImages -previousDamageFaces -currentDamageFaces',
+        )
+        .populate({
+          path: 'productId',
+          select: 'qrCode serialNumber productGroupId productSizeId',
+          populate: [
+            { path: 'productGroupId', select: 'name imageUrl' },
+            { path: 'productSizeId', select: 'sizeName' },
+          ],
+        })
+        .populate({
+          path: 'customerId',
+          select: 'userId fullName phone',
+          populate: { path: 'userId', select: 'email' },
+        })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      const borrowIds = transactions.map((t) => t._id);
+
+      // ===== WALLET TRANSACTIONS =====
+      const walletTxs = await this.walletTransactionsModel
+        .find({
+          referenceId: { $in: borrowIds },
+          referenceType: 'borrow',
+          status: 'completed',
+          walletId: businessWallet._id,
+        })
+        .lean();
+
+      const statusToWalletType: Record<string, string> = {
+        borrowing: 'borrow_deposit',
+        returned: 'return_refund',
+        return_late: 'penalty',
+        rejected: 'deposit_forfeited',
+        lost: 'deposit_forfeited',
+      };
+
+      const finalData = transactions.map((t) => {
+        const expectedTxType = statusToWalletType[t.status];
+        const matchedTx =
+          expectedTxType &&
+          walletTxs.find(
+            (w) =>
+              w.referenceId?.toString() === t._id.toString() &&
+              w.transactionType === expectedTxType,
+          );
+
+        return {
+          ...t,
+          walletTransaction: matchedTx || null,
+        };
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Business transactions fetched successfully.',
+        data: {
+          items: finalData,
+          total,
+          page,
+          limit,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Failed to fetch business transactions.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   async getBusinessHistory(
     userId: string,
     options: {
@@ -1021,6 +1182,174 @@ export class BorrowTransactionsService {
       return {
         statusCode: HttpStatus.OK,
         message: 'Customer transaction history fetched successfully.',
+        data: {
+          items: finalData,
+          total,
+          page,
+          limit,
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        error?.message || 'Failed to fetch customer transactions.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  // Get customer borrow transactions by customerId (PUBLIC)
+  // Get customer borrow transactions by customerId (PUBLIC + walletTransaction)
+  async getCustomerTransactionsByCustomerId(
+    customerId: string,
+    options: GetTransactionsDto,
+  ): Promise<APIResponseDto> {
+    try {
+      // ===== FIND CUSTOMER =====
+      const customer = await this.customerModel.findById(customerId);
+      if (!customer) {
+        throw new NotFoundException('Customer not found');
+      }
+
+      // ===== FIND CUSTOMER WALLET =====
+      const customerWallet = await this.walletsModel.findOne({
+        userId: customer.userId,
+        type: 'customer',
+      });
+
+      if (!customerWallet) {
+        throw new NotFoundException('Customer wallet not found');
+      }
+
+      // ===== BUILD QUERY =====
+      const query: any = { customerId: customer._id };
+
+      if (options.status) query.status = options.status;
+      if (options.borrowTransactionType) {
+        query.borrowTransactionType = options.borrowTransactionType;
+      }
+
+      // ===== DATE FILTER =====
+      if (options.fromDate || options.toDate) {
+        query.createdAt = {};
+
+        if (options.fromDate) {
+          query.createdAt.$gte = new Date(options.fromDate);
+        }
+
+        if (options.toDate) {
+          const endOfDay = new Date(options.toDate);
+          endOfDay.setHours(23, 59, 59, 999);
+          query.createdAt.$lte = endOfDay;
+        }
+      }
+
+      // ===== FILTER PRODUCT =====
+      const productIdSet = new Set<string>();
+
+      if (options.productName) {
+        const regex = new RegExp(options.productName, 'i');
+
+        const matchedGroupIds = await this.productGroupModel
+          .find({ name: regex })
+          .distinct('_id');
+
+        const matchedProductIds = await this.productModel
+          .find({ productGroupId: { $in: matchedGroupIds } })
+          .distinct('_id');
+
+        matchedProductIds.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (options.serialNumber) {
+        const regex = new RegExp(options.serialNumber, 'i');
+
+        const matchedBySerial = await this.productModel
+          .find({ serialNumber: regex })
+          .distinct('_id');
+
+        matchedBySerial.forEach((id) => productIdSet.add(id.toString()));
+      }
+
+      if (productIdSet.size > 0) {
+        query.productId = {
+          $in: Array.from(productIdSet).map((id) => new Types.ObjectId(id)),
+        };
+      }
+
+      // ===== PAGINATION =====
+      const page = options.page && options.page > 0 ? options.page : 1;
+      const limit = options.limit && options.limit > 0 ? options.limit : 10;
+
+      const total = await this.borrowTransactionModel.countDocuments(query);
+
+      // ===== FETCH TRANSACTIONS =====
+      const transactions = await this.borrowTransactionModel
+        .find(query)
+        .select(
+          '-previousConditionImages -currentConditionImages -previousDamageFaces -currentDamageFaces',
+        )
+        .populate({
+          path: 'productId',
+          select: 'qrCode serialNumber productGroupId productSizeId',
+          populate: [
+            {
+              path: 'productGroupId',
+              select: 'name imageUrl materialId',
+              populate: { path: 'materialId', select: 'materialName' },
+            },
+            { path: 'productSizeId', select: 'sizeName' },
+          ],
+        })
+        .populate({
+          path: 'businessId',
+          select:
+            'businessName businessPhone businessAddress businessType businessLogoUrl',
+        })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean();
+
+      // ===== FETCH WALLET TRANSACTIONS =====
+      const borrowIds = transactions.map((t) => t._id);
+
+      const walletTxs = await this.walletTransactionsModel
+        .find({
+          referenceId: { $in: borrowIds },
+          referenceType: 'borrow',
+          status: 'completed',
+          walletId: customerWallet._id,
+        })
+        .lean();
+
+      // ===== MAP status -> wallet transaction type =====
+      const statusToWalletType: Record<string, string> = {
+        borrowing: 'borrow_deposit',
+        returned: 'return_refund',
+        return_late: 'penalty',
+      };
+
+      // ===== MERGE 1 WALLET TRANSACTION / BORROW =====
+      const finalData = transactions.map((t) => {
+        const expectedType = statusToWalletType[t.status] || null;
+
+        const matchedTx =
+          expectedType &&
+          walletTxs.find(
+            (w) =>
+              w.referenceId?.toString() === t._id.toString() &&
+              w.transactionType === expectedType,
+          );
+
+        return {
+          ...t,
+          walletTransaction: matchedTx || null,
+        };
+      });
+
+      return {
+        statusCode: HttpStatus.OK,
+        message: 'Customer transactions fetched successfully.',
         data: {
           items: finalData,
           total,
@@ -1660,9 +1989,39 @@ export class BorrowTransactionsService {
 
       await session.commitTransaction();
 
+      let message = 'Return completed successfully.';
+
+      if (addedCo2 > 0) {
+        message = `Return completed successfully. You helped reduce ${addedCo2} kg of CO₂.`;
+      } else if (addedCo2 < 0) {
+        message = `Return completed successfully. CO₂ reduction was decreased by ${addedCo2}
+         kg due to the item condition.`;
+      } else {
+        message = 'Return completed successfully. No CO₂ change was recorded.';
+      }
+
+      try {
+        if (customer?.userId) {
+          await this.notificationsService.create({
+            receiverId: new Types.ObjectId(String(customer.userId)),
+            receiverType: 'customer',
+            title: 'Return Completed',
+            message, 
+            type: 'return',
+            referenceId: borrowTransaction._id,
+            referenceType: 'return',
+          });
+        }
+      } catch (err) {
+        console.warn(
+          'Failed to send return notification',
+          (err as Error)?.message || err,
+        );
+      }
+
       return {
         success: true,
-        message: 'Return condition confirmed',
+        message,
         data: {
           product,
           borrowTransaction,
@@ -1675,6 +2034,8 @@ export class BorrowTransactionsService {
       session.endSession();
     }
   }
+
+  // ==============================================
 
   @Cron(CronExpression.EVERY_MINUTE, { timeZone: 'Asia/Ho_Chi_Minh' })
   async cancelExpiredBorrowTransactions() {
