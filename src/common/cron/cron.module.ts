@@ -66,6 +66,7 @@ import {
   Material,
   MaterialSchema,
 } from 'src/modules/materials/schemas/material.schema';
+import { NotificationsModule } from 'src/modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import {
       { name: Material.name, schema: MaterialSchema },
     ]),
     CloudinaryModule,
+    NotificationsModule,
   ],
   providers: [
     BusinessVouchersCronService,

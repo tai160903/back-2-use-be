@@ -118,6 +118,18 @@ export class BorrowTransactionsController {
     );
   }
 
+  @Get('business/:businessId/all')
+  @ApiOperation({ summary: 'Public - Get borrow transactions by businessId' })
+  getBusinessTransactionsPublic(
+    @Param('businessId') businessId: string,
+    @Query() query: GetTransactionsDto,
+  ) {
+    return this.borrowTransactionsService.getBusinessTransactionsByBusinessId(
+      businessId,
+      query,
+    );
+  }
+
   // @Get('business/history')
   // @ApiOperation({ summary: 'Get borrow transaction history for business' })
   // @ApiBearerAuth('access-token')
@@ -222,6 +234,18 @@ export class BorrowTransactionsController {
     return this.borrowTransactionsService.getCustomerTransactionDetail(
       req.user._id,
       id,
+    );
+  }
+
+  @Get('customer/:customerId/all')
+  @ApiOperation({ summary: 'Public - Get borrow transactions by customerId' })
+  getCustomerTransactionsPublic(
+    @Param('customerId') customerId: string,
+    @Query() query: GetTransactionsDto,
+  ) {
+    return this.borrowTransactionsService.getCustomerTransactionsByCustomerId(
+      customerId,
+      query,
     );
   }
 

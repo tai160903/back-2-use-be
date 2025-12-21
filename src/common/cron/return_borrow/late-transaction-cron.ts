@@ -46,6 +46,7 @@ import {
   Material,
   MaterialDocument,
 } from 'src/modules/materials/schemas/material.schema';
+import { NotificationsService } from 'src/modules/notifications/notifications.service';
 
 @Injectable()
 export class LateTransactionCron {
@@ -78,6 +79,8 @@ export class LateTransactionCron {
 
     @InjectModel(Material.name)
     private readonly materialModel: Model<MaterialDocument>,
+
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -306,6 +309,29 @@ export class LateTransactionCron {
 
       await session.commitTransaction();
       this.logger.log(`🎉 Overdue processing completed successfully.`);
+
+      // ===== SEND NOTIFICATION TO CUSTOMER =====
+      try {
+        if (customer?.userId) {
+          const message = `Your borrowed item was not returned within the allowed time and has been marked as lost. 
+This resulted in a decrease of ${Math.abs(ecoResult.addedCo2)} kg of CO₂ reduction.`;
+
+          await this.notificationsService.create({
+            receiverId: new Types.ObjectId(String(customer.userId)),
+            receiverType: 'customer',
+            title: 'Borrowed Item Marked as Lost',
+            message,
+            type: 'return',
+            referenceId: borrowTransaction._id,
+            referenceType: 'return',
+          });
+        }
+      } catch (err) {
+        this.logger.warn(
+          'Failed to send overdue return notification',
+          (err as Error)?.message || err,
+        );
+      }
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(
