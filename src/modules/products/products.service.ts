@@ -132,11 +132,20 @@ export class ProductsService {
 
       const FACE_LIST = Object.values(ProductFace);
 
-      const prefix =
-        `${Array.from(business.businessName).join(' ')} ${Array.from(productGroup.name).join(' ')}`
-          .slice(0, 3)
-          .toUpperCase()
-          .padEnd(3, 'X');
+      const busName = business.businessName
+        .replaceAll(/\s+/g, '')
+        .slice(0, 3)
+        .toUpperCase()
+        .padEnd(3, 'X');
+
+      const proName = productGroup.name
+        .replaceAll(/\s+/g, '')
+        .slice(0, 3)
+        .toUpperCase()
+        .padEnd(3, 'X');
+
+      const prefix = `${busName}${proName}`;
+
       const timestamp = Date.now();
 
       const products = await Promise.all(

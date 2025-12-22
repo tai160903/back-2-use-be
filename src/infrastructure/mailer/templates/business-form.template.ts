@@ -99,6 +99,25 @@ export function businessApprovedTemplate(username: string) {
             🔑 You can log in with your existing credentials and start using all
             business features immediately.
           </p>
+
+          <div style="margin: 20px 0; text-align: center;">
+            <a
+              href="${process.env.CLIENT_RETURN_URL || 'https://back-2-use-fe.vercel.app'}/auth/login"
+              style="
+                display: inline-block;
+                background: #3b82f6;
+                color: #ffffff;
+                padding: 12px 32px;
+                border-radius: 6px;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 14px;
+              "
+            >
+              Go to Login Page
+            </a>
+          </div>
+
           <p style="color: #94a3b8; font-size: 12px; margin: 14px 0 0">
             💡 Need help getting started? Contact our support team anytime.
           </p>
