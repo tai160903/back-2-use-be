@@ -181,12 +181,20 @@ export class BusinessesService {
       });
 
       if (existingForm) {
-        throw new HttpException(
-          'This email is already approved for a business',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
+        if (existingForm?.status === 'approved') {
+          throw new HttpException(
+            'This email is already approved for a business',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
 
+        if (existingForm?.status === 'pending') {
+          throw new HttpException(
+            'This email already has a pending application. Please wait for approval or contact support.',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      }
       const existingTaxCode = await this.businessFormModel.findOne({
         taxCode: dto.taxCode,
       });
