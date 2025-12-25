@@ -1480,6 +1480,17 @@ export class BorrowTransactionsService {
         );
       }
 
+      let business;
+      if (transaction.businessId) {
+        business = await this.businessesModel
+          .findById(transaction.businessId)
+          .session(session);
+
+        if (!business) {
+          throw new HttpException('Business not found', HttpStatus.NOT_FOUND);
+        }
+      }
+
       const wallet = await this.walletsModel
         .findOne({ userId: customer.userId, type: 'customer' })
         .session(session);
@@ -1488,15 +1499,34 @@ export class BorrowTransactionsService {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
       }
 
+      const businessWallet = await this.walletsModel
+        .findOne({
+          userId: business.userId,
+          type: 'business',
+        })
+        .session(session);
+
+      if (!businessWallet) {
+        throw new HttpException(
+          'Business wallet not found',
+          HttpStatus.NOT_FOUND,
+        );
+      }
+
       const amount = transaction.depositAmount || 0;
-      wallet.holdingBalance = Math.max(0, wallet.holdingBalance - amount);
+      // wallet.holdingBalance = Math.max(0, wallet.holdingBalance - amount);
       wallet.availableBalance += amount;
       await wallet.save({ session });
 
+      // 2️⃣ Trừ holding của business
+      businessWallet.holdingBalance -= amount;
+      await businessWallet.save({ session });
+
+      // 3️⃣ Ghi wallet transaction cho customer
       const walletTx = new this.walletTransactionsModel({
         walletId: wallet._id,
-        relatedUserId: customer.userId,
-        relatedUserType: 'customer',
+        relatedUserId: business._id,
+        relatedUserType: 'business',
         amount,
         transactionType: TransactionType.RETURN_REFUND,
         direction: 'in',
@@ -1504,10 +1534,30 @@ export class BorrowTransactionsService {
         description: 'Refund deposit due to customer cancellation',
         referenceType: 'borrow',
         referenceId: transaction._id,
-        fromBalanceType: 'available',
+        balanceType: 'available',
       });
 
       await walletTx.save({ session });
+
+      // 3️⃣ Ghi wallet transaction cho business
+      await this.walletTransactionsModel.create(
+        [
+          {
+            walletId: businessWallet._id,
+            relatedUserId: customer._id,
+            relatedUserType: 'customer',
+            amount,
+            transactionType: TransactionType.RETURN_REFUND,
+            direction: 'out',
+            status: 'completed',
+            description: 'Refund deposit to customer due to cancellation',
+            referenceType: 'borrow',
+            referenceId: transaction._id,
+            balanceType: 'holding',
+          },
+        ],
+        { session },
+      );
 
       if (transaction.productId) {
         await this.productModel.updateOne(
@@ -2006,7 +2056,7 @@ export class BorrowTransactionsService {
             receiverId: new Types.ObjectId(String(customer.userId)),
             receiverType: 'customer',
             title: 'Return Completed',
-            message, 
+            message,
             type: 'return',
             referenceId: borrowTransaction._id,
             referenceType: 'return',
