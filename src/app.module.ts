@@ -31,6 +31,7 @@ import { MonthlyLeaderboardsModule } from './modules/monthly-leaderboards/monthl
 import { MomoModule } from './infrastructure/momo/momo.module';
 import { StaffsModule } from './modules/staffs/staffs.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
+import { RewardPointsPackagesModule } from './modules/reward-points-packages/reward-points-packages.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
     MomoModule,
     StaffsModule,
     FeedbackModule,
+    RewardPointsPackagesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

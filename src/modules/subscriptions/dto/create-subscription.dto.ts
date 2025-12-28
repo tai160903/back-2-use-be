@@ -26,6 +26,15 @@ class LimitsDto {
   })
   @IsNumber()
   productItemLimit: number;
+
+  @ApiProperty({
+    example: 100,
+    description: 'Reward Points Limit per subscription period',
+    minimum: 0,
+  })
+  @IsNumber()
+  @Min(0, { message: 'Reward points limit cannot be negative' })
+  rewardPointsLimit: number;
 }
 
 export class CreateSubscriptionDto {
@@ -78,6 +87,7 @@ export class CreateSubscriptionDto {
     example: {
       productGroupLimit: 12,
       productItemLimit: 2,
+      rewardPointsLimit: 100,
     },
     description: 'Limits of the subscription',
     required: true,
