@@ -187,7 +187,7 @@ export class RewardPointsPackagesController {
     description: 'Forbidden - Only business can purchase',
   })
   async buyPackage(@Param('packageId') packageId: string, @Request() req: any) {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.service.buyRewardPointsPackage(userId, packageId);
   }
 
