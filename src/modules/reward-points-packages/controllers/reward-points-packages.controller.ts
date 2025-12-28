@@ -224,7 +224,7 @@ export class RewardPointsPackagesController {
     description: 'Forbidden - Only business can access',
   })
   async getMyRewardPointsInfo(@Request() req: any) {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.service.getBusinessRewardPointsInfo(userId);
   }
 
@@ -289,7 +289,7 @@ export class RewardPointsPackagesController {
     @Query('limit', new ParseIntPipe({ optional: true })) limit: number = 10,
     @Request() req: any,
   ) {
-    const userId = req.user.userId;
+    const userId = req.user._id;
     return this.service.getRewardPointsPurchaseHistory(userId, page, limit);
   }
 }
