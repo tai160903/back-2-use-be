@@ -35,6 +35,8 @@ import { MailerService } from 'src/infrastructure/mailer/mailer.service';
 import { rewardPointsPurchasedTemplate } from 'src/infrastructure/mailer/templates/reward-points-purchased.template';
 import { Users } from 'src/modules/users/schemas/users.schema';
 import { Logger } from '@nestjs/common';
+import { TransactionType } from 'src/common/constants/transaction-type.enum';
+import { WalletReferenceType } from 'src/common/constants/wallet-reference-type.enum';
 
 @Injectable()
 export class RewardPointsPackagesService {
@@ -193,6 +195,7 @@ export class RewardPointsPackagesService {
     const session = await this.connection.startSession();
     session.startTransaction();
 
+    console.log(userId);
     try {
       const [business, wallet, pkg] = await Promise.all([
         this.businessesModel.findOne({ userId: new Types.ObjectId(userId) }),
@@ -236,11 +239,11 @@ export class RewardPointsPackagesService {
       const transaction = new this.walletTransactionsModel({
         walletId: wallet._id,
         amount: pkg.price,
-        transactionType: 'reward_points_purchase',
+        transactionType: TransactionType.REWARD_POINTS_PURCHASE,
         direction: 'out',
         status: 'completed',
         description: `Purchase ${pkg.name} (${pkg.points} points)`,
-        referenceType: 'reward_points_package',
+        referenceType: WalletReferenceType.MANUAL,
         referenceId: new Types.ObjectId(packageId),
         balanceType: 'available',
       });
@@ -265,7 +268,9 @@ export class RewardPointsPackagesService {
       if (user?.email) {
         try {
           await this.mailerService.sendMail({
-            to: [{ address: user.email, name: business.businessName }],
+            to: [
+              { address: business.businessMail, name: business.businessName },
+            ],
             subject: 'Reward Points Purchased Successfully',
             html: rewardPointsPurchasedTemplate(
               business.businessName,

@@ -6,4 +6,5 @@ export enum TransactionType {
   SUBSCRIPTION_FEE = 'subscription_fee', // Trừ phí gói dịch vụ
   PENALTY = 'penalty', // Phạt (mất, trễ, hư,...)
   DEPOSIT_FORFEITED = 'deposit_forfeited',
+  REWARD_POINTS_PURCHASE = 'reward_points_purchase', // Mua gói điểm thưởng
 }
