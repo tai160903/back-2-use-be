@@ -11,6 +11,10 @@ import {
   RewardPointsPackage,
   RewardPointsPackageDocument,
 } from '../schemas/reward-points-package.schema';
+import {
+  RewardPointsPurchaseHistory,
+  RewardPointsPurchaseHistoryDocument,
+} from '../schemas/reward-points-purchase-history.schema';
 import { CreateRewardPointsPackageDto } from '../dto/create-reward-points-package.dto';
 import { UpdateRewardPointsPackageDto } from '../dto/update-reward-points-package.dto';
 import { APIResponseDto } from 'src/common/dtos/api-response.dto';
@@ -39,6 +43,8 @@ export class RewardPointsPackagesService {
   constructor(
     @InjectModel(RewardPointsPackage.name)
     private readonly rewardPointsPackageModel: Model<RewardPointsPackageDocument>,
+    @InjectModel(RewardPointsPurchaseHistory.name)
+    private readonly purchaseHistoryModel: Model<RewardPointsPurchaseHistoryDocument>,
     @InjectModel(Businesses.name)
     private readonly businessesModel: Model<BusinessDocument>,
     @InjectModel(Wallets.name)
@@ -240,6 +246,18 @@ export class RewardPointsPackagesService {
       });
       await transaction.save({ session });
 
+      // Create purchase history record
+      const purchaseHistory = new this.purchaseHistoryModel({
+        businessId: business._id,
+        packageId: new Types.ObjectId(packageId),
+        packageName: pkg.name,
+        points: pkg.points,
+        amount: pkg.price,
+        transactionId: transaction._id,
+        status: 'completed',
+      });
+      await purchaseHistory.save({ session });
+
       await session.commitTransaction();
 
       // Send email notification
@@ -328,67 +346,32 @@ export class RewardPointsPackagesService {
     limit: number = 10,
   ): Promise<APIPaginatedResponseDto<any[]>> {
     try {
-      const wallet = await this.walletsModel.findOne({
+      const business = await this.businessesModel.findOne({
         userId: new Types.ObjectId(userId),
-        type: 'business',
       });
 
-      if (!wallet) {
-        throw new NotFoundException('Wallet not found');
+      if (!business) {
+        throw new NotFoundException('Business not found');
       }
 
       const skip = (page - 1) * limit;
 
-      const [transactions, total] = await Promise.all([
-        this.walletTransactionsModel
-          .find({
-            walletId: wallet._id,
-            transactionType: 'reward_points_purchase',
-          })
+      const [purchaseHistory, total] = await Promise.all([
+        this.purchaseHistoryModel
+          .find({ businessId: business._id })
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
           .lean(),
-        this.walletTransactionsModel.countDocuments({
-          walletId: wallet._id,
-          transactionType: 'reward_points_purchase',
-        }),
+        this.purchaseHistoryModel.countDocuments({ businessId: business._id }),
       ]);
 
       const totalPages = Math.ceil(total / limit);
 
-      // Enhance transaction data with package information
-      const enhancedTransactions = await Promise.all(
-        transactions.map(async (transaction) => {
-          let packageInfo = null;
-          if (transaction.referenceId) {
-            packageInfo = await this.rewardPointsPackageModel.findById(
-              transaction.referenceId,
-            );
-          }
-
-          return {
-            id: transaction._id,
-            transactionDate: transaction.createdAt,
-            amount: transaction.amount,
-            description: transaction.description,
-            status: transaction.status,
-            packageInfo: packageInfo
-              ? {
-                  id: packageInfo._id,
-                  name: packageInfo.name,
-                  points: packageInfo.points,
-                  price: packageInfo.price,
-                }
-              : null,
-          };
-        }),
-      );
-
       return {
         statusCode: HttpStatus.OK,
         message: 'Reward points purchase history fetched successfully',
-        data: enhancedTransactions,
+        data: purchaseHistory,
         total,
         currentPage: page,
         totalPages,
