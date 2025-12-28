@@ -10,6 +10,9 @@ export class Limits {
 
   @Prop({ required: true })
   productItemLimit: number; // -1 = unlimited
+
+  @Prop({ required: true, default: 0, min: 0 })
+  rewardPointsLimit: number;
 }
 
 export const LimitsSchema = SchemaFactory.createForClass(Limits);

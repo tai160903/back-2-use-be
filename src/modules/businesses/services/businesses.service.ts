@@ -893,6 +893,20 @@ export class BusinessesService {
           ecoRankLabel,
           nextRank: nextRankData,
           progress,
+
+          rewardPoints: {
+            current: business.rewardPoints,
+            max: business.maxRewardPoints,
+            used: business.maxRewardPoints - business.rewardPoints,
+            percentageUsed:
+              business.maxRewardPoints > 0
+                ? Math.round(
+                    ((business.maxRewardPoints - business.rewardPoints) /
+                      business.maxRewardPoints) *
+                      100,
+                  )
+                : 0,
+          },
         },
       };
     } catch (error) {
