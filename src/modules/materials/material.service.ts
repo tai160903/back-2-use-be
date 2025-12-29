@@ -22,6 +22,7 @@ import {
   BusinessDocument,
   Businesses,
 } from '../businesses/schemas/businesses.schema';
+import { GetActiveMaterialsQueryDto } from './dto/get-approved-materials.dto';
 
 @Injectable()
 export class MaterialService {
@@ -42,6 +43,7 @@ export class MaterialService {
     userId: string,
   ): Promise<APIResponseDto<MaterialRequests>> {
     const { materialName, description } = createMaterialDto;
+    const normalizedName = materialName.trim().toLowerCase();
 
     const business = await this.businessModel.findOne({
       userId: new Types.ObjectId(userId),
@@ -51,9 +53,15 @@ export class MaterialService {
     }
 
     const existingMaterial = await this.materialModel.findOne({
-      materialName: { $regex: new RegExp(`^${materialName}$`, 'i') },
       isActive: true,
+      $expr: {
+        $eq: [
+          { $toLower: { $trim: { input: '$materialName' } } },
+          normalizedName,
+        ],
+      },
     });
+
     if (existingMaterial) {
       throw new ConflictException(
         `Material '${materialName}' already exists and has been approved.`,
@@ -62,9 +70,15 @@ export class MaterialService {
 
     const existingPendingRequest = await this.materialRequestModel.findOne({
       businessId: business._id,
-      requestedMaterialName: { $regex: new RegExp(`^${materialName}$`, 'i') },
       status: 'pending',
+      $expr: {
+        $eq: [
+          { $toLower: { $trim: { input: '$requestedMaterialName' } } },
+          normalizedName,
+        ],
+      },
     });
+
     if (existingPendingRequest) {
       throw new ConflictException(
         `You already have a pending request for '${materialName}'.`,
@@ -87,10 +101,17 @@ export class MaterialService {
 
   // Business get active materials
   async getActiveMaterials(
-    query: GetMaterialsQueryDto,
+    query: GetActiveMaterialsQueryDto,
   ): Promise<APIPaginatedResponseDto<Material[]>> {
-    const { page = 1, limit = 10 } = query;
-    const filter = { isActive: true };
+    const { page = 1, limit = 10, isSingleUse } = query;
+
+    const filter: Record<string, any> = {
+      isActive: true,
+    };
+
+    if (typeof isSingleUse === 'boolean') {
+      filter.isSingleUse = isSingleUse;
+    }
 
     const { data, total, currentPage, totalPages } =
       await paginate<MaterialDocument>(this.materialModel, filter, page, limit);

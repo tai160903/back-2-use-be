@@ -14,6 +14,16 @@ export class GetMaterialsQueryDto {
   isActive?: boolean;
 
   @ApiPropertyOptional({
+    example: true,
+    description:
+      'Filter materials by single-use (true = single-use, false = reusable)',
+  })
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  isSingleUse?: boolean;
+
+  @ApiPropertyOptional({
     example: 1,
     description: 'Page number for pagination',
   })

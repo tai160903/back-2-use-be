@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsString, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, Max, IsBoolean } from 'class-validator';
 
 export class AdminCreateMaterialDto {
   @ApiProperty({ example: 'PET', description: 'Tên vật liệu' })
@@ -12,24 +12,10 @@ export class AdminCreateMaterialDto {
   @Min(1)
   reuseLimit: number;
 
-  @ApiProperty({ example: 20, description: 'Tỷ lệ tiền cọc (%)' })
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  depositPercent: number;
-
   @ApiProperty({ example: 'Nhựa PET có thể tái sử dụng nhiều lần' })
   @IsString()
   @IsNotEmpty()
   description: string;
-
-  @ApiProperty({
-    example: 1,
-    description: 'Hệ số quy đổi nhựa (1 = nhựa chuẩn, 0.2 = giấy, ...)',
-  })
-  @IsNumber()
-  @Min(0)
-  plasticEquivalentMultiplier: number;
 
   @ApiProperty({
     example: 3.4,
@@ -38,4 +24,11 @@ export class AdminCreateMaterialDto {
   @IsNumber()
   @Min(0)
   co2EmissionPerKg: number;
+
+  @ApiProperty({
+    example: true,
+    description: 'Vật liệu dùng 1 lần (true) hay tái sử dụng (false)',
+  })
+  @IsBoolean()
+  isSingleUse: boolean;
 }

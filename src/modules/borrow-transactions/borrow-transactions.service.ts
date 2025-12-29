@@ -200,8 +200,7 @@ export class BorrowTransactionsService {
       dueDate.setDate(borrowDate.getDate() + dto.durationInDays);
 
       const { depositValue, durationInDays } = dto;
-      const depositAmount =
-        (Math.round(Number(depositValue) * 100) * Number(durationInDays)) / 100;
+      const depositAmount = depositValue;
 
       const customerWallet = await this.walletsModel
         .findOne({ userId: user._id, type: 'customer' })
@@ -1989,18 +1988,18 @@ export class BorrowTransactionsService {
         rewardPolicy,
       );
 
-      const { addedEcoPoints, addedCo2 } = applyEcoPointChange(
-        customer,
-        business,
-        productSize,
-        material,
-        borrowTransaction.status,
-      );
+      // const { addedEcoPoints, addedCo2 } = applyEcoPointChange(
+      //   customer,
+      //   business,
+      //   productSize,
+      //   material,
+      //   borrowTransaction.status,
+      // );
 
       borrowTransaction.rewardPointChanged = addedRewardPoints;
       borrowTransaction.rankingPointChanged = addedRankingPoints;
-      borrowTransaction.ecoPointChanged = addedEcoPoints;
-      borrowTransaction.co2Changed = addedCo2;
+      // borrowTransaction.ecoPointChanged = addedEcoPoints;
+      // borrowTransaction.co2Changed = addedCo2;
 
       // 8. Save
       await Promise.all([
@@ -2041,14 +2040,14 @@ export class BorrowTransactionsService {
 
       let message = 'Return completed successfully.';
 
-      if (addedCo2 > 0) {
-        message = `Return completed successfully. You helped reduce ${addedCo2} kg of CO₂.`;
-      } else if (addedCo2 < 0) {
-        message = `Return completed successfully. CO₂ reduction was decreased by ${addedCo2}
-         kg due to the item condition.`;
-      } else {
-        message = 'Return completed successfully. No CO₂ change was recorded.';
-      }
+      // if (addedCo2 > 0) {
+      //   message = `Return completed successfully. You helped reduce ${addedCo2} kg of CO₂.`;
+      // } else if (addedCo2 < 0) {
+      //   message = `Return completed successfully. CO₂ reduction was decreased by ${addedCo2}
+      //    kg due to the item condition.`;
+      // } else {
+      //   message = 'Return completed successfully. No CO₂ change was recorded.';
+      // }
 
       try {
         if (customer?.userId) {
