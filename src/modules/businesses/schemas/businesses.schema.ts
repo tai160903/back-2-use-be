@@ -71,6 +71,12 @@ export class Businesses {
 
   @Prop({ default: 0, min: 0 })
   totalReviews: number;
+
+  @Prop({ default: 0, min: 0 })
+  rewardPoints: number;
+
+  @Prop({ default: 0, min: 0 })
+  maxRewardPoints: number;
 }
 
 export const BusinessesSchema = SchemaFactory.createForClass(Businesses);
