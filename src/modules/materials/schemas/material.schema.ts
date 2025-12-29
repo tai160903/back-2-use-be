@@ -13,16 +13,13 @@ export class Material {
   reuseLimit: number;
 
   @Prop({ required: true })
-  depositPercent: number;
-
-  @Prop({ required: true })
   description: string;
 
   @Prop({ required: true })
-  plasticEquivalentMultiplier: number;
-
-  @Prop({ required: true })
   co2EmissionPerKg: number;
+
+  @Prop({ type: Boolean, required: true })
+  isSingleUse: boolean;
 
   @Prop({ type: Boolean, default: true })
   isActive: boolean;

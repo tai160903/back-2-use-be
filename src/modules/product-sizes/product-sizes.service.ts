@@ -79,22 +79,17 @@ export class ProductSizesService {
         lowerName.charAt(0).toUpperCase() + lowerName.slice(1);
       createProductSizeDto.sizeName = displayName;
 
-      const depositValue =
-        createProductSizeDto.basePrice * material.depositPercent * 0.01;
+      const depositValue = createProductSizeDto.basePrice;
 
       if (!createProductSizeDto.weight || createProductSizeDto.weight <= 0) {
         throw new HttpException('Weight is required', HttpStatus.BAD_REQUEST);
       }
-
-      const plasticEquivalentWeight =
-        createProductSizeDto.weight * material.plasticEquivalentMultiplier;
 
       const newProductSize = await this.productSizeModel.create({
         ...createProductSizeDto,
         businessId: new Types.ObjectId(business._id),
         productGroupId: new Types.ObjectId(createProductSizeDto.productGroupId),
         depositValue,
-        plasticEquivalentWeight,
       });
       return {
         statusCode: HttpStatus.CREATED,
@@ -280,20 +275,7 @@ export class ProductSizesService {
 
       let newDeposit: number | undefined = undefined;
       if (typeof updateDto.basePrice === 'number') {
-        newDeposit = updateDto.basePrice * material.depositPercent * 0.01;
-      }
-
-      let newPlasticEquivalent: number | undefined = undefined;
-
-      if (typeof updateDto.weight === 'number') {
-        if (updateDto.weight <= 0) {
-          throw new HttpException(
-            'Weight must be greater than 0',
-            HttpStatus.BAD_REQUEST,
-          );
-        }
-        newPlasticEquivalent =
-          updateDto.weight * material.plasticEquivalentMultiplier;
+        newDeposit = updateDto.basePrice;
       }
 
       const updated = await this.productSizeModel.findByIdAndUpdate(
@@ -302,9 +284,6 @@ export class ProductSizesService {
           $set: {
             ...updateDto,
             ...(newDeposit !== undefined ? { depositValue: newDeposit } : {}),
-            ...(newPlasticEquivalent !== undefined
-              ? { plasticEquivalentWeight: newPlasticEquivalent }
-              : {}),
           },
         },
         { new: true },

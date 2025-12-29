@@ -32,6 +32,7 @@ import { MomoModule } from './infrastructure/momo/momo.module';
 import { StaffsModule } from './modules/staffs/staffs.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { RewardPointsPackagesModule } from './modules/reward-points-packages/reward-points-packages.module';
+import { SingleUseProductModule } from './modules/single-use-product/single-use-product.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { RewardPointsPackagesModule } from './modules/reward-points-packages/rew
     StaffsModule,
     FeedbackModule,
     RewardPointsPackagesModule,
+    SingleUseProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],

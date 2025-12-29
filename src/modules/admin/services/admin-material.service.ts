@@ -47,11 +47,16 @@ export class AdminMaterialService {
     createMaterialDto: AdminCreateMaterialDto,
     adminId: string,
   ): Promise<APIResponseDto<Material>> {
-    const { materialName } = createMaterialDto;
-    const trimmedName = materialName.trim();
+    const { materialName, isSingleUse, reuseLimit } = createMaterialDto;
+    const normalizedName = materialName.trim().toLowerCase();
 
     const existed = await this.materialModel.findOne({
-      materialName: { $regex: new RegExp(`^${trimmedName}$`, 'i') },
+      $expr: {
+        $eq: [
+          { $toLower: { $trim: { input: '$materialName' } } },
+          normalizedName,
+        ],
+      },
     });
 
     if (existed) {
@@ -61,9 +66,17 @@ export class AdminMaterialService {
       );
     }
 
+    if (isSingleUse && reuseLimit > 1) {
+      throw new HttpException(
+        'Single-use material must have reuseLimit = 1',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     const material = await this.materialModel.create({
       ...createMaterialDto,
-      materialName: trimmedName,
+      materialName: materialName.trim(),
+      reuseLimit: isSingleUse ? 1 : reuseLimit,
       createdBy: new Types.ObjectId(adminId),
       isActive: true,
     });
@@ -75,12 +88,21 @@ export class AdminMaterialService {
     };
   }
 
-  // Admin get all materials (with pagination + optional isActive filter)
+  // Admin get all materials (with pagination + optional filters)
   async get(
     query: GetMaterialsQueryDto,
   ): Promise<APIPaginatedResponseDto<Material[]>> {
-    const { isActive, page = 1, limit = 10 } = query;
-    const filter = typeof isActive === 'boolean' ? { isActive } : {};
+    const { isActive, isSingleUse, page = 1, limit = 10 } = query;
+
+    const filter: Record<string, any> = {};
+
+    if (typeof isActive === 'boolean') {
+      filter.isActive = isActive;
+    }
+
+    if (typeof isSingleUse === 'boolean') {
+      filter.isSingleUse = isSingleUse;
+    }
 
     const { data, total, currentPage, totalPages } =
       await paginate<MaterialDocument>(this.materialModel, filter, page, limit);
@@ -143,24 +165,51 @@ export class AdminMaterialService {
 
     const material = await this.materialModel.findById(id).exec();
     if (!material) {
-      throw new NotFoundException(`Material not found`);
+      throw new NotFoundException('Material not found');
     }
 
-    if (
-      updateDto.materialName &&
-      updateDto.materialName !== material.materialName
-    ) {
-      const existingMaterial = await this.materialModel
-        .findOne({ materialName: updateDto.materialName })
-        .exec();
+    // -------------------- MATERIAL NAME --------------------
+    if (updateDto.materialName) {
+      const normalizedName = updateDto.materialName.trim();
+
+      const existingMaterial = await this.materialModel.findOne({
+        _id: { $ne: material._id },
+        materialName: { $regex: new RegExp(`^${normalizedName}$`, 'i') },
+      });
 
       if (existingMaterial) {
         throw new ConflictException(
-          `Material name '${updateDto.materialName}' already exists`,
+          `Material name '${normalizedName}' already exists`,
         );
       }
+
+      updateDto.materialName = normalizedName;
     }
 
+    // -------------------- SINGLE USE / REUSE LOGIC --------------------
+    const finalIsSingleUse =
+      typeof updateDto.isSingleUse === 'boolean'
+        ? updateDto.isSingleUse
+        : material.isSingleUse;
+
+    const finalReuseLimit =
+      typeof updateDto.reuseLimit === 'number'
+        ? updateDto.reuseLimit
+        : material.reuseLimit;
+
+    if (finalIsSingleUse && finalReuseLimit !== 1) {
+      throw new BadRequestException(
+        'Single-use material must have reuseLimit = 1',
+      );
+    }
+
+    if (!finalIsSingleUse && finalReuseLimit <= 1) {
+      throw new BadRequestException(
+        'Reusable material must have reuseLimit > 1',
+      );
+    }
+
+    // -------------------- IS ACTIVE NO-OP CHECK --------------------
     if (
       typeof updateDto.isActive === 'boolean' &&
       updateDto.isActive === material.isActive
@@ -169,15 +218,17 @@ export class AdminMaterialService {
       return {
         statusCode: HttpStatus.OK,
         message: `Material is already ${stateText}`,
+        data: material,
       };
     }
 
+    // -------------------- APPLY UPDATE --------------------
     Object.assign(material, updateDto);
     const updatedMaterial = await material.save();
 
     return {
       statusCode: HttpStatus.OK,
-      message: `Update material '${material.materialName}' successfully`,
+      message: `Update material '${updatedMaterial.materialName}' successfully`,
       data: updatedMaterial,
     };
   }
@@ -218,25 +269,29 @@ export class AdminMaterialService {
     }
 
     // -------------------- APPROVE FLOW --------------------
-    const {
-      reuseLimit,
-      depositPercent,
-      plasticEquivalentMultiplier,
-      co2EmissionPerKg,
-    } = dto.materialData || {};
+    const { isSingleUse, reuseLimit, co2EmissionPerKg } =
+      dto.materialData || {};
 
-    if (
-      reuseLimit == null ||
-      depositPercent == null ||
-      plasticEquivalentMultiplier == null ||
-      co2EmissionPerKg == null
-    ) {
+    if (isSingleUse == null || reuseLimit == null || co2EmissionPerKg == null) {
       throw new BadRequestException(
-        'reuseLimit, depositPercent, plasticEquivalentMultiplier, and co2EmissionPerKg are required when approving',
+        'isSingleUse, reuseLimit, and co2EmissionPerKg are required when approving',
       );
     }
 
-    // Check duplicate material name
+    // 🔒 Business rule validation
+    if (isSingleUse && reuseLimit !== 1) {
+      throw new BadRequestException(
+        'Single-use material must have reuseLimit = 1',
+      );
+    }
+
+    if (!isSingleUse && reuseLimit <= 1) {
+      throw new BadRequestException(
+        'Reusable material must have reuseLimit > 1',
+      );
+    }
+
+    // Check duplicate material name (case-insensitive)
     const existingMaterial = await this.materialModel.findOne({
       materialName: {
         $regex: new RegExp(`^${request.requestedMaterialName}$`, 'i'),
@@ -250,10 +305,9 @@ export class AdminMaterialService {
 
     // Create new Material
     const newMaterial = await this.materialModel.create({
-      materialName: request.requestedMaterialName,
+      materialName: request.requestedMaterialName.trim(),
+      isSingleUse,
       reuseLimit,
-      depositPercent,
-      plasticEquivalentMultiplier,
       co2EmissionPerKg,
       description: request.description,
       isActive: true,

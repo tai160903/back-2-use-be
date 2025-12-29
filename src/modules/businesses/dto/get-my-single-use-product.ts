@@ -1,35 +1,38 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, Min } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsBooleanString,
+  IsOptional,
+  IsPositive,
+  Min,
+} from 'class-validator';
 
-export class GetActiveMaterialsQueryDto {
+export class GetMySingleUseProductQueryDto {
   @ApiPropertyOptional({
-    example: true,
-    description:
-      'Filter materials by single-use (true = single-use, false = reusable)',
+    example: 'true',
+    description: 'Filter by active status',
   })
   @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
-  isSingleUse?: boolean;
+  isActive?: boolean;
 
   @ApiPropertyOptional({
     example: 1,
-    description: 'Page number for pagination',
+    description: 'Page number (starts from 1)',
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
-  @Min(1)
+  @IsPositive()
   page?: number = 1;
 
   @ApiPropertyOptional({
     example: 10,
-    description: 'Number of items per page',
+    description: 'Items per page',
   })
   @IsOptional()
   @Type(() => Number)
-  @IsInt()
   @Min(1)
   limit?: number = 10;
 }

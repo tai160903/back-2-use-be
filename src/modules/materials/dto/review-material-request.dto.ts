@@ -37,17 +37,15 @@ export class ReviewMaterialRequestDto {
       'Extra data required when approving a new material (reuseLimit, depositPercent)',
     example: {
       reuseLimit: 3,
-      depositPercent: 10,
-      plasticEquivalentMultiplier: 1,
       co2EmissionPerKg: 3.4,
+      isSingleUse: true,
     },
   })
   @ValidateIf((o) => o.decision === RequestDecision.APPROVE)
   @IsNotEmpty({ message: 'Material details are required when approving' })
   materialData?: {
     reuseLimit: number;
-    depositPercent: number;
-    plasticEquivalentMultiplier: number;
     co2EmissionPerKg: number;
+    isSingleUse: boolean;
   };
 }

@@ -61,6 +61,20 @@ import {
 } from '../borrow-transactions/schemas/borrow-transactions.schema';
 import { Material, MaterialSchema } from '../materials/schemas/material.schema';
 import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
+import {
+  SingleUseProductSize,
+  SingleUseProductSizeSchema,
+} from '../single-use-product-size/schemas/single-use-product-size.schema';
+import {
+  SingleUseProductType,
+  SingleUseProductTypeSchema,
+} from '../single-use-product-type/schemas/single-use-product-type.schema';
+import {
+  SingleUseProduct,
+  SingleUseProductSchema,
+} from '../single-use-product/schemas/single-use-product.schema';
+import { BusinessSingleUseProductService } from './services/business-single-use-product.service';
+import { BusinessSingleUseProductController } from './controller/business-single-use-product.controller';
 
 @Module({
   imports: [
@@ -87,6 +101,9 @@ import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
       { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
       { name: Material.name, schema: MaterialSchema },
       { name: Feedback.name, schema: FeedbackSchema },
+      { name: SingleUseProductSize.name, schema: SingleUseProductSizeSchema },
+      { name: SingleUseProductType.name, schema: SingleUseProductTypeSchema },
+      { name: SingleUseProduct.name, schema: SingleUseProductSchema },
     ]),
     CloudinaryModule,
     MailerModule,
@@ -97,11 +114,13 @@ import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
     BusinessesController,
     BusinessVoucherController,
     BusinessDashboardController,
+    BusinessSingleUseProductController,
   ],
   providers: [
     BusinessesService,
     BusinessVoucherService,
     BusinessDashboardService,
+    BusinessSingleUseProductService,
     BusinessSubscriptionGuard,
   ],
   exports: [BusinessesService],

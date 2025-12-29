@@ -94,6 +94,18 @@ import {
 } from '../product-groups/schemas/product-group.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
+import { AdminSingleUseProductTypeController } from './controllers/admin-single-product-type.controller';
+import {
+  SingleUseProductType,
+  SingleUseProductTypeSchema,
+} from '../single-use-product-type/schemas/single-use-product-type.schema';
+import { AdminSingleUseProductTypeService } from './services/admin-single-product-type.service';
+import { AdminSingleUseProductSizeController } from './controllers/admin-single-product-size.controller';
+import { AdminSingleUseProductSizeService } from './services/admin-single-product-size.service';
+import {
+  SingleUseProductSize,
+  SingleUseProductSizeSchema,
+} from '../single-use-product-size/schemas/single-use-product-size.schema';
 
 @Module({
   imports: [
@@ -124,6 +136,8 @@ import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
       { name: ProductGroup.name, schema: ProductGroupSchema },
       { name: Product.name, schema: ProductSchema },
       { name: Feedback.name, schema: FeedbackSchema },
+      { name: SingleUseProductType.name, schema: SingleUseProductTypeSchema },
+      { name: SingleUseProductSize.name, schema: SingleUseProductSizeSchema },
     ]),
     BusinessesModule,
     MailerModule,
@@ -140,6 +154,8 @@ import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
     AdminLeaderboardRewardController,
     AdminSystemSettingController,
     AdminDashboardController,
+    AdminSingleUseProductTypeController,
+    AdminSingleUseProductSizeController,
   ],
   providers: [
     AdminBusinessFormService,
@@ -152,6 +168,8 @@ import { Feedback, FeedbackSchema } from '../feedback/schemas/feedback.schema';
     AdminLeaderboardRewardService,
     AdminSystemSettingService,
     AdminDashboardService,
+    AdminSingleUseProductTypeService,
+    AdminSingleUseProductSizeService,
   ],
 })
 export class AdminModule {}
