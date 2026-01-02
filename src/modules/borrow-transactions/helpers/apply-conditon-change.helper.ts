@@ -11,7 +11,6 @@ export function applyConditionChange(
   if (finalCondition.condition === 'good') {
     product.condition = 'good';
     product.status = 'available';
-    product.reuseCount += 1;
 
     // SUCCESS — nhưng trạng thái có thể là returned hoặc return_late
     transaction.borrowTransactionType = 'return_success';

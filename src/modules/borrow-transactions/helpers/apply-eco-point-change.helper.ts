@@ -1,48 +1,17 @@
-import { calculateEcoPoint } from '../utils/calculate-eco-point';
+export function applyEcoPointChange(business, borrowTransaction) {
+  const totalCo2 = borrowTransaction.co2Changed ?? 0;
 
-export function applyEcoPointChange(
-  customer,
-  business,
-  productSize,
-  material,
-  borrowStatus,
-) {
-  const { plasticPrevented, co2Reduced, ecoPoint } = calculateEcoPoint(
-    productSize,
-    material,
-  );
-
-  let addedEcoPoints = 0;
-  let addedCo2 = 0;
-
-  switch (borrowStatus) {
-    case 'returned':
-    case 'return_late':
-      // +eco, +co2
-      addedEcoPoints = ecoPoint;
-      addedCo2 = co2Reduced;
-
-      business.ecoPoints += addedEcoPoints;
-      business.co2Reduced += addedCo2;
-      customer.co2Reduced += addedCo2;
-      break;
-
-    case 'rejected':
-    case 'lost':
-      addedEcoPoints = 0;
-      addedCo2 = -co2Reduced;
-
-      business.co2Reduced += addedCo2;
-      customer.co2Reduced += addedCo2;
-      break;
-
-    default:
-      break;
+  if (totalCo2 <= 0) {
+    return {
+      addedEcoPoints: 0,
+    };
   }
 
+  const addedEcoPoints = totalCo2 * 100;
+
+  business.ecoPoints += addedEcoPoints;
+
   return {
-    plasticPrevented,
     addedEcoPoints,
-    addedCo2,
   };
 }

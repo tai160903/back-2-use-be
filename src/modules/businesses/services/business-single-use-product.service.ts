@@ -5,6 +5,7 @@ import {
   BadRequestException,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import {
@@ -28,6 +29,8 @@ import { UpdateSingleUseProductDto } from '../dto/update-single-use-product.dto'
 import { GetMySingleUseProductQueryDto } from '../dto/get-my-single-use-product';
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 import { paginate } from 'src/common/utils/pagination.util';
+import { RolesEnum } from 'src/common/constants/roles.enum';
+import { Staff, StaffDocument } from 'src/modules/staffs/schemas/staffs.schema';
 
 @Injectable()
 export class BusinessSingleUseProductService {
@@ -46,6 +49,9 @@ export class BusinessSingleUseProductService {
 
     @InjectModel(Businesses.name)
     private readonly businessModel: Model<BusinessDocument>,
+
+    @InjectModel(Staff.name)
+    private readonly staffModel: Model<StaffDocument>,
 
     private readonly cloudinaryService: CloudinaryService,
   ) {}
@@ -286,23 +292,54 @@ export class BusinessSingleUseProductService {
     }
   }
 
-  //   Get my product
+  // Get my product (Business + Staff)
   async getMyProducts(
     userId: string,
+    role: RolesEnum[],
     query: GetMySingleUseProductQueryDto,
   ): Promise<APIPaginatedResponseDto<SingleUseProduct[]>> {
     const { isActive, page = 1, limit = 10 } = query;
 
-    // 1️⃣ Find business
-    const business = await this.businessModel.findOne({
-      userId: new Types.ObjectId(userId),
-    });
+    const userObjectId = new Types.ObjectId(userId);
+    let business;
 
-    if (!business) {
-      throw new NotFoundException('Business not found');
+    // 1️⃣ Role STAFF
+    if (role.includes(RolesEnum.STAFF)) {
+      const staff = await this.staffModel.findOne({
+        userId: userObjectId,
+        status: 'active',
+      });
+
+      if (!staff) {
+        throw new BadRequestException('Staff not found.');
+      }
+
+      console.log(staff.businessId);
+
+      business = await this.businessModel.findById(staff.businessId);
+
+      if (!business) {
+        throw new NotFoundException('Business not found for this staff.');
+      }
     }
 
-    // 2️⃣ Build filter
+    // 2️⃣ Role BUSINESS
+    if (role.includes(RolesEnum.BUSINESS)) {
+      business = await this.businessModel.findOne({
+        userId: userObjectId,
+      });
+
+      if (!business) {
+        throw new NotFoundException('Business not found');
+      }
+    }
+
+    // 3️⃣ Không có business hợp lệ
+    if (!business) {
+      throw new ForbiddenException('User cannot act on any business.');
+    }
+
+    // 4️⃣ Build filter
     const filter: Record<string, any> = {
       businessId: business._id,
     };
@@ -311,7 +348,7 @@ export class BusinessSingleUseProductService {
       filter.isActive = isActive;
     }
 
-    // 3️⃣ Paginate
+    // 5️⃣ Paginate
     const { data, total, currentPage, totalPages } =
       await paginate<SingleUseProductDocument>(
         this.productModel,
@@ -327,7 +364,7 @@ export class BusinessSingleUseProductService {
             select: 'sizeName minWeight maxWeight',
           },
           { path: 'materialId', select: 'materialName description' },
-        ], // populate
+        ],
       );
 
     return {

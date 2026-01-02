@@ -33,6 +33,7 @@ import { StaffsModule } from './modules/staffs/staffs.module';
 import { FeedbackModule } from './modules/feedback/feedback.module';
 import { RewardPointsPackagesModule } from './modules/reward-points-packages/reward-points-packages.module';
 import { SingleUseProductModule } from './modules/single-use-product/single-use-product.module';
+import { SingleUseProductUsageModule } from './modules/single-use-product-usage/single-use-product-usage.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { SingleUseProductModule } from './modules/single-use-product/single-use-
     FeedbackModule,
     RewardPointsPackagesModule,
     SingleUseProductModule,
+    SingleUseProductUsageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

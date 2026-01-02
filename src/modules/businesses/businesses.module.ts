@@ -75,6 +75,12 @@ import {
 } from '../single-use-product/schemas/single-use-product.schema';
 import { BusinessSingleUseProductService } from './services/business-single-use-product.service';
 import { BusinessSingleUseProductController } from './controller/business-single-use-product.controller';
+import { BusinessSingleUseUsageController } from './controller/business-single-use-product-usage.controller';
+import { BusinessSingleUseUsageService } from './services/business-single-use-product-usage.service';
+import {
+  SingleUseProductUsage,
+  SingleUseProductUsageSchema,
+} from '../single-use-product-usage/schemas/single-use-product-usage.schema';
 
 @Module({
   imports: [
@@ -104,6 +110,7 @@ import { BusinessSingleUseProductController } from './controller/business-single
       { name: SingleUseProductSize.name, schema: SingleUseProductSizeSchema },
       { name: SingleUseProductType.name, schema: SingleUseProductTypeSchema },
       { name: SingleUseProduct.name, schema: SingleUseProductSchema },
+      { name: SingleUseProductUsage.name, schema: SingleUseProductUsageSchema },
     ]),
     CloudinaryModule,
     MailerModule,
@@ -115,12 +122,14 @@ import { BusinessSingleUseProductController } from './controller/business-single
     BusinessVoucherController,
     BusinessDashboardController,
     BusinessSingleUseProductController,
+    BusinessSingleUseUsageController,
   ],
   providers: [
     BusinessesService,
     BusinessVoucherService,
     BusinessDashboardService,
     BusinessSingleUseProductService,
+    BusinessSingleUseUsageService,
     BusinessSubscriptionGuard,
   ],
   exports: [BusinessesService],

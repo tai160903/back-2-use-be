@@ -28,7 +28,6 @@ import {
   BusinessDocument,
   Businesses,
 } from 'src/modules/businesses/schemas/businesses.schema';
-import { applyEcoPointChange } from 'src/modules/borrow-transactions/helpers/apply-eco-point-change.helper';
 import { applyRewardPointChange } from 'src/modules/borrow-transactions/helpers/apply-reward-points-change.helper';
 import {
   Customers,
@@ -47,6 +46,7 @@ import {
   MaterialDocument,
 } from 'src/modules/materials/schemas/material.schema';
 import { NotificationsService } from 'src/modules/notifications/notifications.service';
+import { applyEcoPointChange } from 'src/modules/borrow-transactions/helpers/apply-eco-point-change.helper';
 
 @Injectable()
 export class LateTransactionCron {
@@ -263,30 +263,22 @@ export class LateTransactionCron {
       borrowTransaction.rankingPointChanged = rewardResult.addedRankingPoints;
 
       // 9️⃣ Apply eco point for business (because lost → negative eco impact)
-      const ecoResult = applyEcoPointChange(
-        customer,
-        business,
-        productSize,
-        material,
-        'lost',
-      );
+      const ecoResult = applyEcoPointChange(business, borrowTransaction);
 
       borrowTransaction.ecoPointChanged = ecoResult.addedEcoPoints;
-      borrowTransaction.co2Changed = ecoResult.addedCo2;
 
       await this.businessModel.updateOne(
         { _id: business._id },
         {
           $inc: {
             ecoPoints: ecoResult.addedEcoPoints,
-            co2Reduced: ecoResult.addedCo2,
           },
         },
         { session },
       );
 
       this.logger.warn(
-        `[ECO DEBUG] customer=${customer._id} | addedCo2=${ecoResult.addedCo2} | current=${customer.co2Reduced}`,
+        `[ECO DEBUG] customer=${customer._id} | current=${customer.co2Reduced}`,
       );
       await this.customerModel.updateOne(
         { _id: customer._id },
@@ -295,7 +287,6 @@ export class LateTransactionCron {
             rewardPoints: rewardResult.addedRewardPoints,
             rankingPoints: rewardResult.addedRankingPoints,
             returnFailedCount: 1,
-            co2Reduced: ecoResult.addedCo2,
           },
         },
         { session },
@@ -313,8 +304,7 @@ export class LateTransactionCron {
       // ===== SEND NOTIFICATION TO CUSTOMER =====
       try {
         if (customer?.userId) {
-          const message = `Your borrowed item was not returned within the allowed time and has been marked as lost. 
-This resulted in a decrease of ${Math.abs(ecoResult.addedCo2)} kg of CO₂ reduction.`;
+          const message = `Your borrowed item was not returned within the allowed time and has been marked as lost.`;
 
           await this.notificationsService.create({
             receiverId: new Types.ObjectId(String(customer.userId)),
