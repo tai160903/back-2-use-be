@@ -7,4 +7,5 @@ export enum NotificationTypeEnum {
   RANKING = 'ranking',
   ECO = 'eco',
   MANUAL = 'manual',
+  USAGE = 'usage',
 }

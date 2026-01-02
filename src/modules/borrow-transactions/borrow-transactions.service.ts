@@ -56,6 +56,8 @@ import { determineFinalConditionWhenReturn } from './helpers/determine-final-con
 import { GetTransactionsDto } from './dto/get-borrow-transactions';
 import { RolesEnum } from 'src/common/constants/roles.enum';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationReferenceTypeEnum } from 'src/common/constants/notification-reference-type.enum';
+import { NotificationTypeEnum } from 'src/common/constants/notification.enum';
 
 @Injectable()
 export class BorrowTransactionsService {
@@ -255,6 +257,10 @@ export class BorrowTransactionsService {
             borrowTransactionType: 'borrow',
             previousConditionImages,
             previousDamageFaces,
+            co2Changed: 0,
+            ecoPointChanged: 0,
+            rewardPointChanged: 0,
+            rankingPointChanged: 0,
           },
         ],
         { session },
@@ -899,12 +905,15 @@ export class BorrowTransactionsService {
         })
         .populate({
           path: 'productId',
-          select: 'qrCode serialNumber productGroupId productSizeId',
+          select: 'qrCode serialNumber productGroupId productSizeId reuseCount',
           populate: [
             {
               path: 'productGroupId',
               select: 'name imageUrl materialId',
-              populate: { path: 'materialId', select: 'materialName' },
+              populate: {
+                path: 'materialId',
+                select: 'materialName reuseLimit',
+              },
             },
             { path: 'productSizeId', select: 'sizeName' },
           ],
@@ -1397,12 +1406,15 @@ export class BorrowTransactionsService {
         .populate({
           path: 'productId',
           select:
-            'qrCode serialNumber status reuseCount productGroupId productSizeId',
+            'qrCode serialNumber status reuseCount productGroupId productSizeId reuseCount',
           populate: [
             {
               path: 'productGroupId',
-              select: 'name imageUrl materialId',
-              populate: { path: 'materialId', select: 'materialName' },
+              select: 'name imageUrl materialId ',
+              populate: {
+                path: 'materialId',
+                select: 'materialName reuseLimit',
+              },
             },
             { path: 'productSizeId', select: 'sizeName' },
           ],
@@ -1978,9 +1990,6 @@ export class BorrowTransactionsService {
         lateInfo.isLate,
       );
 
-      // 6. Reuse limit
-      handleReuseLimit(product, material);
-
       // 7. Reward & eco points
       const { addedRewardPoints, addedRankingPoints } = applyRewardPointChange(
         customer,
@@ -1988,18 +1997,15 @@ export class BorrowTransactionsService {
         rewardPolicy,
       );
 
-      // const { addedEcoPoints, addedCo2 } = applyEcoPointChange(
-      //   customer,
-      //   business,
-      //   productSize,
-      //   material,
-      //   borrowTransaction.status,
-      // );
-
       borrowTransaction.rewardPointChanged = addedRewardPoints;
       borrowTransaction.rankingPointChanged = addedRankingPoints;
-      // borrowTransaction.ecoPointChanged = addedEcoPoints;
-      // borrowTransaction.co2Changed = addedCo2;
+
+      const { addedEcoPoints } = applyEcoPointChange(
+        business,
+        borrowTransaction,
+      );
+
+      borrowTransaction.ecoPointChanged = addedEcoPoints;
 
       // 8. Save
       await Promise.all([
@@ -2038,17 +2044,19 @@ export class BorrowTransactionsService {
 
       await session.commitTransaction();
 
+      // ===== Build return message based on CO2 =====
+      const totalCo2 = borrowTransaction.co2Changed ?? 0;
+
       let message = 'Return completed successfully.';
 
-      // if (addedCo2 > 0) {
-      //   message = `Return completed successfully. You helped reduce ${addedCo2} kg of CO₂.`;
-      // } else if (addedCo2 < 0) {
-      //   message = `Return completed successfully. CO₂ reduction was decreased by ${addedCo2}
-      //    kg due to the item condition.`;
-      // } else {
-      //   message = 'Return completed successfully. No CO₂ change was recorded.';
-      // }
+      if (totalCo2 > 0) {
+        message = `Return completed successfully. You helped reduce ${totalCo2} kg of CO₂ emissions by reusing products. 🌱`;
+      } else {
+        message =
+          'Return completed successfully. This transaction did not record any CO₂ reduction.';
+      }
 
+      // ===== Send notification =====
       try {
         if (customer?.userId) {
           await this.notificationsService.create({
@@ -2056,9 +2064,9 @@ export class BorrowTransactionsService {
             receiverType: 'customer',
             title: 'Return Completed',
             message,
-            type: 'return',
+            type: NotificationTypeEnum.RETURN,
             referenceId: borrowTransaction._id,
-            referenceType: 'return',
+            referenceType: NotificationReferenceTypeEnum.RETURN,
           });
         }
       } catch (err) {

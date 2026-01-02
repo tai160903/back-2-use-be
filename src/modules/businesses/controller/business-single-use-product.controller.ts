@@ -28,7 +28,10 @@ import { GetMySingleUseProductQueryDto } from '../dto/get-my-single-use-product'
 import { APIPaginatedResponseDto } from 'src/common/dtos/api-paginated-response.dto';
 
 @ApiTags('Single Use Product (Business)')
-@UseGuards(AuthGuard, RoleCheckGuard.withRoles([RolesEnum.BUSINESS]))
+@UseGuards(
+  AuthGuard,
+  RoleCheckGuard.withRoles([RolesEnum.BUSINESS, RolesEnum.STAFF]),
+)
 @ApiBearerAuth('access-token')
 @Controller('business/single-use-product')
 export class BusinessSingleUseProductController {
@@ -131,10 +134,9 @@ export class BusinessSingleUseProductController {
 
   @Get('/my')
   async getMyProducts(
-    @Req() req: AuthenticatedRequest,
+    @Req() req,
     @Query() query: GetMySingleUseProductQueryDto,
   ): Promise<APIPaginatedResponseDto<SingleUseProduct[]>> {
-    const userId = req.user?._id;
-    return this.service.getMyProducts(userId, query);
+    return this.service.getMyProducts(req.user?._id, req.user?.role, query);
   }
 }
