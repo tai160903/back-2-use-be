@@ -255,6 +255,7 @@ export class LateTransactionCron {
       // 8️⃣ Apply reward point penalty for customer (return_failed logic)
       const rewardResult = applyRewardPointChange(
         customer,
+        business,
         'lost',
         rewardPolicy,
       );
