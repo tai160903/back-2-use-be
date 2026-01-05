@@ -1993,6 +1993,7 @@ export class BorrowTransactionsService {
       // 7. Reward & eco points
       const { addedRewardPoints, addedRankingPoints } = applyRewardPointChange(
         customer,
+        business,
         borrowTransaction.status,
         rewardPolicy,
       );
