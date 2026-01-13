@@ -202,7 +202,9 @@ export class BorrowTransactionsService {
       dueDate.setDate(borrowDate.getDate() + dto.durationInDays);
 
       const { depositValue, durationInDays } = dto;
-      const depositAmount = depositValue;
+      // Calculate total rental price: depositValue + (depositValue * 1% * durationInDays)
+      const depositAmount =
+        Math.round(depositValue * 100 * (1 + 0.01 * durationInDays)) / 100;
 
       const customerWallet = await this.walletsModel
         .findOne({ userId: user._id, type: 'customer' })
@@ -1724,10 +1726,14 @@ export class BorrowTransactionsService {
         throw new HttpException('Product size not found', HttpStatus.NOT_FOUND);
       }
 
+      // Calculate extension cost: depositValue * 1% * additionalDays
       const additionalDeposit =
-        (Math.round(Number(productSize.depositValue) * 100) *
-          Number(additionalDays)) /
-        100;
+        Math.round(
+          Number(productSize.depositValue) *
+            100 *
+            0.01 *
+            Number(additionalDays),
+        ) / 100;
 
       const customerWallet = await this.walletsModel
         .findOne({ userId: customer.userId, type: 'customer' })
