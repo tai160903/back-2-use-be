@@ -31,7 +31,7 @@ import { autoRenewalSuccessTemplate } from 'src/infrastructure/mailer/templates/
 import { autoRenewalFailedTemplate } from 'src/infrastructure/mailer/templates/auto-renewal-failed.template';
 import { Customers } from '../../users/schemas/customer.schema';
 import { GeocodingService } from 'src/infrastructure/geocoding/geocoding.service';
-import * as moment from 'moment-timezone';
+import moment from 'moment-timezone';
 
 import { Product } from '../../products/schemas/product.schema';
 import { ProductGroup } from '../../product-groups/schemas/product-group.schema';

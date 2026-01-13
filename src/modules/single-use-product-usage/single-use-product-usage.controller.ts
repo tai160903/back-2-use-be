@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Req,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -24,6 +25,18 @@ export class SingleUseProductUsageController {
   constructor(
     private readonly singleUseProductUsageService: SingleUseProductUsageService,
   ) {}
+
+  @Get('my')
+  getAllMySingleUseUsages(
+    @Request() req: { user: { _id: string; role: RolesEnum[] } },
+    @Query() query: GetSingleUseUsageQueryDto,
+  ): Promise<APIPaginatedResponseDto<any[]>> {
+    return this.singleUseProductUsageService.getAllMySingleUseUsages(
+      req.user._id,
+      req.user.role,
+      query,
+    );
+  }
 
   @Get(':borrowTransactionId')
   getSingleUseUsages(

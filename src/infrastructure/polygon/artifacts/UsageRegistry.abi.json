@@ -1,0 +1,56 @@
+[
+    {
+        "anonymous": false,
+        "inputs": [
+            {
+                "indexed": true,
+                "internalType": "bytes32",
+                "name": "usageId",
+                "type": "bytes32"
+            },
+            {
+                "indexed": true,
+                "internalType": "bytes32",
+                "name": "businessId",
+                "type": "bytes32"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "co2",
+                "type": "uint256"
+            },
+            {
+                "indexed": false,
+                "internalType": "uint256",
+                "name": "timestamp",
+                "type": "uint256"
+            }
+        ],
+        "name": "UsageRecorded",
+        "type": "event"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "bytes32",
+                "name": "usageId",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "bytes32",
+                "name": "businessId",
+                "type": "bytes32"
+            },
+            {
+                "internalType": "uint256",
+                "name": "co2",
+                "type": "uint256"
+            }
+        ],
+        "name": "recordUsage",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]

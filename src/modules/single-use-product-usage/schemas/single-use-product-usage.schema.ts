@@ -51,6 +51,9 @@ export class SingleUseProductUsage {
 
   @Prop()
   note?: string;
+
+  @Prop({ type: String, default: null })
+  blockchainTxHash?: string;
 }
 
 export const SingleUseProductUsageSchema = SchemaFactory.createForClass(

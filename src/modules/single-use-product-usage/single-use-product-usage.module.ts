@@ -27,12 +27,17 @@ import {
   SingleUseProductUsage,
   SingleUseProductUsageSchema,
 } from './schemas/single-use-product-usage.schema';
+import { Staff, StaffSchema } from '../staffs/schemas/staffs.schema';
+import { Customers, CustomersSchema } from '../users/schemas/customer.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: BorrowTransaction.name, schema: BorrowTransactionSchema },
       { name: SingleUseProductUsage.name, schema: SingleUseProductUsageSchema },
+      { name: Businesses.name, schema: BusinessesSchema },
+      { name: Staff.name, schema: StaffSchema },
+      { name: Customers.name, schema: CustomersSchema },
     ]),
   ],
   controllers: [SingleUseProductUsageController],
