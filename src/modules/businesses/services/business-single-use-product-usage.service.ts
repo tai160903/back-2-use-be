@@ -46,6 +46,7 @@ import {
 import { NotificationReferenceTypeEnum } from 'src/common/constants/notification-reference-type.enum';
 import { NotificationTypeEnum } from 'src/common/constants/notification.enum';
 import { BusinessDocument, Businesses } from '../schemas/businesses.schema';
+import { recordUsageOnChain } from 'src/infrastructure/polygon/blockchain/usageRegistry.service';
 
 @Injectable()
 export class BusinessSingleUseUsageService {
@@ -279,6 +280,23 @@ export class BusinessSingleUseUsageService {
       // 🔟 Commit transaction
       // =========================
       await session.commitTransaction();
+
+      // =========================
+      // 🔗 11️⃣ Record usage on blockchain (non-blocking)
+      // =========================
+      recordUsageOnChain(
+        usage._id.toString(),
+        borrow.businessId.toString(),
+        Math.round(addedCo2 * 1000),
+      )
+        .then(async (result) => {
+          usage.blockchainTxHash = result.txHash;
+          await usage.save();
+          console.log('[Blockchain] Usage recorded:', result.txHash);
+        })
+        .catch((err) => {
+          console.error('[Blockchain] Failed to record usage', err);
+        });
 
       // =========================
       // 🔔 Notification (safe)
